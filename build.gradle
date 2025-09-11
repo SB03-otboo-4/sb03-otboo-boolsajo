@@ -1,7 +1,30 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.5'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
+}
+
+test {
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        html.required = true
+        xml.required  = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/Q*.class',
+                    '**/*Dto*.class',
+                    '**/config/**',
+                    '**/exception/**'
+            ])
+        }))
+    }
 }
 
 group = 'com.sprint'
@@ -9,19 +32,19 @@ version = '0.0.1-SNAPSHOT'
 description = 'SB03-Otboo-Boolsajo'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
@@ -68,6 +91,20 @@ dependencies {
     testImplementation 'org.springframework.batch:spring-batch-test'
 }
 
+// QueryDsl : 자동 생성 소스 파일 저장 위치
+def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
+
+// QueryDsl : 자동 생성 소스 파일 gradle clean으로 제거
+clean {
+    delete file(querydslDir);
+}
+
+//QueryDsl : 자바 컴파일할때, 자동 생성된 Q 클래스를 querydslSrcDir 경로에 생성
+tasks.withType(JavaCompile) {
+    options.generatedSourceOutputDirectory = file(querydslDir)
+
+}
+
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
