@@ -1,0 +1,24 @@
+# 배포 환경
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  # JPA 설정
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  server:
+    port: 80
+
+  logging:
+    level:
+      root: info
+      org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener: off # @ConditionalOnClass 로그 숨기기
+      org.springframework.boot.autoconfigure: warn
