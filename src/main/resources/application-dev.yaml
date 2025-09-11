@@ -1,0 +1,23 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:otboo}?currentSchema=${POSTGRES_SCHEMA}
+    driver-class-name: org.postgresql.Driver
+    username: ${POSTGRES_USER:otboo_user}
+    password: ${POSTGRES_PASSWORD:otboo1234}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+  logging:
+    level:
+      root: INFO
+      com.sprint.otboo: DEBUG
+      org.hibernate.SQL: DEBUG
