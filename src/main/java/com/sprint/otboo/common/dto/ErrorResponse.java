@@ -1,22 +1,53 @@
 package com.sprint.otboo.common.dto;
 
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import java.time.Instant;
-import lombok.Builder;
-import org.springframework.http.HttpStatus;
+import java.util.HashMap;
+import java.util.Map;
 
-@Builder
 public record ErrorResponse(
     Instant timestamp,
-    int status,
+    String code,
     String message,
-    String details) {
+    Map<String, Object> details,
+    String exceptionType,
+    int status
+) {
 
-    public static ErrorResponse of(HttpStatus status, String message, String details) {
-        return ErrorResponse.builder()
-            .timestamp(Instant.now())
-            .status(status.value())
-            .message(message)
-            .details(details)
-            .build();
+    // ErrorCode 기반 생성자
+    public ErrorResponse(ErrorCode errorCode) {
+        this(
+            Instant.now(),
+            errorCode.name(),
+            errorCode.getMessage(),
+            new HashMap<>(),
+            errorCode.getClass().getSimpleName(),
+            errorCode.getStatus().value()
+        );
+    }
+
+    // CustomException 기반 생성자
+    public ErrorResponse(CustomException exception) {
+        this(
+            Instant.now(),
+            exception.getErrorCode().name(),
+            exception.getMessage(),
+            new HashMap<>(exception.getDetails()),
+            exception.getClass().getSimpleName(),
+            exception.getErrorCode().getStatus().value()
+        );
+    }
+
+    // 일반 Exception 기반 생성자
+    public ErrorResponse(Exception exception, int status) {
+        this(
+            Instant.now(),
+            exception.getClass().getSimpleName(),
+            exception.getMessage(),
+            new HashMap<>(),
+            exception.getClass().getSimpleName(),
+            status
+        );
     }
 }
