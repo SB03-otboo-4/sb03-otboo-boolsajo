@@ -23,8 +23,8 @@ public class GlobalExceptionHandler {
         log.error("커스텀 예외 발생: code={}, status={}, message={}",
             errorCode.name(), errorCode.getStatus().value(), e.getMessage());
 
-        ErrorResponse body = new ErrorResponse(errorCode);
-        return ResponseEntity.status(errorCode.getStatus()).body(body);
+        ErrorResponse body = new ErrorResponse(e);
+        return ResponseEntity.status(e.getErrorCode().getStatus()).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -43,11 +43,11 @@ public class GlobalExceptionHandler {
 
         ErrorResponse body = new ErrorResponse(
             Instant.now(),
-            "VALIDATION_ERROR",
-            "요청 데이터 유효성 검사에 실패했습니다",
+            ErrorCode.VALIDATION_FAILED.name(),
+            ErrorCode.VALIDATION_FAILED.getMessage(),
             validationErrors,
             ex.getClass().getSimpleName(),
-            HttpStatus.BAD_REQUEST.value()
+            ErrorCode.VALIDATION_FAILED.getStatus().value()
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
@@ -60,11 +60,11 @@ public class GlobalExceptionHandler {
 
         ErrorResponse body = new ErrorResponse(
             Instant.now(),
-            "AUTHORIZATION_DENIED",
-            "요청에 대한 권한이 없습니다",
+            ErrorCode.ACCESS_DENIED.name(),
+            ErrorCode.ACCESS_DENIED.getMessage(),
             new HashMap<>(),
             ex.getClass().getSimpleName(),
-            HttpStatus.FORBIDDEN.value()
+            ErrorCode.ACCESS_DENIED.getStatus().value()
         );
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);

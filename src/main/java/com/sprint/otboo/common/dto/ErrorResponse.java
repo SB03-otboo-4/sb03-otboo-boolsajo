@@ -33,7 +33,7 @@ public record ErrorResponse(
             Instant.now(),
             exception.getErrorCode().name(),
             exception.getMessage(),
-            new HashMap<>(),
+            new HashMap<>(exception.getDetails()),
             exception.getClass().getSimpleName(),
             exception.getErrorCode().getStatus().value()
         );
