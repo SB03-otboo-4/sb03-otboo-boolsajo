@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS user_profiles
     longitude               NUMERIC,
     x                       INTEGER,
     y                       INTEGER,
+    location_names          VARCHAR(255),
     temperature_sensitivity INT,
     CONSTRAINT fk_user_profiles_user
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
