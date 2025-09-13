@@ -77,4 +77,24 @@ public class FeedServiceTest {
         then(feedRepository).shouldHaveNoMoreInteractions();
         then(feedMapper).shouldHaveNoMoreInteractions();
     }
+
+    @Test
+    void 작성자가_없으면_피드_등록을_실패한다() {
+        // Given
+        UUID authorId = UUID.randomUUID();
+        UUID weatherId = UUID.randomUUID();
+        UUID clothesId = UUID.randomUUID();
+
+        FeedCreateRequest req = new FeedCreateRequest(
+            authorId, weatherId, List.of(clothesId), "오늘의 코디"
+        );
+
+        given(userRepository.getReferenceById(authorId))
+            .willThrow(new EntityNotFoundException("User not found: " + authorId));
+
+        // When / Then
+        assertThatThrownBy(() -> feedService.create(req))
+            .isInstanceOf(EntityNotFoundException.class)
+            .hasMessageContaining("User not found");
+    }
 }
