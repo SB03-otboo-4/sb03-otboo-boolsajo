@@ -27,9 +27,9 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE IF NOT EXISTS users
 (
     id                UUID PRIMARY KEY,
-    email             VARCHAR(255) NOT NULL,
+    email             VARCHAR(30) NOT NULL,
     name              VARCHAR(20)  NOT NULL,
-    password          VARCHAR(255),
+    password          VARCHAR(100),
     role              VARCHAR(20)  NOT NULL,
     locked            BOOLEAN      NOT NULL DEFAULT FALSE,
     updated_at        TIMESTAMPTZ,
