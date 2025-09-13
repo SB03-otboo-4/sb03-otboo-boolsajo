@@ -19,7 +19,7 @@ public class UserMapper {
             user.getProvider(),
             user.getLocked(),
             user.getProfileImageUrl(),
-            user.getProviderId(),
+            user.getProviderUserId(),
             user.getUpdatedAt()
         );
     }

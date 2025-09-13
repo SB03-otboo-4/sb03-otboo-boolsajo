@@ -2,6 +2,7 @@ package com.sprint.otboo.user.service;
 
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
@@ -30,6 +31,7 @@ public class UserService {
             .password(passwordEncoder.encode(request.password()))
             .email(request.email())
             .role(Role.USER)
+            .providerUserId(null)
             .build();
 
         User savedUser = userRepository.save(user);
