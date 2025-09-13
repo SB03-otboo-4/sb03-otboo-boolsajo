@@ -7,7 +7,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -21,13 +20,7 @@ import org.hibernate.annotations.OnDeleteAction;
 
 @SuperBuilder
 @Entity
-@Table(
-    name = "feeds",
-    indexes = {
-        @Index(name = "idx_feeds_author_created_at", columnList = "author_id, created_at"),
-        @Index(name = "idx_feeds_weather", columnList = "weather_id")
-    }
-)
+@Table(name = "feeds")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
