@@ -1,12 +1,12 @@
 package com.sprint.otboo.feed;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.controller.FeedController;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.service.FeedService;
 
-import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +23,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -95,6 +97,8 @@ class FeedControllerTest {
         // When & Then
         mockMvc.perform(
                 post("/api/feeds")
+                    .with(csrf())
+                    .with(user("tester").roles("USER"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsBytes(request))
             )
@@ -117,11 +121,13 @@ class FeedControllerTest {
         );
 
         given(feedService.create(any(FeedCreateRequest.class)))
-            .willThrow(new EntityNotFoundException("User not found"));
+            .willThrow(new UserNotFoundException());
 
         // When & Then
         mockMvc.perform(
                 post("/api/feeds")
+                    .with(csrf())
+                    .with(user("tester").roles("USER"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsBytes(request))
             )
@@ -142,6 +148,8 @@ class FeedControllerTest {
         // When & Then
         mockMvc.perform(
                 post("/api/feeds")
+                    .with(csrf())
+                    .with(user("tester").roles("USER"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsBytes(badRequest))
             )

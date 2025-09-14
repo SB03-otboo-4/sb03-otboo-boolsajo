@@ -2,6 +2,7 @@ package com.sprint.otboo.feed.service;
 
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
@@ -13,6 +14,7 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,11 +40,9 @@ public class FeedServiceImpl implements FeedService {
     @Transactional
     public FeedDto create(FeedCreateRequest request) {
         User author = userRepository.findById(request.authorId())
-            .orElseThrow(
-                () -> new EntityNotFoundException("User not found: " + request.authorId()));
+            .orElseThrow(() -> UserNotFoundException.withId(request.authorId()));
         Weather weather = weatherRepository.findById(request.weatherId())
-            .orElseThrow(
-                () -> new EntityNotFoundException("Weather not found: " + request.weatherId()));
+            .orElseThrow(() -> WeatherNotFoundException.withId(request.weatherId()));
 
         Feed feed = Feed.builder()
             .author(author)
