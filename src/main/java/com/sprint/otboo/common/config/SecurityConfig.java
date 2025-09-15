@@ -29,6 +29,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                    .ignoringRequestMatchers("/api/users/*/password") // 비밀번호 변경 확인 테스트를 위해 개발용으로 CSRF 제외
             )
             .sessionManagement(s ->
                     s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
