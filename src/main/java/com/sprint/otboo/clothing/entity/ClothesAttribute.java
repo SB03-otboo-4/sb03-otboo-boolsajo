@@ -10,6 +10,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+/**
+ * 의상 속성(ClothesAttribute) 엔티티
+ *
+ * <p>Clothes 엔티티에 속한 개별 속성을 관리
+ *
+ * <ul>
+ *   <li>clothesId: 속성이 속한 의상 ID</li>
+ *   <li>definitionId: 속성 정의 ID</li>
+ *   <li>value: 속성 값</li>
+ *   <li>BaseUpdatableEntity 상속( id, createdAt, updatedAt 관리 )</li>
+ * </ul>
+ */
 @Getter
 @Entity
 @Table(name = "clothes_attribute")
@@ -26,7 +38,14 @@ public class ClothesAttribute extends BaseUpdatableEntity {
     @Column(name = "value", length = 100, nullable = false)
     private String value;
 
-    // 팩토리 메서드
+    /**
+     * 팩토리 메서드
+     *
+     * @param clothesId 속성이 속한 의상 ID
+     * @param definitionId 속성 정의 ID
+     * @param value 속성 값
+     * @return 생성된 ClothesAttribute 엔티티
+     */
     public static ClothesAttribute create(UUID clothesId, UUID definitionId, String value) {
         return ClothesAttribute.builder()
             .clothesId(clothesId)
