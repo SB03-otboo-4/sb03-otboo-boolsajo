@@ -51,7 +51,6 @@ public class UserRepositoryTest {
         assertThat(savedUser.getProvider()).isEqualTo(LoginType.GENERAL);
         assertThat(savedUser.getLocked()).isFalse();
         assertThat(savedUser.getCreatedAt()).isNotNull();
-        assertThat(savedUser.getUpdatedAt()).isNotNull();
     }
 
     @Test

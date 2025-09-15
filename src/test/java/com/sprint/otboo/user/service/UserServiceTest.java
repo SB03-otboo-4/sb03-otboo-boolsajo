@@ -15,6 +15,7 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.user.service.impl.UserServiceImpl;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +40,7 @@ public class UserServiceTest {
     private UserMapper userMapper;
 
     @InjectMocks
-    private UserService userService;
+    private UserServiceImpl userService;
 
     @Test
     void 새로운_사용자_등록_성공() {
@@ -72,10 +73,7 @@ public class UserServiceTest {
             request.name(),
             Role.USER,
             LoginType.GENERAL,
-            false,
-            null,
-            null,
-            now
+            false
         );
 
         given(userRepository.save(any(User.class))).willReturn(savedUser);

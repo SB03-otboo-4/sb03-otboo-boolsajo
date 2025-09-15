@@ -18,7 +18,6 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.service.UserService;
 import java.time.Instant;
 import java.util.UUID;
-import org.h2.engine.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,10 +60,7 @@ public class UserControllerTest {
             request.name(),
             Role.USER,
             LoginType.GENERAL,
-            false,
-            null,
-            null,
-            now
+            false
         );
 
         given(userService.createUser(any(UserCreateRequest.class))).willReturn(responseDto);
@@ -84,8 +80,7 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.role").value("USER"))
             .andExpect(jsonPath("$.linkedOAuthProviders").value("GENERAL"))
             .andExpect(jsonPath("$.locked").value(false))
-            .andExpect(jsonPath("$.createdAt").exists())
-            .andExpect(jsonPath("$.updatedAt").exists());
+            .andExpect(jsonPath("$.createdAt").exists());
 
         then(userService).should().createUser(any(UserCreateRequest.class));
     }

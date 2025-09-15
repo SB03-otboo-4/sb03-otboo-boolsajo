@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public record ProfileDto(
     UUID userId,
-    String username,
+    String name,
     String profileImageUrl,
     Gender gender,
     LocalDate birthDate,

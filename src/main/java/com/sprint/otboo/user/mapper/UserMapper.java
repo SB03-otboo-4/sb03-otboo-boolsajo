@@ -17,10 +17,7 @@ public class UserMapper {
             user.getUsername(),
             user.getRole(),
             user.getProvider(),
-            user.getLocked(),
-            user.getProfileImageUrl(),
-            user.getProviderUserId(),
-            user.getUpdatedAt()
+            user.getLocked()
         );
     }
 
