@@ -5,21 +5,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.math.BigDecimal;
-
 @Entity
 @Table(
-    name = "weather_locations",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uq_weather_locations_lat_lng",
-            columnNames = {"latitude", "longitude"}
-        )
-    },
-    indexes = {
-        @Index(name = "idx_weather_locations_lat_lng", columnList = "latitude, longitude"),
-        @Index(name = "idx_weather_locations_created_at", columnList = "created_at")
-    }
+    name = "weather_locations"
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -28,10 +16,10 @@ import java.math.BigDecimal;
 public class WeatherLocation extends BaseEntity {
 
     @Column(name = "latitude", nullable = false)
-    private BigDecimal latitude;
+    private Double latitude;
 
     @Column(name = "longitude", nullable = false)
-    private BigDecimal longitude;
+    private Double longitude;
 
     @Column(name = "x", nullable = false)
     private Integer x;

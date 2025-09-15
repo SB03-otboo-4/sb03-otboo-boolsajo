@@ -9,16 +9,7 @@ import java.time.Instant;
 
 @Entity
 @Table(
-    name = "weathers",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uq_weathers_loc_target",
-            columnNames = {"location_id", "forecast_at"}
-        )
-    },
-    indexes = {
-        @Index(name = "idx_weathers_location", columnList = "location_id")
-    }
+    name = "weathers"
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -40,7 +31,6 @@ public class Weather extends BaseEntity {
     @Column(name = "forecast_at", nullable = false)
     private Instant forecastAt;
 
-    /** ------------------- 상태 Enum ------------------- */
     @Enumerated(EnumType.STRING)
     @Column(name = "sky_status", nullable = false, length = 20)
     private SkyStatus skyStatus;

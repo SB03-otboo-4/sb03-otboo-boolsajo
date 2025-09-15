@@ -2,6 +2,8 @@ package com.sprint.otboo.feed.service;
 
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.exception.clothing.UserClothesNotFoundException;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
@@ -14,8 +16,6 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
-import com.sprint.otboo.common.exception.user.UserNotFoundException;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,48 +47,56 @@ public class FeedServiceImpl implements FeedService {
         Feed feed = Feed.builder()
             .author(author)
             .weather(weather)
-            .content(request.content().trim())
+            .content(request.content())
             .likeCount(0L)
             .commentCount(0L)
             .build();
 
         Feed saved = feedRepository.save(feed);
 
-        List<UUID> clothesIds = Optional.ofNullable(request.clothesIds()).orElseGet(List::of);
+        Set<UUID> clothesIds = distinctIdSet(request.clothesIds());
         if (!clothesIds.isEmpty()) {
-            List<UUID> distinctIds = clothesIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-
-            List<Clothes> clothesList = clothesRepository.findAllByIdInAndUser_Id(distinctIds,
-                author.getId());
-
-            if (clothesList.size() != distinctIds.size()) {
-                Set<UUID> foundIds = clothesList.stream().map(Clothes::getId)
-                    .collect(Collectors.toSet());
-                List<UUID> missing = distinctIds.stream().filter(id -> !foundIds.contains(id))
-                    .toList();
-                throw new EntityNotFoundException(
-                    "Invalid clothes ids for user " + author.getId() + ": " + missing);
-            }
-
-            Instant now = Instant.now();
-            List<FeedClothes> links = new ArrayList<>(clothesList.size());
-            for (Clothes c : clothesList) {
-                if (!feedClothesRepository.existsByFeed_IdAndClothes_Id(saved.getId(), c.getId())) {
-                    links.add(FeedClothes.builder()
-                        .feed(saved)
-                        .clothes(c)
-                        .createdAt(now)
-                        .build());
-                }
-            }
-            if (!links.isEmpty()) {
-                feedClothesRepository.saveAll(links);
-            }
+            List<Clothes> clothesList =
+                clothesRepository.findAllByIdInAndUser_Id(new ArrayList<>(clothesIds),
+                    author.getId());
+            validateAllFound(author.getId(), clothesIds, clothesList);
+            linkFeedWithClothes(saved, clothesList);
         }
 
         return feedMapper.toDto(saved);
+    }
+
+    private Set<UUID> distinctIdSet(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return ids.stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private void validateAllFound(UUID userId, Set<UUID> requestedIds, List<Clothes> found) {
+        if (found.size() != requestedIds.size()) {
+            Set<UUID> foundIds = found.stream().map(Clothes::getId).collect(Collectors.toSet());
+            List<UUID> missing = requestedIds.stream()
+                .filter(id -> !foundIds.contains(id))
+                .toList();
+
+            throw UserClothesNotFoundException.withIds(userId, missing);
+        }
+    }
+
+    private void linkFeedWithClothes(Feed saved, List<Clothes> clothesList) {
+        Instant now = Instant.now();
+        List<FeedClothes> links = clothesList.stream()
+            .map(c -> FeedClothes.builder()
+                .feed(saved)
+                .clothes(c)
+                .createdAt(now)
+                .build())
+            .collect(Collectors.toList());
+
+        feedClothesRepository.saveAll(links);
+        saved.getFeedClothes().addAll(links);
     }
 }
