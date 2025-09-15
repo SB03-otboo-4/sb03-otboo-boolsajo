@@ -2,6 +2,7 @@ package com.sprint.otboo.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -32,7 +33,10 @@ public class SecurityConfig {
 
                 // Actuator
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+
+
                 .requestMatchers("/api/users").permitAll()
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/password").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .anyRequest().authenticated()
