@@ -1,5 +1,50 @@
 package com.sprint.otboo.user.entity;
 
-public class User {
+import com.sprint.otboo.common.base.BaseUpdatableEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
+@Entity
+@Table(name = "users")
+@SuperBuilder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
+public class User extends BaseUpdatableEntity {
+
+    @Column(name = "name", nullable = false, unique = true, length = 100)
+    private String username;
+
+    @Column(name = "password", length = 100)
+    private String password;
+
+    @Column(name = "email", nullable = false, unique = true, length = 100)
+    private String email;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 20, nullable = false)
+    private Role role;
+
+    @Column(name = "locked", nullable = false)
+    @Builder.Default
+    private Boolean locked = false;
+
+    @Column(name = "profile_image_url", length = 255)
+    private String profileImageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider", length = 10, nullable = false)
+    @Builder.Default
+    private LoginType provider = LoginType.GENERAL;
+
+    @Column(name = "provider_user_id", length = 255)
+    private String providerUserId;
 
 }

@@ -27,8 +27,8 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE IF NOT EXISTS users
 (
     id                UUID PRIMARY KEY,
-    email             VARCHAR(30) NOT NULL,
-    name              VARCHAR(20)  NOT NULL,
+    email             VARCHAR(100) NOT NULL,
+    name              VARCHAR(100)  NOT NULL,
     password          VARCHAR(100),
     role              VARCHAR(20)  NOT NULL,
     locked            BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS users
     created_at        TIMESTAMPTZ  NOT NULL,
     profile_image_url VARCHAR(255),
     provider_user_id   VARCHAR(255),
-    provider           VARCHAR(20)  NOT NULL,
+    provider           VARCHAR(10)  NOT NULL,
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT uq_users_provider_uid UNIQUE (provider, provider_user_id),
     CONSTRAINT chk_provider CHECK (provider IN ('GENERAL','GOOGLE','KAKAO'))
