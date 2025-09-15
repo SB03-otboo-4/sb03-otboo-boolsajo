@@ -185,6 +185,7 @@ public class UserServiceTest {
         then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
         then(passwordEncoder).should().encode(newPassword);
 
+        assertThat(existingUser.getPassword()).isEqualTo(encodedNewPassword);
     }
 
     @Test
@@ -196,7 +197,7 @@ public class UserServiceTest {
         String encodedCurrentPassword = "encodedCurrentPassword1234";
         String newPassword = "test5678";
 
-        User existngUser = User.builder()
+        User existingUser = User.builder()
             .id(userId)
             .username("testUser")
             .email("test@test.com")
@@ -211,7 +212,7 @@ public class UserServiceTest {
             newPassword
         );
 
-        given(userRepository.findById(userId)).willReturn(Optional.of(existngUser));
+        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
         given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(false);
 
         // when
@@ -227,6 +228,7 @@ public class UserServiceTest {
         then(passwordEncoder).should(never()).encode(anyString());
     }
 
+    @Test
     void 존재하지_않는_사용자_비밀번호_변경시_예외_발생() {
         // given
         UUID userId = UUID.randomUUID();
