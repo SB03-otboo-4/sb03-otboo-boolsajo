@@ -7,22 +7,25 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "users")
+@SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class User extends BaseUpdatableEntity {
 
-    @Column(name = "name", nullable = false, unique = true, length = 20)
+    @Column(name = "name", nullable = false, unique = true, length = 100)
     private String username;
 
-    @Column(name = "password", length = 20)
+    @Column(name = "password", length = 100)
     private String password;
 
-    @Column(name = "email", nullable = false, unique = true, length = 50)
+    @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
 
     @Enumerated(EnumType.STRING)
@@ -30,16 +33,18 @@ public class User extends BaseUpdatableEntity {
     private Role role;
 
     @Column(name = "locked", nullable = false)
-    private Boolean locked;
+    @Builder.Default
+    private Boolean locked = false;
 
-    @Column(name = "profile_image_url", length = 100)
+    @Column(name = "profile_image_url", length = 255)
     private String profileImageUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "provider", length = 20, nullable = false)
-    private LoginType provider;
+    @Column(name = "provider", length = 10, nullable = false)
+    @Builder.Default
+    private LoginType provider = LoginType.GENERAL;
 
-    @Column(name = "provider_id", length = 20, nullable = false)
-    private String providerId;
+    @Column(name = "provider_user_id", length = 255)
+    private String providerUserId;
 
 }
