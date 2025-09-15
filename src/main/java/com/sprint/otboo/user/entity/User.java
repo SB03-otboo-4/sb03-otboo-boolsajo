@@ -17,7 +17,6 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@SuperBuilder
 public class User extends BaseUpdatableEntity {
 
     @Column(name = "name", nullable = false, unique = true, length = 100)

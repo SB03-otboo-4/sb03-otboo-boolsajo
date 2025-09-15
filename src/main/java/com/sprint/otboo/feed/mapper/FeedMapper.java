@@ -5,13 +5,13 @@ import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.entity.FeedClothes;
-import com.sprint.otboo.user.mapper.UserMapper;
+import com.sprint.otboo.user.mapper.AuthorMapper;
 import com.sprint.otboo.weather.mapper.WeatherMapper;
 import org.mapstruct.*;
 
 @Mapper(
     componentModel = "spring",
-    uses = {UserMapper.class, ClothesMapper.class, WeatherMapper.class}
+    uses = {AuthorMapper.class, ClothesMapper.class, WeatherMapper.class}
 )
 public interface FeedMapper {
 
