@@ -12,10 +12,7 @@ public record UserDto(
     String name,
     Role role,
     LoginType linkedOAuthProviders,
-    Boolean locked,
-    String profileImageUrl,
-    String providerId,
-    Instant updatedAt
+    Boolean locked
 ) {
 
 }
