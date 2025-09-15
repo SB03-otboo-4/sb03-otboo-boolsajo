@@ -7,25 +7,25 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
-import com.sprint.otboo.feed.dto.data.FeedDto.Author;
-import com.sprint.otboo.feed.dto.data.FeedDto.OotdItem;
-import com.sprint.otboo.feed.dto.data.FeedDto.Weather.Precipitation;
-import com.sprint.otboo.feed.dto.data.FeedDto.Weather.Temperature;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
-import com.sprint.otboo.feed.repository.FeedClothesRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.feed.service.FeedServiceImpl;
+import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.weather.dto.data.PrecipitationDto;
+import com.sprint.otboo.weather.dto.data.TemperatureDto;
+import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
-import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -51,8 +51,6 @@ public class FeedServiceTest {
     UserRepository userRepository;
     @Mock
     WeatherRepository weatherRepository;
-    @Mock
-    FeedClothesRepository feedClothesRepository;
     @Mock
     ClothesRepository clothesRepository;
 
@@ -104,14 +102,14 @@ public class FeedServiceTest {
                 UUID.randomUUID(),
                 Instant.now(),
                 Instant.now(),
-                new Author(authorId, "홍길동", "profile.png"),
-                new FeedDto.Weather(
+                new AuthorDto(authorId, "홍길동", "profile.png"),
+                new WeatherSummaryDto(
                     weatherId,
                     "맑음",
-                    new Precipitation("비", 0.0, 0.0),
-                    new Temperature(25.0, -1.0, 20.0, 27.0)
+                    new PrecipitationDto("비", 0.0, 0.0),
+                    new TemperatureDto(25.0, -1.0, 20.0, 27.0)
                 ),
-                List.of(new OotdItem(clothesId, "셔츠")),
+                List.of(new OotdDto(clothesId, "셔츠", "image.png", ClothesType.TOP, List.of())),
                 "오늘의 코디",
                 10L,
                 2,
@@ -154,8 +152,8 @@ public class FeedServiceTest {
             given(userRepository.findById(authorId)).willReturn(java.util.Optional.empty());
             // When / Then
             assertThatThrownBy(() -> feedService.create(req))
-                .isInstanceOf(EntityNotFoundException.class)
-                .hasMessageContaining("User not found");
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("사용자를 찾을 수 없습니다.");
         }
     }
 

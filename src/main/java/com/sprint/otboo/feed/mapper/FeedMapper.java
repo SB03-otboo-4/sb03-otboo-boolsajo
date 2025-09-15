@@ -1,6 +1,6 @@
 package com.sprint.otboo.feed.mapper;
 
-import com.sprint.otboo.clothing.dto.data.OotdItemDto;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.entity.Feed;
@@ -25,7 +25,7 @@ public interface FeedMapper {
     })
     FeedDto toDto(Feed feed);
 
-    default OotdItemDto map(FeedClothes feedClothes, @Context ClothesMapper clothesMapper) {
+    default OotdDto map(FeedClothes feedClothes, @Context ClothesMapper clothesMapper) {
         if (feedClothes == null || feedClothes.getClothes() == null) {
             return null;
         }

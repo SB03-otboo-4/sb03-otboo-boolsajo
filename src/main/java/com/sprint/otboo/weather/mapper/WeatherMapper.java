@@ -1,6 +1,6 @@
 package com.sprint.otboo.weather.mapper;
 
-import com.sprint.otboo.weather.dto.data.FeedWeatherDto;
+import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.dto.data.PrecipitationDto;
 import com.sprint.otboo.weather.dto.data.TemperatureDto;
 import com.sprint.otboo.weather.entity.PrecipitationType;
@@ -16,7 +16,7 @@ public interface WeatherMapper {
     @Mapping(source = "skyStatus", target = "skyStatus")
     @Mapping(target = "temperature",   expression = "java(toTemperatureDto(weather))")
     @Mapping(target = "precipitation", expression = "java(toPrecipitationDto(weather))")
-    FeedWeatherDto toFeedWeatherDto(Weather weather);
+    WeatherSummaryDto toFeedWeatherDto(Weather weather);
 
     default TemperatureDto toTemperatureDto(Weather w) {
         if (w == null) return null;

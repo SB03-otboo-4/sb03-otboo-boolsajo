@@ -4,7 +4,7 @@ import com.sprint.otboo.clothing.entity.ClothesType;
 import java.util.List;
 import java.util.UUID;
 
-public record OotdItemDto(
+public record OotdDto(
     UUID clothesId,
     String name,
     String imageUrl,

@@ -1,12 +1,18 @@
 package com.sprint.otboo.feed;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
+import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.controller.FeedController;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.service.FeedService;
 
+import com.sprint.otboo.user.dto.data.AuthorDto;
+import com.sprint.otboo.weather.dto.data.PrecipitationDto;
+import com.sprint.otboo.weather.dto.data.TemperatureDto;
+import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -55,28 +61,21 @@ class FeedControllerTest {
             List.of(clothesId),
             "오늘의 코디"
         );
-        FeedDto.Author author = new FeedDto.Author(
-            UUID.randomUUID(),
-            "홍길동",
-            "https://example.com/profile.png"
+
+        AuthorDto author = new AuthorDto(
+            authorId, "홍길동", "https://example.com/profile.png"
         );
-
-        FeedDto.Weather.Temperature temperature =
-            new FeedDto.Weather.Temperature(20.5, -1.0, 18.0, 25.0);
-
-        FeedDto.Weather.Precipitation precipitation =
-            new FeedDto.Weather.Precipitation("RAIN", 12.3, 80.0);
-
-        FeedDto.Weather weather = new FeedDto.Weather(
-            UUID.randomUUID(),
-            "CLOUDY",
-            precipitation,
-            temperature
+        TemperatureDto temperature = new TemperatureDto(20.5, -1.0, 18.0, 25.0);
+        PrecipitationDto precipitation = new PrecipitationDto("RAIN", 12.3, 80.0);
+        WeatherSummaryDto weather = new WeatherSummaryDto(
+            weatherId, /* skyStatus */ "CLOUDY", precipitation, temperature
         );
-
-        FeedDto.OotdItem ootd = new FeedDto.OotdItem(
-            UUID.randomUUID(),
-            "스포츠 자켓"
+        OotdDto ootd = new OotdDto(
+            clothesId,
+            "스포츠 자켓",
+            "https://example.com/image.png",
+            ClothesType.TOP,
+            List.of()
         );
 
         FeedDto response = new FeedDto(

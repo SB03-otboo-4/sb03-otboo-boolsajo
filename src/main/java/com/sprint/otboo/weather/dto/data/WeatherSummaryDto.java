@@ -2,7 +2,7 @@ package com.sprint.otboo.weather.dto.data;
 
 import java.util.UUID;
 
-public record FeedWeatherDto(
+public record WeatherSummaryDto(
     UUID weatherId,
     String skyStatus,
     PrecipitationDto precipitation,

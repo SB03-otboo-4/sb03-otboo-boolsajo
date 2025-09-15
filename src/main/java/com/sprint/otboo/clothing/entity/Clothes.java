@@ -34,7 +34,7 @@ public class Clothes extends BaseUpdatableEntity {
     @Column(nullable = false, length = 20)
     private ClothesType type;
 
-
+    @Builder.Default
     @OneToMany(mappedBy = "clothes", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ClothesAttribute> attributes = new ArrayList<>();
 

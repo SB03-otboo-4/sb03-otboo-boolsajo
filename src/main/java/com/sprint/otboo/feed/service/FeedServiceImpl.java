@@ -8,22 +8,21 @@ import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
-import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.feed.mapper.FeedMapper;
-import com.sprint.otboo.feed.repository.FeedClothesRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -33,12 +32,13 @@ public class FeedServiceImpl implements FeedService {
     private final UserRepository userRepository;
     private final WeatherRepository weatherRepository;
     private final ClothesRepository clothesRepository;
-    private final FeedClothesRepository feedClothesRepository;
     private final FeedMapper feedMapper;
 
     @Override
     @Transactional
     public FeedDto create(FeedCreateRequest request) {
+        log.debug("[FeedServiceImpl] 피드 생성 요청: authorId={}, weatherId={}",
+            request.authorId(), request.weatherId());
         User author = userRepository.findById(request.authorId())
             .orElseThrow(() -> UserNotFoundException.withId(request.authorId()));
         Weather weather = weatherRepository.findById(request.weatherId())
@@ -53,14 +53,19 @@ public class FeedServiceImpl implements FeedService {
             .build();
 
         Feed saved = feedRepository.save(feed);
+        log.info("[FeedServiceImpl] 피드 저장 완료: feedId={}", saved.getId());
 
         Set<UUID> clothesIds = distinctIdSet(request.clothesIds());
         if (!clothesIds.isEmpty()) {
+            log.debug("[FeedServiceImpl] 의상 연결 시작: clothesIds={}", clothesIds);
             List<Clothes> clothesList =
                 clothesRepository.findAllByIdInAndUser_Id(new ArrayList<>(clothesIds),
                     author.getId());
             validateAllFound(author.getId(), clothesIds, clothesList);
             linkFeedWithClothes(saved, clothesList);
+
+            log.info("[FeedServiceImpl] 피드-의상 연결 완료: feedId={}, clothesCount={}",
+                saved.getId(), clothesList.size());
         }
 
         return feedMapper.toDto(saved);
@@ -82,21 +87,16 @@ public class FeedServiceImpl implements FeedService {
                 .filter(id -> !foundIds.contains(id))
                 .toList();
 
+            log.error("[FeedServiceImpl] 사용자의 의상 조회 실패: userId={}, missing={}",
+                userId, missing);
             throw UserClothesNotFoundException.withIds(userId, missing);
         }
     }
 
     private void linkFeedWithClothes(Feed saved, List<Clothes> clothesList) {
-        Instant now = Instant.now();
-        List<FeedClothes> links = clothesList.stream()
-            .map(c -> FeedClothes.builder()
-                .feed(saved)
-                .clothes(c)
-                .createdAt(now)
-                .build())
-            .collect(Collectors.toList());
-
-        feedClothesRepository.saveAll(links);
-        saved.getFeedClothes().addAll(links);
+        for (Clothes c : clothesList) {
+            saved.addClothes(c);
+            log.debug("[FeedServiceImpl] FeedClothes 엔티티 추가 완료: feedId={}", saved.getId());
+        }
     }
 }

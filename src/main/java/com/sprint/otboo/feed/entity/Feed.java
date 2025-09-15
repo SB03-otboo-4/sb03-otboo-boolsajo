@@ -1,5 +1,6 @@
 package com.sprint.otboo.feed.entity;
 
+import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.common.base.BaseUpdatableEntity;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.weather.entity.Weather;
@@ -12,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -60,4 +62,9 @@ public class Feed extends BaseUpdatableEntity {
     @Builder.Default
     @OneToMany(mappedBy = "feed", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FeedClothes> feedClothes = new ArrayList<>();
+
+    public void addClothes(Clothes clothes) {
+        FeedClothes link = FeedClothes.of(this, clothes);
+        this.feedClothes.add(link);
+    }
 }

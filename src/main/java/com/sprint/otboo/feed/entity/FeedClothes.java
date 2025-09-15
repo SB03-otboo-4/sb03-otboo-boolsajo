@@ -30,4 +30,11 @@ public class FeedClothes extends BaseEntity {
     @JoinColumn(name = "clothes_id", nullable = false,
         foreignKey = @ForeignKey(name = "fk_feed_clothes_clothes"))
     private Clothes clothes;
+
+    public static FeedClothes of(Feed feed, Clothes clothes) {
+        FeedClothes feedClothes = new FeedClothes();
+        feedClothes.feed = feed;
+        feedClothes.clothes = clothes;
+        return feedClothes;
+    }
 }
