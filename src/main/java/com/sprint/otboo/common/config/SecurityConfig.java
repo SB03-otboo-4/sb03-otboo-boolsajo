@@ -27,13 +27,11 @@ public class SecurityConfig {
                 .requestMatchers("/", "/index.html", "/*.html", "/*.css", "/*.js", "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.ico").permitAll()
                 .requestMatchers("/static/**", "/assets/**", "/public/**", "/resources/**", "/webjars/**").permitAll()
 
-
                 // API 문서 관련 (Swagger UI)
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
 
                 // Actuator
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-
 
                 .requestMatchers("/api/users").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/password").permitAll()

@@ -196,16 +196,45 @@ public class UserServiceTest {
     }
 
     @Test
+    void 기존_비밀번호와_동일한_비밀번호로_변경시_예외_발생() {
+        // given
+        UUID userId = UUID.randomUUID();
+        String currentPassword = "";
+        String encodedCurrentPassword = "samePassWord123";
+
+        User existingUser = createMockUserForPasswordChange(userId, encodedCurrentPassword);
+        ChangePasswordRequest request = createPasswordChangeRequest(currentPassword);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
+        given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(true);
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.SAME_PASSWORD);
+
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
+        then(passwordEncoder).should(never()).encode(anyString());
+    }
+
+    @Test
     void 비밀번호_변경_성공() {
         // given
         UUID userId = UUID.randomUUID();
         String newPassword = "newPassword1234";
+        String encodedCurrentPassword = "encodedOldPassword";
         String encodedNewPassword = "encodedNewPassword1234";
 
-        User existingUser = createMockUserForPasswordChange(userId, "oldEncodedPassword");
+        User existingUser = createMockUserForPasswordChange(userId, encodedCurrentPassword);
         ChangePasswordRequest request = createPasswordChangeRequest(newPassword);
 
         given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
+        given(passwordEncoder.matches(newPassword, encodedCurrentPassword)).willReturn(false);
         given(passwordEncoder.encode(newPassword)).willReturn(encodedNewPassword);
 
         // when
@@ -213,8 +242,8 @@ public class UserServiceTest {
 
         // then
         then(userRepository).should().findById(userId);
+        then(passwordEncoder).should().matches(newPassword, encodedCurrentPassword);
         then(passwordEncoder).should().encode(newPassword);
-        then(passwordEncoder).should(never()).matches(anyString(), anyString());
 
         assertThat(existingUser.getPassword()).isEqualTo(encodedNewPassword);
     }

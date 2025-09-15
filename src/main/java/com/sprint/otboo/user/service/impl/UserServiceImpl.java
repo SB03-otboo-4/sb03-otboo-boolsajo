@@ -51,6 +51,11 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // 피드백 사항인 새 비밀번호가 기존 비밀번호와 동일한지 검증하는 로직
+        if (passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new CustomException(ErrorCode.SAME_PASSWORD);
+        }
+
         String encodedNewPassword = passwordEncoder.encode(request.password());
         user.updatePassword(encodedNewPassword);
     }

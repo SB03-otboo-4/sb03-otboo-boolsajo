@@ -197,4 +197,25 @@ public class UserControllerTest {
         result.andExpect(status().isBadRequest());
         then(userService).should(never()).updatePassword(any(UUID.class), any(ChangePasswordRequest.class));
     }
+
+    @Test
+    @WithMockUser
+    void 기존_비밀번호와_동일한_비밀번호로_변경시_400_에러_발생() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        ChangePasswordRequest request = createPasswordChangeRequest("test1234");
+        CustomException exception = new CustomException(ErrorCode.SAME_PASSWORD);
+
+        doThrow(exception).when(userService).updatePassword(userId, request);
+
+        // when
+        ResultActions result = performUpdatePasswordRequest(userId, request);
+
+        // then
+        result.andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("SAME_PASSWORD"))
+            .andExpect(jsonPath("$.message").value("새로운 비밀번호가 기존 비밀번호와 동일합니다."));
+
+        then(userService).should().updatePassword(userId, request);
+    }
 }
