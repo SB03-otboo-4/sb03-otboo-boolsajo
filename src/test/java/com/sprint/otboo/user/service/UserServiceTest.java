@@ -8,6 +8,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.entity.LoginType;
@@ -32,32 +34,40 @@ public class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
-
     @Mock
     private PasswordEncoder passwordEncoder;
-
     @Mock
     private UserMapper userMapper;
-
     @InjectMocks
     private UserServiceImpl userService;
 
-    @Test
-    void 새로운_사용자_등록_성공() {
-        // given
-        UserCreateRequest request = new UserCreateRequest(
+    // 팩토리 메서드들
+    private UserCreateRequest createDefaultRequest() {
+        return new UserCreateRequest(
             "testUser",
             "test@test.com",
             "test1234"
         );
+    }
 
-        given(userRepository.existsByEmail(request.email())).willReturn(false);
-        given(userRepository.existsByUsername(request.name())).willReturn(false);
-        given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
+    private UserCreateRequest createRequestWithEmail(String email) {
+        return new UserCreateRequest(
+            "testUser",
+            email,
+            "test1234"
+        );
+    }
 
-        UUID userId = UUID.randomUUID();
-        Instant now = Instant.now();
-        User savedUser = User.builder()
+    private UserCreateRequest createRequestWithName(String name) {
+        return new UserCreateRequest(
+            name,
+            "test@test.com",
+            "test1234"
+        );
+    }
+
+    private User createMockUser(UserCreateRequest request) {
+        return User.builder()
             .username(request.name())
             .password("encodedPassword")
             .email(request.email())
@@ -65,19 +75,37 @@ public class UserServiceTest {
             .provider(LoginType.GENERAL)
             .locked(false)
             .build();
+    }
 
-        UserDto expectedUserDto = new UserDto(
-            userId,
-            now,
+    private UserDto createExpectedUserDto(UserCreateRequest request) {
+        return new UserDto(
+            UUID.randomUUID(),
+            Instant.now(),
             request.email(),
             request.name(),
             Role.USER,
             LoginType.GENERAL,
             false
         );
+    }
+
+    private void setupSuccessfulUserCreation(UserCreateRequest request) {
+        given(userRepository.existsByEmail(request.email())).willReturn(false);
+        given(userRepository.existsByUsername(request.name())).willReturn(false);
+        given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
+
+        User savedUser = createMockUser(request);
+        UserDto expectedDto = createExpectedUserDto(request);
 
         given(userRepository.save(any(User.class))).willReturn(savedUser);
-        given(userMapper.toUserDto(savedUser)).willReturn(expectedUserDto);
+        given(userMapper.toUserDto(savedUser)).willReturn(expectedDto);
+    }
+
+    @Test
+    void 새로운_사용자_등록_성공() {
+        // given
+        UserCreateRequest request = createDefaultRequest();
+        setupSuccessfulUserCreation(request);
 
         // when
         UserDto result = userService.createUser(request);
@@ -94,18 +122,13 @@ public class UserServiceTest {
         then(userRepository).should().existsByUsername(request.name());
         then(passwordEncoder).should().encode(request.password());
         then(userRepository).should().save(any(User.class));
-        then(userMapper).should().toUserDto(savedUser);
+        then(userMapper).should().toUserDto(any(User.class));
     }
 
     @Test
     void 중복된_이메일로_사용자_등록시_예외_발생() {
         // given
-        UserCreateRequest request = new UserCreateRequest(
-            "testUser",
-            "test@test.com",
-            "test1234"
-        );
-
+        UserCreateRequest request = createDefaultRequest();
         given(userRepository.existsByEmail(request.email())).willReturn(true);
 
         // when
@@ -113,8 +136,13 @@ public class UserServiceTest {
 
         // then
         assertThat(thrown)
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("이미 사용 중인 이메일입니다 : " + request.email());
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+
+        CustomException customException = (CustomException) thrown;
+        assertThat(customException.getDetails())
+            .containsEntry("email", request.email());
 
         then(userRepository).should().existsByEmail(request.email());
         then(userRepository).should(never()).existsByUsername(anyString());
@@ -124,12 +152,7 @@ public class UserServiceTest {
     @Test
     void 중복된_사용자명으로_사용자_등록시_예외_발생() {
         // given
-        UserCreateRequest request = new UserCreateRequest(
-            "testUser",
-            "test@test.com",
-            "test1234"
-        );
-
+        UserCreateRequest request = createDefaultRequest();
         given(userRepository.existsByEmail(request.email())).willReturn(false);
         given(userRepository.existsByUsername(request.name())).willReturn(true);
 
@@ -138,8 +161,13 @@ public class UserServiceTest {
 
         // then
         assertThat(thrown)
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("이미 사용 중인 이름입니다 : " + request.name());
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.DUPLICATE_USERNAME);
+
+        CustomException customException = (CustomException) thrown;
+        assertThat(customException.getDetails())
+            .containsEntry("username", request.name());
 
         then(userRepository).should().existsByEmail(request.email());
         then(userRepository).should().existsByUsername(request.name());

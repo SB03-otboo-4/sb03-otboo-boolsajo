@@ -1,5 +1,7 @@
 package com.sprint.otboo.user.service.impl;
 
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.entity.Role;
@@ -41,14 +43,19 @@ public class UserServiceImpl implements UserService {
 
     private void validateDuplicateEmail(String email) {
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다 : " + email);
+            CustomException exception = new CustomException(ErrorCode.DUPLICATE_EMAIL);
+            exception.addDetail("email", email);
+            throw exception;
         }
     }
 
     private void validateDuplicateUsername(String username) {
         if (userRepository.existsByUsername(username)) {
-            throw new IllegalArgumentException("이미 사용 중인 이름입니다 : " + username);
+            CustomException exception = new CustomException(ErrorCode.DUPLICATE_USERNAME);
+            exception.addDetail("username", username);
+            throw exception;
         }
     }
+
 }
 
