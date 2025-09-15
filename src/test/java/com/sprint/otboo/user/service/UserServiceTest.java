@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.sprint.otboo.user.dto.data.UserDto;
+import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -16,6 +17,7 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -146,5 +148,105 @@ public class UserServiceTest {
         then(userRepository).should().existsByEmail(request.email());
         then(userRepository).should().existsByUsername(request.name());
         then(userRepository).should(never()).save(any(User.class));
+    }
+
+    @Test
+    void 올바른_현재_비밀번호로_비밀번호_변경_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        String currentPassword = "test1234";
+        String encodedCurrentPassword = "encodedCurrentPassword1234";
+        String newPassword = "test5678";
+        String encodedNewPassword = "encodedCurrentPassword5678";
+
+        User existingUser = User.builder()
+            .id(userId)
+            .username("testUser")
+            .email("test@test.com")
+            .password(encodedCurrentPassword)
+            .role(Role.USER)
+            .locked(false)
+            .build();
+
+        ChangePasswordRequest request = new ChangePasswordRequest(
+            currentPassword,
+            newPassword
+        );
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
+        given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(true);
+        given(passwordEncoder.encode(newPassword)).willReturn(encodedNewPassword);
+
+        // when
+        userService.updatePassword(userId, request);
+
+        // then
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
+        then(passwordEncoder).should().encode(newPassword);
+
+    }
+
+    @Test
+    void 잘못된_현재_비밀번호로_비밀번호_변경시_예외_발생() {
+
+        // given
+        UUID userId = UUID.randomUUID();
+        String currentPassword = "wrongPassword";
+        String encodedCurrentPassword = "encodedCurrentPassword1234";
+        String newPassword = "test5678";
+
+        User existngUser = User.builder()
+            .id(userId)
+            .username("testUser")
+            .email("test@test.com")
+            .password(encodedCurrentPassword)
+            .role(Role.USER)
+            .locked(false)
+            .build();
+
+
+        ChangePasswordRequest request = new ChangePasswordRequest(
+            currentPassword,
+            newPassword
+        );
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(existngUser));
+        given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(false);
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("현재 비밀번호가 올바르지 않습니다");
+
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
+        then(passwordEncoder).should(never()).encode(anyString());
+    }
+
+    void 존재하지_않는_사용자_비밀번호_변경시_예외_발생() {
+        // given
+        UUID userId = UUID.randomUUID();
+        ChangePasswordRequest request = new ChangePasswordRequest(
+            "test1234",
+            "test5678"
+        );
+
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("사용자를 찾을 수 없습니다");
+
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should(never()).matches(anyString(), anyString());
+        then(passwordEncoder).should(never()).encode(anyString());
     }
 }
