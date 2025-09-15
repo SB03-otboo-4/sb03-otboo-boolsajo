@@ -8,6 +8,7 @@ public enum ErrorCode {
 
     // 400 BAD REQUEST
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "잘못된 입력 값입니다."),
+    SAME_PASSWORD(HttpStatus.BAD_REQUEST,"새로운 비밀번호가 기존 비밀번호와 동일합니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않은 메서드입니다."),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값 검증에 실패했습니다."),
 
