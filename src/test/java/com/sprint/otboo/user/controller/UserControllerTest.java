@@ -3,8 +3,10 @@ package com.sprint.otboo.user.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.UserDto;
+import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -69,6 +72,17 @@ public class UserControllerTest {
 
     private ResultActions performCreateUserRequest(UserCreateRequest request) throws Exception {
         return mockMvc.perform(post("/api/users")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)));
+    }
+
+    private ChangePasswordRequest createPasswordChangeRequest(String password) {
+        return new ChangePasswordRequest(password);
+    }
+
+    private ResultActions performUpdatePasswordRequest(UUID userId, ChangePasswordRequest request) throws Exception {
+        return mockMvc.perform(patch("/api/users/{userId}/password", userId)
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)));
@@ -132,5 +146,55 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.details.email").value(request.email()));
 
         then(userService).should().createUser(any(UserCreateRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    void 비밀번호_변경에_성공() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        ChangePasswordRequest request = createPasswordChangeRequest("newPassword1234");
+
+        // when
+        ResultActions result = performUpdatePasswordRequest(userId, request);
+
+        // then
+        result.andExpect(status().isNoContent());
+        then(userService).should().updatePassword(userId, request);
+    }
+
+    @Test
+    @WithMockUser
+    void 존재하지_않는_사용자_비밀번호_변경시_404_에러_발생() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        ChangePasswordRequest request = createPasswordChangeRequest("newPassword1234");
+        CustomException exception = new CustomException(ErrorCode.USER_NOT_FOUND);
+
+        doThrow(exception).when(userService).updatePassword(userId, request);
+
+        // when
+        ResultActions result = performUpdatePasswordRequest(userId, request);
+
+        // then
+        result.andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
+
+        then(userService).should().updatePassword(userId, request);
+    }
+
+    @Test
+    @WithMockUser
+    void 유효하지_않은_비밀번호_형식으로_변경시_400_에러_발생() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        ChangePasswordRequest request = createPasswordChangeRequest("test123");
+
+        // when
+        ResultActions result = performUpdatePasswordRequest(userId, request);
+
+        // then
+        result.andExpect(status().isBadRequest());
+        then(userService).should(never()).updatePassword(any(UUID.class), any(ChangePasswordRequest.class));
     }
 }

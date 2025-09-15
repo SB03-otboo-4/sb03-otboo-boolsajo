@@ -103,6 +103,25 @@ public class UserServiceTest {
         given(userMapper.toUserDto(savedUser)).willReturn(expectedDto);
     }
 
+    private ChangePasswordRequest createPasswordChangeRequest(String password) {
+        return new ChangePasswordRequest(password);
+    }
+
+    private User createMockUserForPasswordChange(UUID userId, String encodedPassword) {
+        return User.builder()
+            .id(userId)
+            .username("testUser")
+            .email("test@test.com")
+            .password(encodedPassword)
+            .role(Role.USER)
+            .locked(false)
+            .build();
+    }
+
+    private void setupUserNotFound(UUID userId) {
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+    }
+
     @Test
     void 새로운_사용자_등록_성공() {
         // given
@@ -177,30 +196,16 @@ public class UserServiceTest {
     }
 
     @Test
-    void 올바른_현재_비밀번호로_비밀번호_변경_성공() {
+    void 비밀번호_변경_성공() {
         // given
         UUID userId = UUID.randomUUID();
-        String currentPassword = "test1234";
-        String encodedCurrentPassword = "encodedCurrentPassword1234";
-        String newPassword = "test5678";
-        String encodedNewPassword = "encodedCurrentPassword5678";
+        String newPassword = "newPassword1234";
+        String encodedNewPassword = "encodedNewPassword1234";
 
-        User existingUser = User.builder()
-            .id(userId)
-            .username("testUser")
-            .email("test@test.com")
-            .password(encodedCurrentPassword)
-            .role(Role.USER)
-            .locked(false)
-            .build();
-
-        ChangePasswordRequest request = new ChangePasswordRequest(
-            currentPassword,
-            newPassword
-        );
+        User existingUser = createMockUserForPasswordChange(userId, "oldEncodedPassword");
+        ChangePasswordRequest request = createPasswordChangeRequest(newPassword);
 
         given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
-        given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(true);
         given(passwordEncoder.encode(newPassword)).willReturn(encodedNewPassword);
 
         // when
@@ -208,70 +213,27 @@ public class UserServiceTest {
 
         // then
         then(userRepository).should().findById(userId);
-        then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
         then(passwordEncoder).should().encode(newPassword);
+        then(passwordEncoder).should(never()).matches(anyString(), anyString());
 
         assertThat(existingUser.getPassword()).isEqualTo(encodedNewPassword);
-    }
-
-    @Test
-    void 잘못된_현재_비밀번호로_비밀번호_변경시_예외_발생() {
-
-        // given
-        UUID userId = UUID.randomUUID();
-        String currentPassword = "wrongPassword";
-        String encodedCurrentPassword = "encodedCurrentPassword1234";
-        String newPassword = "test5678";
-
-        User existingUser = User.builder()
-            .id(userId)
-            .username("testUser")
-            .email("test@test.com")
-            .password(encodedCurrentPassword)
-            .role(Role.USER)
-            .locked(false)
-            .build();
-
-
-        ChangePasswordRequest request = new ChangePasswordRequest(
-            currentPassword,
-            newPassword
-        );
-
-        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
-        given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(false);
-
-        // when
-        Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
-
-        // then
-        assertThat(thrown)
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("현재 비밀번호가 올바르지 않습니다");
-
-        then(userRepository).should().findById(userId);
-        then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
-        then(passwordEncoder).should(never()).encode(anyString());
     }
 
     @Test
     void 존재하지_않는_사용자_비밀번호_변경시_예외_발생() {
         // given
         UUID userId = UUID.randomUUID();
-        ChangePasswordRequest request = new ChangePasswordRequest(
-            "test1234",
-            "test5678"
-        );
-
-        given(userRepository.findById(userId)).willReturn(Optional.empty());
+        ChangePasswordRequest request = createPasswordChangeRequest("newPassword123");
+        setupUserNotFound(userId);
 
         // when
         Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
 
         // then
         assertThat(thrown)
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("사용자를 찾을 수 없습니다");
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.USER_NOT_FOUND);
 
         then(userRepository).should().findById(userId);
         then(passwordEncoder).should(never()).matches(anyString(), anyString());

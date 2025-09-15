@@ -25,6 +25,8 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
 
+
+
     @Override
     @Transactional
     public UserDto createUser(UserCreateRequest request) {
@@ -48,10 +50,6 @@ public class UserServiceImpl implements UserService {
     public void updatePassword(UUID userId, ChangePasswordRequest request) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("현재 비밀번호가 올바르지 않습니다.");
-        }
 
         String encodedNewPassword = passwordEncoder.encode(request.password());
         user.updatePassword(encodedNewPassword);
