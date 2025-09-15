@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.entity.Comment;
 import com.sprint.otboo.feed.entity.Feed;
