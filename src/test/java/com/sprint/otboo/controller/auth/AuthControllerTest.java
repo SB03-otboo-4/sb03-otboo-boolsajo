@@ -2,6 +2,7 @@ package com.sprint.otboo.controller.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sprint.otboo.auth.controller.AuthController;
@@ -26,7 +27,17 @@ public class AuthControllerTest {
             .andReturn();
 
         var setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
-        assertThat(setCookies.stream().anyMatch(h -> h.startsWith("XSRF-TOKEN="))).isTrue();
+        String xsrf = setCookies.stream()
+            .filter(v -> v.startsWith("XSRF-TOKEN="))
+            .findFirst().orElse(null);
+        assertThat(xsrf).as("XSRF-TOKEN Set-Cookie").isNotNull();
+        assertThat(xsrf).doesNotContain("HttpOnly");
+    }
+
+    @Test
+    void CSRF_없이_POST_요청하면_403_반환한다() throws Exception {
+        mockMvc.perform(post("/no-mapping"))
+            .andExpect(status().isForbidden());
     }
 
 }
