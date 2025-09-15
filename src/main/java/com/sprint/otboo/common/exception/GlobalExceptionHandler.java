@@ -7,6 +7,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -26,6 +27,39 @@ public class GlobalExceptionHandler {
         ErrorResponse body = new ErrorResponse(e);
         return ResponseEntity.status(e.getErrorCode().getStatus()).body(body);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.error("잘못된 인수 예외 발생: {}", e.getMessage());
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            "BAD_REQUEST",
+            e.getMessage(),
+            new HashMap<>(),
+            e.getClass().getSimpleName(),
+            HttpStatus.BAD_REQUEST.value()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        log.error("HTTP 메시지 읽기 오류 발생: {}", e.getMessage());
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            "BAD_REQUEST",
+            "잘못된 JSON 형식입니다.",
+            new HashMap<>(),
+            e.getClass().getSimpleName(),
+            HttpStatus.BAD_REQUEST.value()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(

@@ -27,16 +27,16 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE IF NOT EXISTS users
 (
     id                UUID PRIMARY KEY,
-    email             VARCHAR(255) NOT NULL,
-    name              VARCHAR(20)  NOT NULL,
-    password          VARCHAR(255),
+    email             VARCHAR(100) NOT NULL,
+    name              VARCHAR(100)  NOT NULL,
+    password          VARCHAR(100),
     role              VARCHAR(20)  NOT NULL,
     locked            BOOLEAN      NOT NULL DEFAULT FALSE,
-    updated_at        TIMESTAMPTZ,
-    created_at        TIMESTAMPTZ  NOT NULL,
+    updated_at        TIMESTAMP,
+    created_at        TIMESTAMP  NOT NULL,
     profile_image_url VARCHAR(255),
     provider_user_id   VARCHAR(255),
-    provider           VARCHAR(20)  NOT NULL,
+    provider           VARCHAR(10)  NOT NULL,
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT uq_users_provider_uid UNIQUE (provider, provider_user_id),
     CONSTRAINT chk_provider CHECK (provider IN ('GENERAL','GOOGLE','KAKAO'))
@@ -51,21 +51,21 @@ CREATE TABLE IF NOT EXISTS weather_locations
     x              INTEGER      NOT NULL,
     y              INTEGER      NOT NULL,
     location_names VARCHAR(255) NOT NULL,
-    created_at     TIMESTAMPTZ  NOT NULL,
+    created_at     TIMESTAMP  NOT NULL,
 
     CONSTRAINT ck_weather_locations_grid_x CHECK (x BETWEEN 0 AND 500),
     CONSTRAINT ck_weather_locations_grid_y CHECK (y BETWEEN 0 AND 500),
-    CONSTRAINT ck_location_names_nonempty CHECK (btrim(location_names) <> ''),
+    CONSTRAINT ck_location_names_nonempty CHECK (Trim(location_names) <> ''),
     CONSTRAINT uq_weather_locations_lat_lng UNIQUE (latitude, longitude)
 );
 
 CREATE TABLE IF NOT EXISTS weathers
 (
     id            UUID PRIMARY KEY,
-    forecasted_at TIMESTAMPTZ NOT NULL,
-    forecast_at   TIMESTAMPTZ NOT NULL,
+    forecasted_at TIMESTAMP NOT NULL,
+    forecast_at   TIMESTAMP NOT NULL,
     sky_status    VARCHAR(20) NOT NULL,
-    created_at    TIMESTAMPTZ NOT NULL,
+    created_at    TIMESTAMP NOT NULL,
     location_id   UUID        NOT NULL,
     speed_ms      NUMERIC,
     as_word       VARCHAR(20) NOT NULL,
@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS user_profiles
     longitude               NUMERIC,
     x                       INTEGER,
     y                       INTEGER,
+    location_names          VARCHAR(255),
     temperature_sensitivity INT,
     CONSTRAINT fk_user_profiles_user
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
@@ -110,7 +111,7 @@ CREATE TABLE IF NOT EXISTS clothes_attributes_def
     id            UUID PRIMARY KEY,
     name          VARCHAR(20) NOT NULL,
     select_values VARCHAR(255),
-    created_at    TIMESTAMPTZ NOT NULL
+    created_at    TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS clothes
@@ -120,8 +121,8 @@ CREATE TABLE IF NOT EXISTS clothes
     name       VARCHAR(50) NOT NULL,
     image_url  TEXT        NOT NULL,
     type       VARCHAR(20) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP,
     CONSTRAINT ck_clothes_type CHECK (
         type IN
         ('TOP', 'BOTTOM', 'DRESS', 'OUTER', 'UNDERWEAR', 'ACCESSORY', 'SHOES', 'SOCKS', 'HAT',
@@ -135,9 +136,9 @@ CREATE TABLE IF NOT EXISTS clothes_attribute
     id            UUID PRIMARY KEY,
     clothes_id    UUID         NOT NULL,
     definition_id UUID         NOT NULL,
-    value         VARCHAR(100) NOT NULL,
-    created_at    TIMESTAMPTZ  NOT NULL,
-    updated_at    TIMESTAMPTZ,
+    attr_value         VARCHAR(100) NOT NULL,
+    created_at    TIMESTAMP  NOT NULL,
+    updated_at    TIMESTAMP,
     CONSTRAINT fk_clothes_attr_clothes FOREIGN KEY (clothes_id) REFERENCES clothes (id) ON DELETE CASCADE,
     CONSTRAINT fk_clothes_attr_def FOREIGN KEY (definition_id) REFERENCES clothes_attributes_def (id)
 );
@@ -149,8 +150,8 @@ CREATE TABLE IF NOT EXISTS feeds
     content       TEXT        NOT NULL,
     like_count    BIGINT      NOT NULL DEFAULT 0,
     comment_count BIGINT      NOT NULL DEFAULT 0,
-    created_at    TIMESTAMPTZ NOT NULL,
-    updated_at    TIMESTAMPTZ,
+    created_at    TIMESTAMP NOT NULL,
+    updated_at    TIMESTAMP,
     author_id     UUID        NOT NULL,
     weather_id    UUID        NOT NULL,
     CONSTRAINT fk_feeds_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -161,7 +162,7 @@ CREATE TABLE IF NOT EXISTS comments
 (
     id         UUID PRIMARY KEY,
     content    VARCHAR(500) NOT NULL,
-    created_at TIMESTAMPTZ  NOT NULL,
+    created_at TIMESTAMP  NOT NULL,
     author_id  UUID         NOT NULL,
     feed_id    UUID         NOT NULL,
     CONSTRAINT fk_comments_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -171,7 +172,7 @@ CREATE TABLE IF NOT EXISTS comments
 CREATE TABLE IF NOT EXISTS feed_likes
 (
     id         UUID PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL,
     feed_id    UUID        NOT NULL,
     user_id    UUID        NOT NULL,
     CONSTRAINT uq_feed_likes UNIQUE (feed_id, user_id),
@@ -182,7 +183,7 @@ CREATE TABLE IF NOT EXISTS feed_likes
 CREATE TABLE IF NOT EXISTS feed_clothes
 (
     id         UUID PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL,
     feed_id    UUID        NOT NULL,
     clothes_id UUID        NOT NULL,
     CONSTRAINT fk_feed_clothes_feed FOREIGN KEY (feed_id) REFERENCES feeds (id) ON DELETE CASCADE,
@@ -195,7 +196,7 @@ CREATE TABLE IF NOT EXISTS recommendations
     id         UUID PRIMARY KEY,
     user_id    UUID        NOT NULL,
     weather_id UUID        NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_recommendations_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_recommendations_weather FOREIGN KEY (weather_id) REFERENCES weathers (id)
 );
@@ -214,7 +215,7 @@ CREATE TABLE IF NOT EXISTS direct_messages
 (
     id          UUID PRIMARY KEY,
     content     TEXT        NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
     sender_id   UUID        NOT NULL,
     receiver_id UUID        NOT NULL,
     CONSTRAINT fk_dm_sender FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE RESTRICT,
@@ -228,7 +229,7 @@ CREATE TABLE IF NOT EXISTS follows
     id           UUID PRIMARY KEY,
     follower_id  UUID        NOT NULL,
     following_id UUID        NOT NULL,
-    created_at   TIMESTAMPTZ NOT NULL,
+    created_at   TIMESTAMP NOT NULL,
     CONSTRAINT uq_follows UNIQUE (follower_id, following_id),
     CONSTRAINT ck_follows_self CHECK (follower_id <> following_id),
     CONSTRAINT fk_follows_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -243,7 +244,7 @@ CREATE TABLE IF NOT EXISTS notifications
     title       VARCHAR(50)  NOT NULL,
     content     VARCHAR(100) NOT NULL,
     level       VARCHAR(10)  NOT NULL,
-    created_at  TIMESTAMPTZ  NOT NULL,
+    created_at  TIMESTAMP  NOT NULL,
     CONSTRAINT ck_notifications_level CHECK (level IN ('INFO', 'WARNING', 'ERROR')),
     CONSTRAINT fk_notifications_receiver FOREIGN KEY (receiver_id) REFERENCES users (id) ON DELETE CASCADE
 );
