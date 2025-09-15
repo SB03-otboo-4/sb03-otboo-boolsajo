@@ -1,10 +1,9 @@
-package com.sprint.otboo.feed;
+package com.sprint.otboo.feed.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
-import com.sprint.otboo.feed.controller.FeedController;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.service.FeedService;
