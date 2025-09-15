@@ -21,10 +21,12 @@ public class AuthControllerTest {
 
     @Test
     public void csrf토큰_조회_성공() throws Exception {
+        // when
         var result = mockMvc.perform(get("/api/auth/csrf-token"))
             .andExpect(status().isNoContent())
             .andReturn();
 
+        // then
         var setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
         String xsrf = setCookies.stream()
             .filter(v -> v.startsWith("XSRF-TOKEN="))
@@ -35,6 +37,7 @@ public class AuthControllerTest {
 
     @Test
     void CSRF_없이_POST_요청하면_403_반환한다() throws Exception {
+        // when & then
         mockMvc.perform(post("/no-mapping"))
             .andExpect(status().isForbidden());
     }
