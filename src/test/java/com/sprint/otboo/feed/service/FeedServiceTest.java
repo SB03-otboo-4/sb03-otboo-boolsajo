@@ -1,4 +1,4 @@
-package com.sprint.otboo.feed;
+package com.sprint.otboo.feed.service;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,7 +17,6 @@ import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedRepository;
-import com.sprint.otboo.feed.service.FeedServiceImpl;
 import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
