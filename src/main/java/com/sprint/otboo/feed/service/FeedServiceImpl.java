@@ -3,12 +3,15 @@ package com.sprint.otboo.feed.service;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.common.exception.clothing.UserClothesNotFoundException;
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.mapper.FeedMapper;
+import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
@@ -16,6 +19,7 @@ import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +36,7 @@ public class FeedServiceImpl implements FeedService {
     private final UserRepository userRepository;
     private final WeatherRepository weatherRepository;
     private final ClothesRepository clothesRepository;
+    private final FeedLikeRepository feedLikeRepository;
     private final FeedMapper feedMapper;
 
     @Override
@@ -97,6 +102,22 @@ public class FeedServiceImpl implements FeedService {
         for (Clothes c : clothesList) {
             saved.addClothes(c);
             log.debug("[FeedServiceImpl] FeedClothes 엔티티 추가 완료: feedId={}", saved.getId());
+        }
+    }
+
+    @Transactional
+    @Override
+    public void addLike(UUID feedId, UUID userId) {
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> UserNotFoundException.withId(userId));
+
+        try {
+            feedLikeRepository.save(FeedLike.builder().feed(feed).user(user).build());
+            feed.increaseLikeCount();
+        } catch (DataIntegrityViolationException e) {
+            log.debug("[FeedServiceImpl] feedLike가 이미 존재함: feedId={}, userId={}", feedId, userId);
         }
     }
 }

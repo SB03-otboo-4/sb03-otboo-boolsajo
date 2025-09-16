@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
@@ -16,18 +15,16 @@ import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.mapper.FeedMapper;
+import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.fixture.ClothesFixture;
 import com.sprint.otboo.fixture.FeedFixture;
 import com.sprint.otboo.fixture.UserFixture;
 import com.sprint.otboo.fixture.WeatherFixture;
-import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
-import com.sprint.otboo.weather.dto.data.PrecipitationDto;
-import com.sprint.otboo.weather.dto.data.TemperatureDto;
-import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.time.Instant;
@@ -57,7 +54,8 @@ public class FeedServiceTest {
     WeatherRepository weatherRepository;
     @Mock
     ClothesRepository clothesRepository;
-
+    @Mock
+    FeedLikeRepository feedLikeRepository;
     @InjectMocks
     FeedServiceImpl feedService;
 
@@ -158,18 +156,17 @@ public class FeedServiceTest {
 
             given(userRepository.findById(userId)).willReturn(Optional.of(liker));
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
-            given(feedLikeRepository.existsByFeed_IdAndUser_Id(feedId, userId)).willReturn(false);
-            given(feedRepository.save(any(Feed.class))).willAnswer(inv -> inv.getArgument(0));
 
             // When
-            long result = feedService.like(feedId, userId);
+            feedService.addLike(feedId, userId);
 
             // Then
-            assertThat(result).isEqualTo(1L);
             assertThat(feed.getLikeCount()).isEqualTo(1L);
-            then(feedRepository).should().save(feed);
+            then(feedLikeRepository).should().save(any(FeedLike.class));
             then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(feedRepository).should().findById(feedId);
             then(feedRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).should().findById(userId);
             then(userRepository).shouldHaveNoMoreInteractions();
         }
 
@@ -182,9 +179,31 @@ public class FeedServiceTest {
             given(feedRepository.findById(feedId)).willReturn(Optional.empty());
 
             // When / Then
-            assertThatThrownBy(() -> feedService.like(feedId, userId))
+            assertThatThrownBy(() -> feedService.addLike(feedId, userId))
                 .isInstanceOf(FeedNotFoundException.class)
                 .hasMessageContaining("피드를 찾을 수 없습니다.");
+        }
+
+        @Test
+        void 유저가_존재하지_않으면_예외가_발생한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            Feed feed = Feed.builder()
+                .id(feedId)
+                .author(User.builder().id(UUID.randomUUID()).build())
+                .content("hi")
+                .likeCount(0L)
+                .commentCount(0L)
+                .build();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+            given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> feedService.addLike(feedId, userId))
+                .isInstanceOf(UserNotFoundException.class);
         }
     }
 }
