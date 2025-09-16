@@ -2,9 +2,11 @@ package com.sprint.otboo.user.service.impl;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
@@ -58,6 +60,18 @@ public class UserServiceImpl implements UserService {
 
         String encodedNewPassword = passwordEncoder.encode(request.password());
         user.updatePassword(encodedNewPassword);
+    }
+
+    @Override
+    @Transactional
+    public UserDto updateUserLockStatus(UUID userId, UserLockUpdateRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.updateLockStatus(request.locked());
+        User savedUser = userRepository.save(user);
+
+        return userMapper.toUserDto(savedUser);
     }
 
     private void validateDuplicateEmail(String email) {

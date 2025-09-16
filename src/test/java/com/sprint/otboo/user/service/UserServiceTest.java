@@ -13,6 +13,7 @@ import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
@@ -120,6 +121,34 @@ public class UserServiceTest {
 
     private void setupUserNotFound(UUID userId) {
         given(userRepository.findById(userId)).willReturn(Optional.empty());
+    }
+
+    private UserLockUpdateRequest createLockUpdateRequest(boolean locked) {
+        return new UserLockUpdateRequest(locked);
+    }
+
+    private User createMockUserForLockUpdate(UUID userId, boolean currentLockStatus) {
+        return User.builder()
+            .id(userId)
+            .username("testUser")
+            .email("test@test.com")
+            .password("encodedPassword")
+            .role(Role.USER)
+            .locked(currentLockStatus)
+            .provider(LoginType.GENERAL)
+            .build();
+    }
+
+    private UserDto createExpectedUserDtoForLockUpdate(UUID userId, boolean locked) {
+        return new UserDto(
+            userId,
+            Instant.now(),
+            "test@test.com",
+            "testUser",
+            Role.USER,
+            LoginType.GENERAL,
+            locked
+        );
     }
 
     @Test
@@ -267,5 +296,77 @@ public class UserServiceTest {
         then(userRepository).should().findById(userId);
         then(passwordEncoder).should(never()).matches(anyString(), anyString());
         then(passwordEncoder).should(never()).encode(anyString());
+    }
+
+    @Test
+    void 계정_잠금_상태_변경_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserLockUpdateRequest request = createLockUpdateRequest(true);
+        User mockUser = createMockUserForLockUpdate(userId, false);
+        UserDto expectedDto = createExpectedUserDtoForLockUpdate(userId, true);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(userRepository.save(any(User.class))).willReturn(mockUser);
+        given(userMapper.toUserDto(mockUser)).willReturn(expectedDto);
+
+        // when
+        UserDto result = userService.updateUserLockStatus(userId, request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(userId);
+        assertThat(result.locked()).isTrue();
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should().save(any(User.class));
+        then(userMapper).should().toUserDto(any(User.class));
+    }
+
+    @Test
+    void 계정_잠금_해제_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserLockUpdateRequest request = createLockUpdateRequest(false);
+        User mockUser = createMockUserForLockUpdate(userId, true);
+        UserDto expectedDto = createExpectedUserDtoForLockUpdate(userId, false);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(userRepository.save(any(User.class))).willReturn(mockUser);
+        given(userMapper.toUserDto(mockUser)).willReturn(expectedDto);
+
+
+        // when
+        UserDto result = userService.updateUserLockStatus(userId, request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(userId);
+        assertThat(result.locked()).isFalse();
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should().save(any(User.class));
+        then(userMapper).should().toUserDto(mockUser);
+    }
+
+    @Test
+    void 계정_잠금_상태_변경_실패_사용자_없음() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserLockUpdateRequest request = createLockUpdateRequest(true);
+        setupUserNotFound(userId);
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updateUserLockStatus(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should(never()).save(any(User.class));
+        then(userMapper).should(never()).toUserDto(any(User.class));
     }
 }
