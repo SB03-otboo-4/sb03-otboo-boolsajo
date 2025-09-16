@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.UserDto;
+import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -19,6 +20,7 @@ import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.service.impl.UserServiceImpl;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -101,6 +103,25 @@ public class UserServiceTest {
         given(userMapper.toUserDto(savedUser)).willReturn(expectedDto);
     }
 
+    private ChangePasswordRequest createPasswordChangeRequest(String password) {
+        return new ChangePasswordRequest(password);
+    }
+
+    private User createMockUserForPasswordChange(UUID userId, String encodedPassword) {
+        return User.builder()
+            .id(userId)
+            .username("testUser")
+            .email("test@test.com")
+            .password(encodedPassword)
+            .role(Role.USER)
+            .locked(false)
+            .build();
+    }
+
+    private void setupUserNotFound(UUID userId) {
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+    }
+
     @Test
     void 새로운_사용자_등록_성공() {
         // given
@@ -172,5 +193,79 @@ public class UserServiceTest {
         then(userRepository).should().existsByEmail(request.email());
         then(userRepository).should().existsByUsername(request.name());
         then(userRepository).should(never()).save(any(User.class));
+    }
+
+    @Test
+    void 기존_비밀번호와_동일한_비밀번호로_변경시_예외_발생() {
+        // given
+        UUID userId = UUID.randomUUID();
+        String currentPassword = "";
+        String encodedCurrentPassword = "samePassWord123";
+
+        User existingUser = createMockUserForPasswordChange(userId, encodedCurrentPassword);
+        ChangePasswordRequest request = createPasswordChangeRequest(currentPassword);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
+        given(passwordEncoder.matches(currentPassword, encodedCurrentPassword)).willReturn(true);
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.SAME_PASSWORD);
+
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should().matches(currentPassword, encodedCurrentPassword);
+        then(passwordEncoder).should(never()).encode(anyString());
+    }
+
+    @Test
+    void 비밀번호_변경_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        String newPassword = "newPassword1234";
+        String encodedCurrentPassword = "encodedOldPassword";
+        String encodedNewPassword = "encodedNewPassword1234";
+
+        User existingUser = createMockUserForPasswordChange(userId, encodedCurrentPassword);
+        ChangePasswordRequest request = createPasswordChangeRequest(newPassword);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(existingUser));
+        given(passwordEncoder.matches(newPassword, encodedCurrentPassword)).willReturn(false);
+        given(passwordEncoder.encode(newPassword)).willReturn(encodedNewPassword);
+
+        // when
+        userService.updatePassword(userId, request);
+
+        // then
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should().matches(newPassword, encodedCurrentPassword);
+        then(passwordEncoder).should().encode(newPassword);
+
+        assertThat(existingUser.getPassword()).isEqualTo(encodedNewPassword);
+    }
+
+    @Test
+    void 존재하지_않는_사용자_비밀번호_변경시_예외_발생() {
+        // given
+        UUID userId = UUID.randomUUID();
+        ChangePasswordRequest request = createPasswordChangeRequest("newPassword123");
+        setupUserNotFound(userId);
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updatePassword(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+        then(userRepository).should().findById(userId);
+        then(passwordEncoder).should(never()).matches(anyString(), anyString());
+        then(passwordEncoder).should(never()).encode(anyString());
     }
 }

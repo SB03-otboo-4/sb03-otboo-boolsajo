@@ -3,12 +3,14 @@ package com.sprint.otboo.user.service.impl;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.UserDto;
+import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.service.UserService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,8 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+
+
 
     @Override
     @Transactional
@@ -39,6 +43,21 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
         return userMapper.toUserDto(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public void updatePassword(UUID userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 피드백 사항인 새 비밀번호가 기존 비밀번호와 동일한지 검증하는 로직
+        if (passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new CustomException(ErrorCode.SAME_PASSWORD);
+        }
+
+        String encodedNewPassword = passwordEncoder.encode(request.password());
+        user.updatePassword(encodedNewPassword);
     }
 
     private void validateDuplicateEmail(String email) {
