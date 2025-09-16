@@ -12,9 +12,11 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -29,6 +31,8 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public CommentDto create(UUID authorId, UUID feedId, String content) {
+        log.debug("[CommentServiceImpl] 댓글 생성 시작: authorId={}, feedId={}, content={}",
+            authorId, feedId, content);
         User author = userRepository.findById(authorId)
             .orElseThrow(() -> UserNotFoundException.withId(authorId));
 
@@ -42,6 +46,7 @@ public class CommentServiceImpl implements CommentService {
             .build();
 
         Comment saved = commentRepository.save(entity);
+        log.debug("[CommentServiceImpl] 댓글 생성 완료: commentId={}", saved.getId());
 
         return commentMapper.toDto(saved);
     }
