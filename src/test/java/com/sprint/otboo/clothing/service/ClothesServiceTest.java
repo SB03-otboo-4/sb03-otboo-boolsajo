@@ -8,29 +8,32 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
+import com.sprint.otboo.clothing.entity.Clothes;
+import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.mapper.ClothesAttributeMapper;
-import com.sprint.otboo.clothing.mapper.ClothesMapperImpl;
+import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.storage.FileStorageService;
+import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -58,32 +61,54 @@ public class ClothesServiceTest {
     @InjectMocks
     private ClothesServiceImpl clothesService;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        ClothesAttributeMapper clothesAttributeMapper = Mappers.getMapper(ClothesAttributeMapper.class);
-
-        ClothesMapperImpl clothesMapper;
-        try {
-            Constructor<ClothesMapperImpl> constructor = ClothesMapperImpl.class.getDeclaredConstructor(ClothesAttributeMapper.class);
-            clothesMapper = constructor.newInstance(clothesAttributeMapper);
-        } catch (NoSuchMethodException e) {
-            clothesMapper = new ClothesMapperImpl();
-            Field field = ClothesMapperImpl.class.getDeclaredField("clothesAttributeMapper");
-            field.setAccessible(true);
-            field.set(clothesMapper, clothesAttributeMapper);
+    // 테스트용 ClothesMapper 구현
+    static class TestClothesMapper implements ClothesMapper {
+        @Override
+        public ClothesDto toDto(Clothes clothes) {
+            List<ClothesAttributeDto> attrs = clothes.getAttributes().stream()
+                .map(attr -> new ClothesAttributeDto(attr.getDefinition().getId(), attr.getValue()))
+                .collect(Collectors.toList());
+            return new ClothesDto(
+                clothes.getUser().getId(),
+                clothes.getId(),
+                clothes.getName(),
+                clothes.getImageUrl(),
+                clothes.getType(),
+                attrs
+            );
         }
 
+        @Override
+        public OotdDto toOotdDto(FeedClothes feedClothes) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ClothesAttributeWithDefDto toClothesAttributeWithDefDto(ClothesAttribute attribute) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    // 테스트용 ClothesAttributeMapper 구현
+    static class TestClothesAttributeMapper implements ClothesAttributeMapper {
+        @Override
+        public ClothesAttributeDto toDto(ClothesAttribute entity) {
+            return new ClothesAttributeDto(entity.getDefinition().getId(), entity.getValue());
+        }
+    }
+
+    @BeforeEach
+    void setUp() {
         this.clothesService = new ClothesServiceImpl(
             clothesRepository,
             clothesAttributeRepository,
-            clothesMapper,
-            clothesAttributeMapper,
+            new TestClothesMapper(),
+            new TestClothesAttributeMapper(),
             fileStorageService,
             userRepository,
             defRepository
         );
     }
-
 
     @Test
     void 옷_등록_성공() {
@@ -93,14 +118,25 @@ public class ClothesServiceTest {
         var attrDto = new ClothesAttributeDto(defId, "Black");
         var request = new ClothesCreateRequest(ownerId, "화이트 티셔츠", ClothesType.TOP, List.of(attrDto));
         MultipartFile image = null;
-
         var user = User.builder().id(ownerId).build();
         var def = ClothesAttributeDef.builder().id(defId).name("색상").build();
 
         when(userRepository.findById(ownerId)).thenReturn(Optional.of(user));
         when(defRepository.findById(defId)).thenReturn(Optional.of(def));
-        when(clothesRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(fileStorageService.upload(image)).thenReturn("/uploads/test.png");
+
+        // clothesRepository.save 시 attributes를 실제 엔티티로 연결
+        when(clothesRepository.save(any())).thenAnswer(inv -> {
+            Clothes c = inv.getArgument(0);
+            if (c.getAttributes() != null) {
+                List<ClothesAttribute> attrs = c.getAttributes().stream()
+                    .map(attr -> ClothesAttribute.create(c, def, attr.getValue()))
+                    .toList();
+                c.getAttributes().clear();
+                c.getAttributes().addAll(attrs);
+            }
+            return c;
+        });
 
         // when
         ClothesDto result = clothesService.createClothes(request, image);
@@ -116,7 +152,6 @@ public class ClothesServiceTest {
         verify(clothesRepository, times(1)).save(any());
         verify(fileStorageService, times(1)).upload(image);
     }
-
 
     @Test
     void 요청DTO가_null이면_예외발생() {
