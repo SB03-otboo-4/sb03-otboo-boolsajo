@@ -11,6 +11,7 @@ import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
@@ -134,4 +135,56 @@ public class FeedServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("피드 좋아요 등록 테스트")
+    class FeedLikeCreateTests {
+
+        @Test
+        void 좋아요를_등록하면_likeCount가_1_증가한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            User liker = User.builder().id(userId).build();
+            Feed feed = Feed.builder()
+                .id(feedId)
+                .author(User.builder().id(UUID.randomUUID()).build())
+                .content("hi")
+                .likeCount(0L)
+                .commentCount(0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(liker));
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+            given(feedLikeRepository.existsByFeed_IdAndUser_Id(feedId, userId)).willReturn(false);
+            given(feedRepository.save(any(Feed.class))).willAnswer(inv -> inv.getArgument(0));
+
+            // When
+            long result = feedService.like(feedId, userId);
+
+            // Then
+            assertThat(result).isEqualTo(1L);
+            assertThat(feed.getLikeCount()).isEqualTo(1L);
+            then(feedRepository).should().save(feed);
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(feedRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 피드가_존재하지_않으면_예외가_발생한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.empty());
+
+            // When / Then
+            assertThatThrownBy(() -> feedService.like(feedId, userId))
+                .isInstanceOf(FeedNotFoundException.class)
+                .hasMessageContaining("피드를 찾을 수 없습니다.");
+        }
+    }
 }
