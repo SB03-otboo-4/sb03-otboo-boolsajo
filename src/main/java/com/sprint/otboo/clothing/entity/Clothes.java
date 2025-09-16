@@ -38,6 +38,4 @@ public class Clothes extends BaseUpdatableEntity {
     @OneToMany(mappedBy = "clothes", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ClothesAttribute> attributes = new ArrayList<>();
 
-    @OneToMany(mappedBy = "clothes", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<FeedClothes> feedClothes = new ArrayList<>();
 }

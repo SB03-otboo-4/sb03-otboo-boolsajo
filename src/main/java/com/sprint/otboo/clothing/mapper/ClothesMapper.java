@@ -1,7 +1,9 @@
 package com.sprint.otboo.clothing.mapper;
 
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
+import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
+import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.feed.entity.FeedClothes;
 import org.mapstruct.Mapper;
@@ -42,4 +44,13 @@ public interface ClothesMapper {
             .filter(s -> !s.isEmpty())
             .toList();
     }
+    /**
+     * 의상 엔티티를 DTO로 변환.
+     *
+     * @param clothes 의상 엔티티
+     * @return 의상 DTO
+     */
+    @Mapping(target = "ownerId", source = "user.id")
+    @Mapping(target = "attributes", source = "attributes")
+    ClothesDto toDto(Clothes clothes);
 }
