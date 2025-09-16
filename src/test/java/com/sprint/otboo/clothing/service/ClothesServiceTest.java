@@ -24,9 +24,11 @@ import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.service.impl.ClothesServiceImpl;
 import com.sprint.otboo.clothing.storage.FileStorageService;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -220,4 +222,91 @@ public class ClothesServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.attributes()).isEmpty();
     }
+
+    @Test
+    void 사용자_의상_목록조회() {
+        // given
+        UUID ownerId = UUID.randomUUID();
+
+        // when & then
+        assertThatThrownBy(() -> clothesService.getClothesList(
+            ownerId.toString(), 10, null, null, null
+        )).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void 사용자의_의상_목록_DESC조회_전체타입() {
+        // given: 사용자와 의상 엔티티 2개
+        UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
+
+        Clothes c1 = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("티셔츠")
+            .type(ClothesType.TOP)
+            .user(user)
+            .createdAt(Instant.now().minusSeconds(60))
+            .build();
+
+        Clothes c2 = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("재킷")
+            .type(ClothesType.OUTER)
+            .user(user)
+            .createdAt(Instant.now())
+            .build();
+
+        List<Clothes> mockList = List.of(c2, c1);
+
+        when(clothesRepository.findClothesByOwner(ownerId, null, null, null, 10))
+            .thenReturn(mockList);
+        when(clothesRepository.countByOwner(ownerId, null))
+            .thenReturn(2L);
+
+        // when: 서비스 호출
+        CursorPageResponse<ClothesDto> response = clothesService.getClothesList(
+            ownerId.toString(), 10, null, null, null
+        );
+
+        // then: 응답 검증
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(2);
+        assertThat(response.content().get(0).name()).isEqualTo("재킷");
+        assertThat(response.content().get(1).name()).isEqualTo("티셔츠");
+        assertThat(response.hasNext()).isFalse();
+        assertThat(response.totalCount()).isEqualTo(2);
+    }
+
+    @Test
+    void 사용자의_의상_목록_타입필터() {
+        // given: TOP 타입 의상 1개
+        UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("티셔츠")
+            .type(ClothesType.TOP)
+            .user(user)
+            .createdAt(Instant.now())
+            .build();
+
+        List<Clothes> mockList = List.of(top);
+
+        when(clothesRepository.findClothesByOwner(ownerId, ClothesType.TOP, null, null, 10))
+            .thenReturn(mockList);
+        when(clothesRepository.countByOwner(ownerId, ClothesType.TOP))
+            .thenReturn(1L);
+
+        // when: 서비스 호출
+        CursorPageResponse<ClothesDto> response = clothesService.getClothesList(
+            ownerId.toString(), 10, null, null, ClothesType.TOP
+        );
+
+        // then: 응답 검증
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).type()).isEqualTo(ClothesType.TOP);
+        assertThat(response.totalCount()).isEqualTo(1);
+    }
+
 }
