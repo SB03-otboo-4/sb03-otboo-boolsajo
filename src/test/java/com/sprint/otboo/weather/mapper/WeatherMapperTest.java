@@ -2,8 +2,12 @@ package com.sprint.otboo.weather.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
+import com.sprint.otboo.weather.entity.WeatherLocation;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@DisplayName("WeatherMapper 테스트")
 class WeatherMapperTest {
 
     @Test
@@ -29,7 +33,7 @@ class WeatherMapperTest {
         wl.setLocationNames("서울특별시/중구/태평로1가");
 
         WeatherLocationResponse dto = WeatherMapper.toLocationResponse(wl);
-        assertThat(dto.locationNames()).containseExactly("서울특별시","중구","태평로1가");
+        assertThat(dto.locationNames()).containsExactly("서울특별시","중구","태평로1가");
     }
 
     @Test
