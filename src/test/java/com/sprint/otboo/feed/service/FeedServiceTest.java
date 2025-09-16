@@ -17,6 +17,10 @@ import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedRepository;
+import com.sprint.otboo.fixture.ClothesFixture;
+import com.sprint.otboo.fixture.FeedFixture;
+import com.sprint.otboo.fixture.UserFixture;
+import com.sprint.otboo.fixture.WeatherFixture;
 import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
@@ -66,53 +70,27 @@ public class FeedServiceTest {
             UUID authorId = UUID.randomUUID();
             UUID weatherId = UUID.randomUUID();
             UUID clothesId = UUID.randomUUID();
+            UUID feedId = UUID.randomUUID();
 
-            User author = User.builder()
-                .id(authorId)
-                .username("홍길동")
-                .profileImageUrl("profile.png")
-                .build();
+            User author = UserFixture.create(authorId, "홍길동", "profile.png");
+            Weather weather = WeatherFixture.create(weatherId);
+            Clothes clothes = ClothesFixture.create(clothesId, author, "셔츠", "image.png",
+                ClothesType.TOP);
 
-            Weather weather = Weather.builder()
-                .id(weatherId)
-                .build();
+            FeedCreateRequest request = FeedFixture.createRequest(authorId, weatherId,
+                List.of(clothesId), "오늘의 코디");
 
-            Clothes clothes = Clothes.builder()
-                .id(clothesId)
-                .user(author)
-                .name("셔츠")
-                .imageUrl("image.png")
-                .type(ClothesType.TOP)
-                .build();
+            Instant now = Instant.now();
+            Feed savedFeed = FeedFixture.createEntity(feedId, author, weather, "오늘의 코디", now, now);
 
-            FeedCreateRequest request =
-                new FeedCreateRequest(authorId, weatherId, List.of(clothesId), "오늘의 코디");
-
-            Feed savedFeed = Feed.builder()
-                .id(UUID.randomUUID())
-                .author(author)
-                .weather(weather)
-                .content("오늘의 코디")
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-
-            FeedDto expected = new FeedDto(
-                UUID.randomUUID(),
-                Instant.now(),
-                Instant.now(),
-                new AuthorDto(authorId, "홍길동", "profile.png"),
-                new WeatherSummaryDto(
-                    weatherId,
-                    "맑음",
-                    new PrecipitationDto("비", 0.0, 0.0),
-                    new TemperatureDto(25.0, -1.0, 20.0, 27.0)
-                ),
-                List.of(new OotdDto(clothesId, "셔츠", "image.png", ClothesType.TOP, List.of())),
-                "오늘의 코디",
-                10L,
-                2,
-                false
+            FeedDto expected = FeedFixture.createDto(
+                feedId, now, now,
+                authorId, "홍길동", "profile.png",
+                weatherId, "맑음",
+                "비", 0.0, 0.0,
+                25.0, -1.0, 20.0, 27.0,
+                clothesId, "셔츠", "image.png", ClothesType.TOP,
+                "오늘의 코디", 10L, 2, false
             );
 
             given(userRepository.findById(authorId)).willReturn(Optional.of(author));
@@ -144,13 +122,13 @@ public class FeedServiceTest {
             UUID weatherId = UUID.randomUUID();
             UUID clothesId = UUID.randomUUID();
 
-            FeedCreateRequest req = new FeedCreateRequest(
+            FeedCreateRequest request = new FeedCreateRequest(
                 authorId, weatherId, List.of(clothesId), "오늘의 코디"
             );
 
             given(userRepository.findById(authorId)).willReturn(java.util.Optional.empty());
             // When / Then
-            assertThatThrownBy(() -> feedService.create(req))
+            assertThatThrownBy(() -> feedService.create(request))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다.");
         }
