@@ -29,7 +29,10 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
-                    .ignoringRequestMatchers("/api/users/*/password") // 비밀번호 변경 확인 테스트를 위해 개발용으로 CSRF 제외
+                    .ignoringRequestMatchers(
+                        "/api/users/*/password",  // 비밀번호 변경
+                                  "/api/users/*/lock"       // 계정 잠금 상태 변경
+                    )
             )
             .sessionManagement(s ->
                     s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -45,8 +48,10 @@ public class SecurityConfig {
                 // Actuator
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
+                // 사용자 관련 API
                 .requestMatchers("/api/users").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/password").permitAll()
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .anyRequest().authenticated()

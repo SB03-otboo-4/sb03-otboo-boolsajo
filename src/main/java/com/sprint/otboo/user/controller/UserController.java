@@ -3,6 +3,7 @@ package com.sprint.otboo.user.controller;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -36,5 +37,14 @@ public class UserController {
     ) {
         userService.updatePassword(userId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{userId}/lock")
+    public ResponseEntity<UserDto> updateUserLockStatus(
+        @PathVariable UUID userId,
+        @Valid @RequestBody UserLockUpdateRequest request
+    ) {
+        UserDto updatedUser = userService.updateUserLockStatus(userId, request);
+        return ResponseEntity.ok(updatedUser);
     }
 }
