@@ -61,6 +61,11 @@ public class SecurityConfig {
 
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
+
+                // 의상 속성 API : ADMIN만 접근
+                .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs").hasRole("ADMIN")
+
+                // 나머지 인증 필요
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny())

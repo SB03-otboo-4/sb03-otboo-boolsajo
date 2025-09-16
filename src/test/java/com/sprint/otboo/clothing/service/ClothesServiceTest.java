@@ -22,6 +22,7 @@ import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.clothing.service.impl.ClothesServiceImpl;
 import com.sprint.otboo.clothing.storage.FileStorageService;
 import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.user.entity.User;
