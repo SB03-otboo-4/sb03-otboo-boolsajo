@@ -41,5 +41,4 @@ public class ClothesAttributeDef extends BaseEntity {
 
     @OneToMany(mappedBy = "definition", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ClothesAttribute> attributes = new ArrayList<>();
-
 }

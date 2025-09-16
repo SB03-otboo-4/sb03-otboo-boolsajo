@@ -8,6 +8,7 @@ public enum ErrorCode {
 
     // 400 BAD REQUEST
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "잘못된 입력 값입니다."),
+    SAME_PASSWORD(HttpStatus.BAD_REQUEST,"새로운 비밀번호가 기존 비밀번호와 동일합니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않은 메서드입니다."),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값 검증에 실패했습니다."),
 
@@ -21,6 +22,10 @@ public enum ErrorCode {
     // 404 NOT FOUND
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다."),
+    WEATHER_NOT_FOUND(HttpStatus.NOT_FOUND, "날씨 정보를 찾을 수 없습니다."),
+    CLOTHES_NOT_FOUND(HttpStatus.NOT_FOUND, "의상 정보를 찾을 수 없습니다."),
+    USER_CLOTHES_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 사용자의 일부 의상을 찾을 수 없습니다"),
+    FEED_NOT_FOUND(HttpStatus.NOT_FOUND, "피드를 찾을 수 없습니다."),
 
     // 409 CONFLICT
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),
