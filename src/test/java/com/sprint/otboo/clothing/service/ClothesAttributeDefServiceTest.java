@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-@DisplayName("의상 속성 서비스 테스트")
+@DisplayName("의상 속성 서비스 테스트( ADMIN )")
 public class ClothesAttributeDefServiceTest {
 
     @Autowired
