@@ -8,25 +8,31 @@ import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.mapper.ClothesAttributeMapper;
 import com.sprint.otboo.clothing.mapper.ClothesMapper;
+import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.clothing.storage.FileStorageService;
+import com.sprint.otboo.user.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * ClothesService 구현체
  *
- * <p>Clothes 관련 비즈니스 로직 수행
+ * <p>의상(Clothes) 관련 비즈니스 로직을 수행
  *
  * <ul>
- *   <li>사용자 요청 검증</li>
- *   <li>Clothes 저장</li>
- *   <li>ClothesAttribute 저장</li>
- *   <li>최종 ClothesDto 변환</li>
+ *   <li>요청 데이터 검증</li>
+ *   <li>이미지 업로드 및 URL 생성</li>
+ *   <li>Clothes 엔티티 저장</li>
+ *   <li>ClothesAttribute 엔티티 저장</li>
+ *   <li>DTO 변환 및 반환</li>
  * </ul>
  */
 @Slf4j
@@ -38,28 +44,52 @@ public class ClothesServiceImpl implements ClothesService {
     private final ClothesAttributeRepository clothesAttributeRepository;
     private final ClothesMapper clothesMapper;
     private final ClothesAttributeMapper clothesAttributeMapper;
+    private final FileStorageService fileStorageService;
+    private final UserRepository userRepository;
+    private final ClothesAttributeDefRepository defRepository;
 
     /**
-     * 의상 생성 처리
+     * 새로운 의상을 생성합니다.
+     *
+     * <p>절차:
+     * <ol>
+     *   <li>요청 데이터 검증</li>
+     *   <li>이미지 업로드 및 URL 생성</li>
+     *   <li>Clothes 엔티티 저장</li>
+     *   <li>ClothesAttribute 엔티티 저장</li>
+     *   <li>DTO 변환 및 반환</li>
+     * </ol>
      *
      * @param request 의상 생성 요청 DTO
+     * @param image 업로드할 이미지 파일 (선택)
      * @return 저장 완료된 ClothesDto
+     * @throws ClothesValidationException 요청 데이터가 유효하지 않을 경우 발생
      */
     @Override
     @Transactional
-    public ClothesDto createClothes(ClothesCreateRequest request) {
+    public ClothesDto createClothes(ClothesCreateRequest request, MultipartFile image) {
 
         // 요청 유효성 검증
         validateRequest(request);
 
-        // Clothes Entity 저장
-        Clothes saved = saveClothes(request);
+        String imageUrl = fileStorageService.upload(image);
 
-        // ClothesAttribute Entity 저장
-        List<ClothesAttribute> attrs = saveAttributes(request, saved.getId());
+        var user = userRepository.findById(request.ownerId())
+            .orElseThrow(() -> new ClothesValidationException("유효하지 않은 사용자"));
 
-        // DTO 변환 후 반환
-        return toDtoResult(saved, attrs);
+        Clothes clothes = Clothes.builder()
+            .user(user)
+            .name(request.name())
+            .imageUrl(imageUrl)
+            .type(request.type())
+            .build();
+
+        // Clothes 엔티티에 속성 추가
+        addAttributes(request, clothes);
+
+        Clothes saved = clothesRepository.save(clothes);
+
+        return clothesMapper.toDto(saved);
     }
 
 
@@ -67,6 +97,7 @@ public class ClothesServiceImpl implements ClothesService {
      * 요청 기본 검증
      *
      * @param request 의상 생성 요청 DTO
+     * @throws ClothesValidationException 필수 값이 누락되거나 유효하지 않은 경우
      */
     private void validateRequest(ClothesCreateRequest request) {
         if (request == null) throw new ClothesValidationException("요청 데이터가 존재하지 않음");
@@ -93,70 +124,32 @@ public class ClothesServiceImpl implements ClothesService {
     }
 
     /**
-     * 의상 저장
+     * 요청 DTO에 포함된 속성을 ClothesAttribute 엔티티로 변환하여
+     * 해당 Clothes 엔티티에 추가합니다.
      *
      * @param request 의상 생성 요청 DTO
-     * @return 저장된 Clothes 엔티티
+     * @param clothes 속성을 추가할 Clothes 엔티티
+     * @throws ClothesValidationException 유효하지 않은 속성 정의 ID가 있을 경우
      */
-    private Clothes saveClothes(ClothesCreateRequest request) {
-        // Create Entity
-        Clothes clothes = Clothes.create(
-            request.ownerId(),
-            request.name(),
-            "",
-            request.type()
-        );
-
-        // Save DB
-        Clothes saved = clothesRepository.save(clothes);
-        log.info("Clothes 저장 완료 : id = {}, name = {}", saved.getId(), saved.getName());
-
-        return saved;
-    }
-
-    /**
-     * 의상 속성 저장
-     *
-     * @param request 의상 생성 요청 DTO
-     * @param clothesId 저장된 의상 ID
-     * @return 저장된 의상 속성 리스트
-     */
-    private List<ClothesAttribute> saveAttributes(ClothesCreateRequest request, UUID clothesId) {
+    private void addAttributes(ClothesCreateRequest request, Clothes clothes) {
         if (request.attributes() == null || request.attributes().isEmpty()) {
-            log.debug("저장할 의상 속성 없음");
-            return List.of();
+            return;
         }
 
-        // DTO -> 엔티티 변환
-        List<ClothesAttribute> attrs = request.attributes()
-            .stream()
-            .map(dto -> clothesAttributeMapper.toEntity(dto, clothesId))
-            .toList();
+        List<ClothesAttribute> attrs = request.attributes().stream()
+            .map(dto -> {
+                // 속성 정의 조회
+                var def = defRepository.findById(dto.definitionId())
+                    .orElseThrow(() -> new ClothesValidationException("유효하지 않은 속성 정의"));
 
-        // DB 저장
-        clothesAttributeRepository.saveAll(attrs);
-        log.info("의상 속성 저장 완료 : count = {}", attrs.size());
+                return ClothesAttribute.builder()
+                    .clothes(clothes)
+                    .definition(def)
+                    .value(dto.value())
+                    .build();
+            })
+                .collect(Collectors.toList());
 
-        return attrs;
-    }
-
-    /**
-     * 저장된 Clothes 및 ClothesAttribute 엔티티를 DTO로 변환
-     *
-     * @param saved 저장된 의상 엔티티
-     * @param attrs 저장된 의상 속성 리스트
-     * @return 변환된 ClothesDto
-     */
-    private ClothesDto toDtoResult(Clothes saved, List<ClothesAttribute> attrs) {
-        // 속성 DTO 변환
-        var attrDtos = attrs.stream()
-            .map(clothesAttributeMapper::toDto)
-            .toList();
-
-        // 의상 DTO 변환
-        ClothesDto dto = clothesMapper.toDto(saved, attrDtos);
-        log.debug("ClothesDto 변환 완료 : id = {}", dto.id());
-
-        return dto;
+        clothes.getAttributes().addAll(attrs);
     }
 }

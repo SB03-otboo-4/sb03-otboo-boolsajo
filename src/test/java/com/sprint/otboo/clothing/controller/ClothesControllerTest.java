@@ -3,7 +3,7 @@ package com.sprint.otboo.clothing.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -47,13 +48,27 @@ public class ClothesControllerTest {
         var request = new ClothesCreateRequest(ownerId, "화이트 티셔츠", ClothesType.TOP, List.of(attrDto));
         var response = new ClothesDto(UUID.randomUUID(), ownerId, "화이트 티셔츠", "", ClothesType.TOP, List.of(attrDto));
 
-        when(clothesService.createClothes(any())).thenReturn(response);
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request",
+            "",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(request)
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+            "image",
+            "test.png",
+            MediaType.IMAGE_PNG_VALUE,
+            "dummy-image".getBytes()
+        );
+        when(clothesService.createClothes(any(), any())).thenReturn(response);
 
         // when & then
-        mockMvc.perform(post("/api/clothes")
+        mockMvc.perform(multipart("/api/clothes")
+                .file(requestPart)
+                .file(imagePart)
                 .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.MULTIPART_FORM_DATA))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.name").value("화이트 티셔츠"))
             .andExpect(jsonPath("$.type").value("TOP"))
