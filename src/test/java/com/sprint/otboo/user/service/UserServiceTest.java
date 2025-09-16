@@ -14,6 +14,7 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
+import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
@@ -148,6 +149,34 @@ public class UserServiceTest {
             Role.USER,
             LoginType.GENERAL,
             locked
+        );
+    }
+
+    private UserRoleUpdateRequest createRoleUpdateRequest(String role) {
+        return new UserRoleUpdateRequest(role);
+    }
+
+    private User createMockUserForRoleUpdate(UUID userId, Role currentRole) {
+        return User.builder()
+            .id(userId)
+            .username("testUser")
+            .email("test@test.com")
+            .password("encodedPassword")
+            .role(currentRole)
+            .locked(false)
+            .provider(LoginType.GENERAL)
+            .build();
+    }
+
+    private UserDto createExpectedUserDtoForRoleUpdate(UUID userId, Role role) {
+        return new UserDto(
+            userId,
+            Instant.now(),
+            "test@test.com",
+            "testUser",
+            role,
+            LoginType.GENERAL,
+            false
         );
     }
 
@@ -368,5 +397,99 @@ public class UserServiceTest {
         then(userRepository).should().findById(userId);
         then(userRepository).should(never()).save(any(User.class));
         then(userMapper).should(never()).toUserDto(any(User.class));
+    }
+
+    @Test
+    void 권한_수정_USER에서_ADMIN으로_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("ADMIN");
+        User mockUser = createMockUserForRoleUpdate(userId, Role.USER);
+        UserDto expectedDto = createExpectedUserDtoForRoleUpdate(userId, Role.ADMIN);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(userRepository.save(any(User.class))).willReturn(mockUser);
+        given(userMapper.toUserDto(mockUser)).willReturn(expectedDto);
+
+        // when
+        UserDto result = userService.updateUserRole(userId, request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(userId);
+        assertThat(result.role()).isEqualTo(Role.ADMIN);
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should().save(any(User.class));
+        then(userMapper).should().toUserDto(mockUser);
+    }
+
+    @Test
+    void 권한_수정_ADMIN에서_USER로_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("USER");
+        User mockUser = createMockUserForRoleUpdate(userId, Role.ADMIN);
+        UserDto expectedDto = createExpectedUserDtoForRoleUpdate(userId, Role.USER);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(userRepository.save(any(User.class))).willReturn(mockUser);
+        given(userMapper.toUserDto(mockUser)).willReturn(expectedDto);
+
+        // when
+        UserDto result = userService.updateUserRole(userId, request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(userId);
+        assertThat(result.role()).isEqualTo(Role.USER);
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should().save(any(User.class));
+        then(userMapper).should().toUserDto(mockUser);
+    }
+
+    @Test
+    void 권한_수정_실패_사용자_없음() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("ADMIN");
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updateUserRole(userId, request));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should(never()).save(any(User.class));
+        then(userMapper).should(never()).toUserDto(any(User.class));
+    }
+
+    @Test
+    void 동일한_권한으로_수정시_그대로_반환() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("USER");
+        User mockUser = createMockUserForRoleUpdate(userId, Role.USER);
+        UserDto expectedDto = createExpectedUserDtoForRoleUpdate(userId, Role.USER);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(userRepository.save(any(User.class))).willReturn(mockUser);
+        given(userMapper.toUserDto(mockUser)).willReturn(expectedDto);
+
+        // when
+        UserDto result = userService.updateUserRole(userId, request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.role()).isEqualTo(Role.USER);
+
+        then(userRepository).should().findById(userId);
+        then(userRepository).should().save(any(User.class));
     }
 }
