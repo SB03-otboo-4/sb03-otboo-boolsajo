@@ -1,4 +1,4 @@
-package com.sprint.otboo.clothing.service;
+package com.sprint.otboo.clothing.service.impl;
 
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
@@ -11,6 +11,7 @@ import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.clothing.storage.FileStorageService;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.util.List;

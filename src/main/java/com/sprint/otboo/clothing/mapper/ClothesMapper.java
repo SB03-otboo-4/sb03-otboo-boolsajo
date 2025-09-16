@@ -1,11 +1,15 @@
 package com.sprint.otboo.clothing.mapper;
 
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesAttribute;
+import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.feed.entity.FeedClothes;
+import java.util.Arrays;
+import java.util.List;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.NullValueCheckStrategy;
@@ -53,4 +57,21 @@ public interface ClothesMapper {
     @Mapping(target = "ownerId", source = "user.id")
     @Mapping(target = "attributes", source = "attributes")
     ClothesDto toDto(Clothes clothes);
+
+    default List<String> mapSelectValues(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split(","))
+            .map(String::trim)
+            .toList();
+    }
+
+    default ClothesAttributeDefDto toClothesAttributeDefDto(ClothesAttributeDef entity) {
+        if (entity == null) return null;
+        return new ClothesAttributeDefDto(
+            entity.getId(),
+            entity.getName(),
+            mapSelectValues(entity.getSelectValues()),
+            entity.getCreatedAt()
+        );
+    }
 }
