@@ -1,5 +1,6 @@
 package com.sprint.otboo.clothing.controller;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,6 +37,7 @@ public class ClothesAttributeDefControllerTest {
 
         // when: POST 요청 실행
         ResultActions resultActions = mockMvc.perform(post("/api/clothes/attribute-defs")
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)));
 
