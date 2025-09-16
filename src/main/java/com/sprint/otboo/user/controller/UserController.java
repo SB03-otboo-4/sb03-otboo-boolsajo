@@ -11,6 +11,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,6 +42,7 @@ public class UserController {
     }
 
     @PatchMapping("/{userId}/lock")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> updateUserLockStatus(
         @PathVariable UUID userId,
         @Valid @RequestBody UserLockUpdateRequest request
@@ -50,6 +52,7 @@ public class UserController {
     }
 
     @PatchMapping("/{userId}/role")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> updateUserRole(
         @PathVariable UUID userId,
         @Valid @RequestBody UserRoleUpdateRequest request

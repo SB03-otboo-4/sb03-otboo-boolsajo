@@ -4,6 +4,7 @@ import com.sprint.otboo.auth.SpaCsrfTokenRequestHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -14,6 +15,7 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -30,8 +32,9 @@ public class SecurityConfig {
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                     .ignoringRequestMatchers(
-                        "/api/users/*/password",  // 비밀번호 변경
-                                  "/api/users/*/lock"       // 계정 잠금 상태 변경
+                                  "/api/users/*/password",  // 비밀번호 변경
+                                  "/api/users/*/lock",       // 계정 잠금 상태 변경
+                                  "/api/users/*/role" // 권한 변경
                     )
             )
             .sessionManagement(s ->
@@ -51,7 +54,11 @@ public class SecurityConfig {
                 // 사용자 관련 API
                 .requestMatchers("/api/users").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/password").permitAll()
-                .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()
+
+                // 개발용 임시 설정
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()    // 계정 잠금
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").permitAll()    // 권한 변경
+
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .anyRequest().authenticated()
