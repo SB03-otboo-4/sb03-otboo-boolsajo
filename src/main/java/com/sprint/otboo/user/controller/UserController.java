@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.controller;
 
+import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,5 +61,11 @@ public class UserController {
     ) {
         UserDto updatedUser = userService.updateUserRole(userId, request);
         return ResponseEntity.ok(updatedUser);
+    }
+
+    @GetMapping("/{userId}/profiles")
+    public ResponseEntity<ProfileDto> getUserProfile(@PathVariable UUID userId) {
+        ProfileDto profileDto = userService.getUserProfile(userId);
+        return ResponseEntity.ok(profileDto);
     }
 }

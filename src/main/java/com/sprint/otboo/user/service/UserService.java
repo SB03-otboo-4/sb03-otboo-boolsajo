@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.service;
 
+import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
@@ -16,4 +17,6 @@ public interface UserService {
     UserDto updateUserLockStatus(UUID userId, UserLockUpdateRequest request);
 
     UserDto updateUserRole(UUID userId, UserRoleUpdateRequest request);
+
+    ProfileDto getUserProfile(UUID userId);
 }

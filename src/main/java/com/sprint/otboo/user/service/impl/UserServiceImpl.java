@@ -2,7 +2,7 @@ package com.sprint.otboo.user.service.impl;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
-import com.sprint.otboo.common.exception.user.UserNotFoundException;
+import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
@@ -10,7 +10,9 @@ import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.entity.UserProfile;
 import com.sprint.otboo.user.mapper.UserMapper;
+import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.service.UserService;
 import java.util.UUID;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
 
@@ -86,6 +89,14 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         return userMapper.toUserDto(savedUser);
+    }
+
+    @Override
+    public ProfileDto getUserProfile(UUID userId) {
+        UserProfile userProfile = userProfileRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        return userMapper.toProfileDto(userProfile.getUser(), userProfile);
     }
 
     private void validateDuplicateEmail(String email) {
