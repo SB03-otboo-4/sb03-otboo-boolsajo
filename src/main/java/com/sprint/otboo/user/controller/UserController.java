@@ -4,12 +4,14 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
+import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,11 +42,22 @@ public class UserController {
     }
 
     @PatchMapping("/{userId}/lock")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> updateUserLockStatus(
         @PathVariable UUID userId,
         @Valid @RequestBody UserLockUpdateRequest request
     ) {
         UserDto updatedUser = userService.updateUserLockStatus(userId, request);
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    @PatchMapping("/{userId}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserDto> updateUserRole(
+        @PathVariable UUID userId,
+        @Valid @RequestBody UserRoleUpdateRequest request
+    ) {
+        UserDto updatedUser = userService.updateUserRole(userId, request);
         return ResponseEntity.ok(updatedUser);
     }
 }

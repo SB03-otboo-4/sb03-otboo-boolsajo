@@ -19,6 +19,7 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
+import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.service.UserService;
@@ -95,6 +96,17 @@ public class UserControllerTest {
 
     private ResultActions performUpdateUserLockRequest(UUID userId, UserLockUpdateRequest request) throws Exception {
         return mockMvc.perform(patch("/api/users/{userId}/lock",userId)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)));
+    }
+
+    private UserRoleUpdateRequest createRoleUpdateRequest(String role) {
+        return new UserRoleUpdateRequest(role);
+    }
+
+    private ResultActions performUpdateUserRoleRequest(UUID userId, UserRoleUpdateRequest request) throws Exception {
+        return mockMvc.perform(patch("/api/users/{userId}/role", userId)
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)));
@@ -300,5 +312,109 @@ public class UserControllerTest {
         // then
         result.andExpect(status().isBadRequest());
         then(userService).should(never()).updateUserLockStatus(any(UUID.class),any(UserLockUpdateRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    void 권한_수정에_성공() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("ADMIN");
+        UserDto mockUserDto = new UserDto(
+            userId,
+            Instant.now(),
+            "test@test.com",
+            "testUser",
+            Role.ADMIN,
+            LoginType.GENERAL,
+            false
+        );
+        given(userService.updateUserRole(userId, request)).willReturn(mockUserDto);
+
+        // when
+        ResultActions result = performUpdateUserRoleRequest(userId, request);
+
+        // then
+        result.andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.id").value(userId.toString()))
+            .andExpect(jsonPath("$.email").value("test@test.com"))
+            .andExpect(jsonPath("$.name").value("testUser"))
+            .andExpect(jsonPath("$.role").value("ADMIN"))
+            .andExpect(jsonPath("$.locked").value(false))
+            .andExpect(jsonPath("$.createdAt").exists());
+
+        then(userService).should().updateUserRole(userId, request);
+    }
+
+    @Test
+    @WithMockUser
+    void 권한_수정_실패_사용자_없음() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("ADMIN");
+        CustomException exception = new CustomException(ErrorCode.USER_NOT_FOUND);
+
+        doThrow(exception).when(userService).updateUserRole(userId, request);
+
+        // when
+        ResultActions result = performUpdateUserRoleRequest(userId, request);
+
+        // then
+        result.andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
+
+        then(userService).should().updateUserRole(userId, request);
+    }
+
+    @Test
+    @WithMockUser
+    void 권한_수정_실패_유효하지_않은_권한() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserRoleUpdateRequest request = createRoleUpdateRequest("INVALID_ROLE");
+
+        // when
+        ResultActions result = performUpdateUserRoleRequest(userId, request);
+
+        // then
+        result.andExpect(status().isBadRequest());
+        then(userService).should(never()).updateUserRole(any(UUID.class), any(UserRoleUpdateRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    void 권한_수정_실패_빈_권한() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        String requestBody = "{\"role\":\"\"}";
+
+        // when
+        ResultActions result = mockMvc.perform(patch("/api/users/{userId}/role", userId)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(requestBody));
+
+        // then
+        result.andExpect(status().isBadRequest());
+        then(userService).should(never()).updateUserRole(any(UUID.class), any(UserRoleUpdateRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    void 권한_수정_실패_null_권한() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        String requestBody = "{\"role\":null}";
+
+        // when
+        ResultActions result = mockMvc.perform(patch("/api/users/{userId}/role", userId)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(requestBody));
+
+        // then
+        result.andExpect(status().isBadRequest());
+        then(userService).should(never()).updateUserRole(any(UUID.class), any(UserRoleUpdateRequest.class));
     }
 }
