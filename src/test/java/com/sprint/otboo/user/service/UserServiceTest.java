@@ -10,18 +10,25 @@ import static org.mockito.Mockito.never;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.entity.UserProfile;
 import com.sprint.otboo.user.mapper.UserMapper;
+import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.service.impl.UserServiceImpl;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +37,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,13 +47,17 @@ public class UserServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private UserProfileRepository userProfileRepository;
+    @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
     private UserMapper userMapper;
     @InjectMocks
     private UserServiceImpl userService;
 
-    // 팩토리 메서드들
+    /**
+     * 팩토리 메서드들
+     * */
     private UserCreateRequest createDefaultRequest() {
         return new UserCreateRequest(
             "testUser",
@@ -177,6 +189,72 @@ public class UserServiceTest {
             role,
             LoginType.GENERAL,
             false
+        );
+    }
+
+    private User createMockUserForProfile(UUID userId, String username, String email, String profileImageUrl) {
+        return User.builder()
+            .id(userId)
+            .username(username)
+            .email(email)
+            .profileImageUrl(profileImageUrl)
+            .role(Role.USER)
+            .locked(false)
+            .provider(LoginType.GENERAL)
+            .build();
+    }
+
+    private UserProfile createCompleteUserProfile(UUID userId, User user) {
+        return UserProfile.builder()
+            .userId(userId)
+            .user(user)
+            .gender(Gender.MALE)
+            .birthDate(LocalDate.of(1998, 9, 21))
+            .latitude(new BigDecimal("37.509278"))
+            .longitude(new BigDecimal("126.671607"))
+            .x(55)
+            .y(125)
+            .locationNames("인천광역시,서구,석남1동")
+            .temperatureSensitivity(5)
+            .build();
+    }
+
+    private UserProfile createEmptyUserProfile(UUID userId, User user) {
+        return UserProfile.builder()
+            .userId(userId)
+            .user(user)
+            .build();
+    }
+
+    private ProfileDto createExpectedCompleteProfileDto(UUID userId) {
+        return new ProfileDto(
+            userId,
+            "testUser",
+            "http://example.com/profile.jpg",
+            Gender.MALE,
+            LocalDate.of(1998,9,21),
+            new BigDecimal("37.509278"),
+            new BigDecimal("126.671607"),
+            55,
+            125,
+            List.of("인천광역시","서구","석남1동"),
+            5
+        );
+    }
+
+    private ProfileDto createExpectedEmptyProfileDto(UUID userId) {
+        return new ProfileDto(
+            userId,
+            "testUser",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            List.of(),
+            null
         );
     }
 
@@ -491,5 +569,86 @@ public class UserServiceTest {
 
         then(userRepository).should().findById(userId);
         then(userRepository).should().save(any(User.class));
+    }
+
+    @Test
+    void 완전한_프로필_정보_조회_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        User mockUser = createMockUserForProfile(userId, "testUser", "test@test.com", "http://example.com/profile.jpg");
+        UserProfile mockUserProfile = createCompleteUserProfile(userId, mockUser);
+        ProfileDto expectedProfileDto = createExpectedCompleteProfileDto(userId);
+
+        given(userProfileRepository.findById(userId)).willReturn(Optional.of(mockUserProfile));
+        given(userMapper.toProfileDto(mockUser, mockUserProfile)).willReturn(expectedProfileDto);
+
+        // when
+        ProfileDto result = userService.getUserProfile(userId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.userId()).isEqualTo(userId);
+        assertThat(result.name()).isEqualTo("testUser");
+        assertThat(result.gender()).isEqualTo(Gender.MALE);
+        assertThat(result.birthDate()).isEqualTo(LocalDate.of(1998,9,21));
+        assertThat(result.profileImageUrl()).isEqualTo("http://example.com/profile.jpg");
+        assertThat(result.latitude()).isEqualTo(new BigDecimal("37.509278"));
+        assertThat(result.longitude()).isEqualTo(new BigDecimal("126.671607"));
+        assertThat(result.x()).isEqualTo(55);
+        assertThat(result.y()).isEqualTo(125);
+        assertThat(result.locationNames()).containsExactly("인천광역시","서구","석남1동");
+        assertThat(result.temperatureSensitivity()).isEqualTo(5);
+
+        then(userProfileRepository).should().findById(userId);
+        then(userMapper).should().toProfileDto(mockUser, mockUserProfile);
+    }
+
+    @Test
+    void 존재하지_않는_사용자_프로필_조회시_예외_발생() {
+        // given
+        UUID userId = UUID.randomUUID();
+        given(userProfileRepository.findById(userId)).willReturn(Optional.empty());
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.getUserProfile(userId));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+        then(userProfileRepository).should().findById(userId);
+        then(userMapper).should(never()).toProfileDto(any(User.class), any(UserProfile.class));
+    }
+
+    @Test
+    void 빈_프로필_정보를_가진_사용자_조회_성공() {
+        // given
+        UUID userId = UUID.randomUUID();
+        User mockUser = createMockUserForProfile(userId, "testUser", "test@test.com", null);
+        UserProfile mockUserProfile = createEmptyUserProfile(userId, mockUser);
+        ProfileDto expectedProfileDto = createExpectedEmptyProfileDto(userId);
+
+        given(userProfileRepository.findById(userId)).willReturn(Optional.of(mockUserProfile));
+        given(userMapper.toProfileDto(mockUser, mockUserProfile)).willReturn(expectedProfileDto);
+
+        // when
+        ProfileDto result = userService.getUserProfile(userId);
+
+        // when
+        assertThat(result).isNotNull();
+        assertThat(result.userId()).isEqualTo(userId);
+        assertThat(result.name()).isEqualTo("testUser");
+        assertThat(result.gender()).isNull();
+        assertThat(result.birthDate()).isNull();
+        assertThat(result.profileImageUrl()).isNull();
+        assertThat(result.latitude()).isNull();
+        assertThat(result.longitude()).isNull();
+        assertThat(result.locationNames()).isEmpty();
+        assertThat(result.temperatureSensitivity()).isNull();
+
+        then(userProfileRepository).should().findById(userId);
+        then(userMapper).should().toProfileDto(mockUser, mockUserProfile);
     }
 }
