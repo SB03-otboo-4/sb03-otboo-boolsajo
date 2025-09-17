@@ -48,6 +48,12 @@ public class UserServiceImpl implements UserService {
             .build();
 
         User savedUser = userRepository.save(user);
+
+        UserProfile profile = com.sprint.otboo.user.entity.UserProfile.builder()
+            .user(savedUser)
+            .build();
+        userProfileRepository.save(profile);
+
         return userMapper.toUserDto(savedUser);
     }
 
@@ -93,10 +99,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public ProfileDto getUserProfile(UUID userId) {
-        UserProfile userProfile = userProfileRepository.findById(userId)
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        return userMapper.toProfileDto(userProfile.getUser(), userProfile);
+        UserProfile userProfile = userProfileRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_PROFILE_NOT_FOUND)); // 👈 분리
+
+        return userMapper.toProfileDto(user, userProfile);
     }
 
     private void validateDuplicateEmail(String email) {
@@ -114,6 +123,4 @@ public class UserServiceImpl implements UserService {
             throw exception;
         }
     }
-
 }
-
