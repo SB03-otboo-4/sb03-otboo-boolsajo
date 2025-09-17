@@ -18,14 +18,22 @@ public class WeatherLocation {
 
     @Id
     private UUID id;
+
+    @Column(name = "latitude", nullable = false)
     private double latitude;
+
+    @Column(name = "longitude", nullable = false)
     private double longitude;
+
     @Column(name = "x")
     private int x;
+
     @Column(name = "y")
     private int y;
+
     @Column(name = "location_names", nullable = false)
     private String locationNames;
+
     @Column(name="created_at", nullable=false, updatable=false)
     private Instant createdAt;
 

@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface WeatherLocationRepository extends JpaRepository<WeatherLocation, UUID> {
 
-    Optional<WeatherLocation> findByXAndY(int x, int y);
+    Optional<WeatherLocation> findFirstByLatitudeAndLongitude(double latitude, double longitude);
+    Optional<WeatherLocation> findFirstByXAndY(int x, int y);
 }
