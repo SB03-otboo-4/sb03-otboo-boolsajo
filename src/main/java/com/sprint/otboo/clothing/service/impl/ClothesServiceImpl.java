@@ -116,7 +116,7 @@ public class ClothesServiceImpl implements ClothesService {
             Clothes last =  clothesList.get(clothesList.size() - 1);
             nextCursor = last.getCreatedAt();
             nextIdAfter = last.getId();
-            hasNext = clothesList.size() == limit;
+            hasNext = clothesList.size() == limit && total > limit;
         }
 
         return new CursorPageResponse<>(
