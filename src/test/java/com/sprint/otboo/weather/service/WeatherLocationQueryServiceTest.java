@@ -10,17 +10,21 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @DisplayName("WeatherLocationQueryService 테스트")
+@ExtendWith(MockitoExtension.class)
 class WeatherLocationQueryServiceTest {
 
+    @Mock
     private WeatherLocationRepository repo;
+
     private WeatherLocationQueryService service;
 
     @BeforeEach
     void setUp() {
-        repo = Mockito.mock(WeatherLocationRepository.class);
         service = new WeatherLocationQueryServiceImpl(repo);
     }
 
@@ -37,7 +41,7 @@ class WeatherLocationQueryServiceTest {
             .willReturn(Optional.of(wl));
 
         // when
-        WeatherLocationResponse dto = service.getWeatherLocation(126.9780, 37.5665);
+        WeatherLocationResponse dto = service.getWeatherLocation(37.5665, 126.9780);
 
         // then
         assertThat(dto.x()).isEqualTo(60);
@@ -52,7 +56,7 @@ class WeatherLocationQueryServiceTest {
             .willReturn(Optional.empty());
 
         // when
-        WeatherLocationResponse dto = service.getWeatherLocation(126.9780, 37.5665);
+        WeatherLocationResponse dto = service.getWeatherLocation(37.5665, 126.9780);
 
         // then
         assertThat(dto.x()).isEqualTo(60);
