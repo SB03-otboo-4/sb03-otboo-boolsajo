@@ -42,9 +42,11 @@ public class ClothesController {
     /**
      * 의상 등록
      *
-     * <p>multipart/form-data 요청</p>
-     * - image : 이미지 파일 (binary)
-     * - request : JSON 문자열 (ClothesCreateRequest)
+     * <p>multipart/form-data 요청을 처리하며, 의상 정보를 등록하고 선택적으로 이미지 파일을 함께 저장</p>
+     *
+     * @param request 등록할 의상 정보 DTO
+     * @param image 업로드할 이미지 파일 (선택)
+     * @return {@link ResponseEntity}<{@link ClothesDto}> 생성된 의상 정보와 HTTP 상태 코드
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ClothesDto> createClothes(
@@ -67,14 +69,6 @@ public class ClothesController {
      * 의상 목록 조회
      *
      * <p>Cursor 기반 페이지네이션과 타입 필터를 지원하는 의상 목록 조회 API</p>
-     *
-     * <ul>
-     *   <li>ownerId: 특정 사용자의 의상만 조회</li>
-     *   <li>limit: 조회할 최대 개수 (기본값 20)</li>
-     *   <li>cursor, idAfter: 커서 기반 페이지네이션</li>
-     *   <li>typeEqual: 의상 타입 필터</li>
-     * </ul>
-     *
      * <p>typeEqual은 {@link ClothesType} 중 하나여야 하며, {@link ClothesTypeValid}로 검증</p>
      *
      * @param ownerId   조회할 사용자의 ID (필수)
