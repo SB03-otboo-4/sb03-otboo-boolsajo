@@ -2,13 +2,19 @@ package com.sprint.otboo.clothing.controller;
 
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
+import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.service.ClothesService;
+import com.sprint.otboo.common.dto.CursorPageResponse;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -51,6 +57,17 @@ public class ClothesController {
 
         log.info("의상 등록 성공: id={}", created.id());
         return ResponseEntity.status(201).body(created);
+    }
+
+    @GetMapping
+    public CursorPageResponse<ClothesDto> getClothesList(
+        @RequestParam UUID ownerId,
+        @RequestParam int limit,
+        @RequestParam(required = false) Instant cursor,
+        @RequestParam(required = false) UUID idAfter,
+        @RequestParam(name = "typeEqual", required = false) ClothesType typeEqual
+    ) {
+        return clothesService.getClothesList(ownerId, limit, cursor, idAfter, typeEqual);
     }
 
 }
