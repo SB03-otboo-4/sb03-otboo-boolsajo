@@ -1,5 +1,6 @@
 package com.sprint.otboo.auth.service;
 
+import com.nimbusds.jose.JOSEException;
 import com.sprint.otboo.auth.dto.JwtDto;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.TokenProvider;
@@ -25,19 +26,25 @@ public class AuthServiceImpl implements AuthService{
     @Override
     public JwtDto signIn(SignInRequest request) {
 
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmail(request.username())
             .orElseThrow(InvalidCredentialsException::new);
 
-        if(user.getLocked()){
+        if (user.getLocked()) {
             throw AccountLockedException.withId(user.getId());
         }
 
-        if(!passwordEncoder.matches(request.password(), user.getPassword())){
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new InvalidCredentialsException();
         }
 
         UserDto userDto = userMapper.toUserDto(user);
-        String accessToken = tokenProvider.createAccessToken(user.getId());
+        String accessToken;
+
+        try {
+            accessToken = tokenProvider.createAccessToken(user);
+        } catch (JOSEException e) {
+            throw new RuntimeException("토큰 생성 중 오류가 발생했습니다.");
+        }
 
         return new JwtDto(userDto, accessToken);
     }

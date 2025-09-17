@@ -1,15 +1,18 @@
 package com.sprint.otboo.common.config;
 
+import com.sprint.otboo.auth.CustomAuthenticationEntryPoint;
 import com.sprint.otboo.auth.SpaCsrfTokenRequestHandler;
+import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
@@ -23,12 +26,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(
-            HttpSecurity http
+        HttpSecurity http,
+        JwtAuthenticationFilter jwtAuthenticationFilter,
+        CustomAuthenticationEntryPoint customAuthenticationEntryPoint
     ) throws Exception {
         http
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                    .ignoringRequestMatchers("/api/auth/**")
                     .ignoringRequestMatchers("/api/users/*/password") // 비밀번호 변경 확인 테스트를 위해 개발용으로 CSRF 제외
             )
             .sessionManagement(s ->
@@ -53,8 +59,13 @@ public class SecurityConfig {
             )
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny())
             )
-            .formLogin(form ->form.disable())
-            .httpBasic(basic ->basic.disable());
+            .formLogin(form ->form.disable()
+            )
+            .httpBasic(basic ->basic.disable())
+            .exceptionHandling(handler -> handler
+                .authenticationEntryPoint(customAuthenticationEntryPoint)
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
