@@ -4,6 +4,7 @@ import com.sprint.otboo.weather.integration.kakao.client.KakaoLocalClient;
 import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeResponse;
 import com.sprint.otboo.weather.service.LocationNameResolver;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,27 +16,34 @@ public class KakaoLocationNameResolver implements LocationNameResolver {
     private final KakaoLocalClient client;
 
     @Override
-    public List<String> resolve(double longitude, double latitude) {
-        KakaoCoord2RegioncodeResponse body = client.coord2RegionCode(longitude, latitude);
-        if (body == null || body.documents() == null || body.documents().isEmpty()) {
+    public List<String> resolve(double latitude, double longitude) {
+        KakaoCoord2RegioncodeResponse res =
+            client.coord2RegionCode(longitude, latitude);
+
+        if (res == null || res.documents() == null || res.documents().isEmpty()) {
             return List.of();
         }
-        var chosen = body.documents().stream()
-            .filter(d -> "B".equalsIgnoreCase(d.region_type()))
-            .findFirst()
-            .or(() -> body.documents().stream().findFirst());
 
-        if (chosen.isEmpty()) return List.of();
+        KakaoCoord2RegioncodeResponse.Document doc =
+            res.documents().stream().min(Comparator.comparing(
+                    (KakaoCoord2RegioncodeResponse.Document d) ->
+                        "B".equals(d.region_type()) ? 0 : 1))
+                .get();
 
-        var d = chosen.get();
         List<String> names = new ArrayList<>();
-        addIfPresent(names, d.region_1depth_name());
-        addIfPresent(names, d.region_2depth_name());
-        addIfPresent(names, d.region_3depth_name());
-        return names;
-    }
+        if (doc.region_1depth_name() != null && !doc.region_1depth_name().isBlank()) {
+            names.add(doc.region_1depth_name());
+        }
+        if (doc.region_2depth_name() != null && !doc.region_2depth_name().isBlank()) {
+            names.add(doc.region_2depth_name());
+        }
+        if (doc.region_3depth_name() != null && !doc.region_3depth_name().isBlank()) {
+            names.add(doc.region_3depth_name());
+        }
+        if (doc.region_4depth_name() != null && !doc.region_4depth_name().isBlank()) {
+            names.add(doc.region_4depth_name());
+        }
 
-    private static void addIfPresent(List<String> acc, String s) {
-        if (s != null && !s.isBlank()) acc.add(s);
+        return List.copyOf(names);
     }
 }

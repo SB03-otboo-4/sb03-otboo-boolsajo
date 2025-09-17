@@ -4,6 +4,6 @@ import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 
 public interface WeatherLocationQueryService {
 
-    // (longitude, latitude) 순서로 호출
-    WeatherLocationResponse getWeatherLocation(double longitude, double latitude);
+    // (latitude, longitude) 순서로 호출
+    WeatherLocationResponse getWeatherLocation(double latitude, double longitude);
 }

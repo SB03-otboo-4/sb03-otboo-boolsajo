@@ -17,9 +17,10 @@ public class WeatherController {
 
     @GetMapping("/location")
     public WeatherLocationResponse getWeatherLocation(
-        @RequestParam("longitude") double longitude,
-        @RequestParam("latitude") double latitude
+        @RequestParam("latitude") double latitude,
+        @RequestParam("longitude") double longitude
     ) {
-        return service.getWeatherLocation(longitude, latitude);
+        // 서비스는 (lat, lon) 순서
+        return service.getWeatherLocation(latitude, longitude);
     }
 }

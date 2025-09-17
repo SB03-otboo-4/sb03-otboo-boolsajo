@@ -4,5 +4,5 @@ import java.util.List;
 
 public interface LocationNameResolver {
 
-    List<String> resolve(double longitude, double latitude);
+    List<String> resolve(double latitude, double longitude);
 }
