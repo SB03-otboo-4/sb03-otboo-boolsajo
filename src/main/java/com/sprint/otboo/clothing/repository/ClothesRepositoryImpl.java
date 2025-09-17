@@ -59,10 +59,13 @@ public class ClothesRepositoryImpl implements ClothesRepositoryCustom {
     public long countByOwner(UUID ownerId, ClothesType type) {
         QClothes c = QClothes.clothes;
 
+        // 조회 조건 빌드
         BooleanExpression predicate = buildOwnerPredicate(c, ownerId, type, null, null);
 
+        // count 쿼리
         Long count = queryFactory.select(c.count())
-            .where(predicate)
+            .from(c)
+            .where(predicate)  // predicate가 null이면 전체 count
             .fetchOne();
 
         return count != null ? count : 0L;
@@ -80,8 +83,8 @@ public class ClothesRepositoryImpl implements ClothesRepositoryCustom {
      * @param idAfter 마지막 조회 의상 ID
      * @return BooleanExpression 조건식
      */
-    private BooleanExpression buildOwnerPredicate(QClothes c, UUID ownerId, ClothesType type,
-        Instant cursor, UUID idAfter) {
+    private BooleanExpression buildOwnerPredicate(QClothes c, UUID ownerId, ClothesType type, Instant cursor, UUID idAfter
+    ) {
         BooleanExpression predicate = c.user.id.eq(ownerId);
 
         // 타입 필터

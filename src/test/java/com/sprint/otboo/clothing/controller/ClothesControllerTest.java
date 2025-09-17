@@ -1,5 +1,6 @@
 package com.sprint.otboo.clothing.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -17,6 +18,7 @@ import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +31,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 
 @WebMvcTest(controllers = ClothesController.class)
@@ -310,4 +313,27 @@ public class ClothesControllerTest {
         resultActions
             .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상목록조회_허용되지않는타입_예외() throws Exception {
+        // given: 잘못된 타입 값
+        UUID ownerId = UUID.randomUUID();
+
+        // when: API 호출
+        var resultActions = mockMvc.perform(get("/api/clothes")
+            .param("ownerId", ownerId.toString())
+            .param("limit", "10")
+            .param("typeEqual", "INVALID_TYPE")  // ❌ 존재하지 않는 타입
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 400 상태코드와 에러 메시지 확인
+        resultActions
+            .andExpect(status().isBadRequest())
+            .andExpect(result ->
+                assertThat(result.getResolvedException())
+                    .isInstanceOfAny(MethodArgumentTypeMismatchException.class, ConstraintViolationException.class)
+            );
+    }
+
 }
