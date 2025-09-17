@@ -7,16 +7,14 @@ import com.sprint.otboo.weather.mapper.WeatherMapper;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryService {
 
     private final WeatherLocationRepository repo;
-
-    public WeatherLocationQueryServiceImpl(WeatherLocationRepository repo) {
-        this.repo = repo;
-    }
 
     @Override
     public WeatherLocationResponse getWeatherLocation(double longitude, double latitude) {

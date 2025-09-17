@@ -29,11 +29,11 @@ class WeatherLocationRepositoryTest {
         wl.setLocationNames("서울특별시 중구 태평로1가");
         repo.save(wl);
 
-        assertThat(repo.findByXAndY(60, 127)).isPresent();
+        assertThat(repo.findFirstByXAndY(60, 127)).isPresent();
     }
 
     @Test
     void 존재하지_않는_xy는_조회되지_않아야_한다() {
-        assertThat(repo.findByXAndY(999, 999)).isNotPresent();
+        assertThat(repo.findFirstByXAndY(999, 999)).isNotPresent();
     }
 }
