@@ -13,7 +13,9 @@ import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.clothing.storage.FileStorageService;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -93,6 +95,40 @@ public class ClothesServiceImpl implements ClothesService {
         return clothesMapper.toDto(saved);
     }
 
+    @Override
+    public CursorPageResponse<ClothesDto> getClothesList(UUID ownerId, int limit, Instant cursor,
+        UUID idAfter, ClothesType type
+    ) {
+        List<Clothes> clothesList = clothesRepository
+            .findClothesByOwner(ownerId, type, cursor, idAfter, limit);
+
+        long total = clothesRepository.countByOwner(ownerId, type);
+
+        List<ClothesDto> content = clothesList.stream()
+            .map(clothesMapper::toDto)
+            .toList();
+
+        Instant nextCursor = null;
+        UUID nextIdAfter = null;
+        boolean hasNext = false;
+
+        if (!clothesList.isEmpty()) {
+            Clothes last =  clothesList.get(clothesList.size() - 1);
+            nextCursor = last.getCreatedAt();
+            nextIdAfter = last.getId();
+            hasNext = clothesList.size() == limit;
+        }
+
+        return new CursorPageResponse<>(
+            content,
+            nextCursor != null ? nextCursor.toString() : null,
+            nextIdAfter != null ? nextIdAfter.toString() : null,
+            hasNext,
+            total,
+            "createdAt",
+            "DESCENDING"
+        );
+    }
 
     /**
      * 요청 기본 검증
