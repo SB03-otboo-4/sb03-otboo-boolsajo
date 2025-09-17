@@ -224,15 +224,50 @@ public class ClothesServiceTest {
     }
 
     @Test
-    void 사용자_의상_목록조회() {
-        // given
+    void 사용자_의상_목록조회_페이지네이션() {
+        // given: 사용자와 의상 엔티티 2개
         UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
 
-        // when & then
-        assertThatThrownBy(() -> clothesService.getClothesList(
-            ownerId.toString(), 10, null, null, null
-        )).isInstanceOf(UnsupportedOperationException.class);
+        Clothes c1 = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("티셔츠")
+            .type(ClothesType.TOP)
+            .user(user)
+            .createdAt(Instant.now().minusSeconds(60))
+            .build();
+
+        Clothes c2 = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("재킷")
+            .type(ClothesType.OUTER)
+            .user(user)
+            .createdAt(Instant.now())
+            .build();
+
+        // 최신순 정렬이므로 c2 먼저 나와야 함
+        List<Clothes> mockList = List.of(c2);
+
+        when(clothesRepository.findClothesByOwner(ownerId, null, null, null, 1))
+            .thenReturn(mockList);
+        when(clothesRepository.countByOwner(ownerId, null))
+            .thenReturn(2L);
+
+        // when: limit=1로 첫 페이지 요청
+        CursorPageResponse<ClothesDto> response = clothesService.getClothesList(
+            ownerId, 1, null, null, null
+        );
+
+        // then: 1개만 응답 + 다음 페이지 존재
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).name()).isEqualTo("재킷");
+        assertThat(response.hasNext()).isTrue();
+        assertThat(response.nextCursor()).isNotBlank();
+        assertThat(response.nextIdAfter()).isNotBlank();
+        assertThat(response.totalCount()).isEqualTo(2);
     }
+
 
     @Test
     void 사용자의_의상_목록_DESC조회_전체타입() {
@@ -265,7 +300,7 @@ public class ClothesServiceTest {
 
         // when: 서비스 호출
         CursorPageResponse<ClothesDto> response = clothesService.getClothesList(
-            ownerId.toString(), 10, null, null, null
+            ownerId, 10, null, null, null
         );
 
         // then: 응답 검증
@@ -300,7 +335,7 @@ public class ClothesServiceTest {
 
         // when: 서비스 호출
         CursorPageResponse<ClothesDto> response = clothesService.getClothesList(
-            ownerId.toString(), 10, null, null, ClothesType.TOP
+            ownerId, 10, null, null, ClothesType.TOP
         );
 
         // then: 응답 검증
