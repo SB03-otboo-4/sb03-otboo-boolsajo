@@ -7,6 +7,7 @@ import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,27 @@ public class UserRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserQueryRepository userQueryRepository;
+
+    @BeforeEach
+    void seedForCursorList() {
+        // given
+        for (int i = 0; i < 5; i++) {
+            User user = User.builder()
+                .username("user" + i)
+                .email((char)('a' + i) + "@test.com")
+                .password("encodedPassword")
+                .role(i % 2 == 0 ? Role.USER : Role.ADMIN)
+                .provider(LoginType.GENERAL)
+                .locked(i >= 3)
+                .build();
+            entityManager.persist(user);
+        }
+        entityManager.flush();
+        entityManager.clear();
+    }
 
     @Test
     void 사용자_저장_성공() {
@@ -138,5 +160,99 @@ public class UserRepositoryTest {
         assertThat(foundUser).isPresent();
         assertThat(foundUser.get().getId()).isEqualTo(savedUser.getId());
         assertThat(foundUser.get().getUsername()).isEqualTo("testUser");
+    }
+
+    @Test
+    void 첫_페이지_created_DESC_limit3() {
+        // given
+        int limit = 3;
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null,null,limit,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // then
+        assertThat(slice.rows()).hasSize(3);
+        assertThat(slice.hasNext()).isTrue();
+        assertThat(slice.nextCursor()).isNotBlank();
+        assertThat(slice.nextIdAfter()).isNotNull();
+    }
+
+    @Test
+    void email_ASC_emailLike() {
+        // given
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null, null, 10,
+            UserListEnums.SortBy.EMAIL, UserListEnums.SortDirection.ASCENDING,
+            "test", null, null
+        );
+
+        // then
+        assertThat(slice.rows()).hasSize(5);
+        assertThat(slice.hasNext()).isFalse();
+    }
+
+    @Test
+    void role_USER_locked_false_필터() {
+        // given
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null, null, 10,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, Role.USER, false
+        );
+
+        // then
+        assertThat(slice.rows()).allMatch(user -> user.getRole() == Role.USER && !user.getLocked());
+    }
+
+    @Test
+    void cursor_두_번째_페이지() {
+        // given
+        UserSlice first = userQueryRepository.findSlice(
+            null, null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // when
+        UserSlice second = userQueryRepository.findSlice(
+            first.nextCursor(), null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // then
+        assertThat(first.rows()).hasSize(2);
+        assertThat(second.rows()).hasSize(2);
+        assertThat(second.hasNext()).isTrue();
+        assertThat(second.rows()).noneMatch(user -> first.rows().contains(u));
+    }
+
+    @Test
+    void idAfter_다음페이지() {
+        // given
+        UserSlice first = userQueryRepository.findSlice(
+            null, null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // when
+        UserSlice second = userQueryRepository.findSlice(
+            first.nextCursor(), null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // then
+        assertThat(second.rows()).isNotEmpty();
+        assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
     }
 }

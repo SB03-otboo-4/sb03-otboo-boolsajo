@@ -1,6 +1,7 @@
 package com.sprint.otboo.user.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
@@ -572,7 +573,7 @@ public class UserControllerTest {
             true,
             123L,
             "createdAt",
-            "DESC"
+            "DESCENDING"
         );
 
         given(userService.listUsers(
@@ -613,6 +614,8 @@ public class UserControllerTest {
             null,
             null
         );
+        then(userService).should(never()).listUsers(any(),any(),any(),anyString(),
+                                            anyString(),any(),any(),any());
     }
 
     @Test

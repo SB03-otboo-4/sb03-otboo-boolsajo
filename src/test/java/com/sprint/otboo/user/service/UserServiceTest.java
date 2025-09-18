@@ -54,6 +54,8 @@ public class UserServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private UserQueryRepository userQueryRepository;
     @InjectMocks
     private UserServiceImpl userService;
 
