@@ -7,9 +7,11 @@ import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeRespo
 import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeResponse.Document;
 import com.sprint.otboo.weather.service.LocationNameResolver;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+@DisplayName("KakaoLocationNameResolver 테스트")
 class KakaoLocationNameResolverTest {
 
     @Test

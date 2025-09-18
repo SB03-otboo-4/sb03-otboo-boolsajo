@@ -92,6 +92,7 @@ dependencies {
     testImplementation 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.batch:spring-batch-test'
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
 // QueryDsl : 자동 생성 소스 파일 저장 위치
