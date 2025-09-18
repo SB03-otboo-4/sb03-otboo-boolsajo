@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,11 +22,14 @@ class WeatherLocationQueryServiceTest {
     @Mock
     private WeatherLocationRepository repo;
 
+    @Mock
+    private LocationNameResolver resolver;
+
     private WeatherLocationQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new WeatherLocationQueryServiceImpl(repo);
+        service = new WeatherLocationQueryServiceImpl(repo, resolver);
     }
 
     @Test
@@ -50,10 +54,12 @@ class WeatherLocationQueryServiceTest {
     }
 
     @Test
-    void 저장된_위치가_없으면_계산된_격자와_빈_이름_리스트로_응답해야_한다() {
+    void 저장된_위치가_없으면_계산된_격자와_Resolver_결과를_포함해야_한다() {
         // given
         given(repo.findFirstByLatitudeAndLongitude(37.5665, 126.9780))
             .willReturn(Optional.empty());
+        given(resolver.resolve(37.5665, 126.9780))
+            .willReturn(List.of("서울특별시", "중구", "태평로1가"));
 
         // when
         WeatherLocationResponse dto = service.getWeatherLocation(37.5665, 126.9780);
@@ -61,6 +67,6 @@ class WeatherLocationQueryServiceTest {
         // then
         assertThat(dto.x()).isEqualTo(60);
         assertThat(dto.y()).isEqualTo(127);
-        assertThat(dto.locationNames()).isEmpty();
+        assertThat(dto.locationNames()).containsExactly("서울특별시", "중구", "태평로1가");
     }
 }
