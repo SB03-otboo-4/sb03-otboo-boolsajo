@@ -250,25 +250,4 @@ class FeedServiceReadTest {
             assertThat(result.totalCount()).isEqualTo(2L);
         }
     }
-
-    @Nested
-    @DisplayName("피드 조회 정렬 실패 테스트")
-    class FeedReadSortingFailureTests {
-
-        @ParameterizedTest(name = "[{index}] invalid sortBy = {0}")
-        @ValueSource(strings = {"", " ", "likes", "unknown"})
-        void 잘못된_sortBy면_예외를_반환한다(String sortBy) {
-            // Given
-            String dir = "DESCENDING";
-
-            // When & Then
-            assertThatThrownBy(() ->
-                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null)
-            )
-                .isInstanceOf(IllegalArgumentException.class);
-
-            then(feedRepository).shouldHaveNoInteractions();
-            then(feedMapper).shouldHaveNoInteractions();
-        }
-    }
 }

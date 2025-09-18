@@ -49,7 +49,7 @@ public class FeedFixture {
         String authorName,
         String profileImageUrl,
         UUID weatherId,
-        String weatherSummary, // DTO용 요약은 여기서 직접 주입
+        String weatherSummary,
         String precipType,
         double precipAmount,
         double precipProb,
