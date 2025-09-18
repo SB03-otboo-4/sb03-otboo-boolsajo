@@ -11,7 +11,7 @@ import java.util.UUID;
  * Clothes Repository
  * <p>의상( Clothes ) 엔티티에 대한 기본 CRUD 기능 제공</p>
  */
-public interface ClothesRepository extends JpaRepository<Clothes, UUID> {
+public interface ClothesRepository extends JpaRepository<Clothes, UUID>, ClothesRepositoryCustom {
 
     List<Clothes> findAllByIdInAndUser_Id(Collection<UUID> ids, UUID userId);
 
