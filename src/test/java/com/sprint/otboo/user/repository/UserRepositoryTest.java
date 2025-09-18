@@ -2,6 +2,7 @@ package com.sprint.otboo.user.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.sprint.otboo.common.config.QuerydslConfig;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -18,6 +20,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 @EnableJpaAuditing
 @DisplayName("UserRepository 테스트")
+@Import(QuerydslConfig.class)
 public class UserRepositoryTest {
 
     @Autowired
