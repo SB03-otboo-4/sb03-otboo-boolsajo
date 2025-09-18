@@ -22,6 +22,7 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -153,6 +155,18 @@ public class UserControllerTest {
     private ResultActions performGetUserProfileRequest(UUID userId) throws Exception {
         return mockMvc.perform(get("/api/users/{userId}/profiles",userId)
             .contentType(MediaType.APPLICATION_JSON));
+    }
+
+    private UserDto createUserAccountDto(String email, String name, Role role, boolean locked) {
+        return new UserDto(
+            UUID.randomUUID(),
+            Instant.now(),
+            email,
+            name,
+            role,
+            LoginType.GENERAL,
+            locked
+        );
     }
 
     @Test
@@ -540,5 +554,158 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."));
 
         then(userService).should().getUserProfile(userId);
+    }
+
+    @Test
+    @WithMockUser
+    void 계정_목록_조회_성공_createdAt_DESC() throws Exception {
+        // given
+        List<UserDto> data = List.of(
+            createUserAccountDto("test@test1.com","testUser1",Role.USER,false),
+            createUserAccountDto("test@test2.com","testUser2",Role.USER,false),
+            createUserAccountDto("test@test3.com","testUser3",Role.USER,false)
+        );
+        UserDtoCursorResponse response = new UserDtoCursorResponse(
+            data,
+            "CUR_NEXT",
+            UUID.randomUUID().toString(),
+            true,
+            123L,
+            "createdAt",
+            "DESC"
+        );
+
+        given(userService.listUsers(
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.eq(3),
+            ArgumentMatchers.eq("createdAt"),
+            ArgumentMatchers.eq("DESCENDING"),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull()
+        )).willReturn(response);
+
+        // when
+        ResultActions result = mockMvc.perform(get("/api/users")
+            .param("limit","3")
+            .param("sortBy","createdAt")
+            .param("sortDirection","DESCENDING")
+            .accept(MediaType.APPLICATION_JSON)
+        );
+
+        // then
+        result.andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.data").isArray())
+            .andExpect(jsonPath("$.hasNext").value(true))
+            .andExpect(jsonPath("$.totalCount").value(123))
+            .andExpect(jsonPath("$.sortBy").value("createdAt"))
+            .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
+
+        then(userService).should().listUsers(
+            null,
+            null,
+            3,
+            "createdAt",
+            "DESCENDING",
+            null,
+            null,
+            null
+        );
+    }
+
+    @Test
+    @WithMockUser
+    void 계정_목록_조회_성공_email_ASC_필터_전달() throws Exception {
+        // given
+        List<UserDto> data = List.of(
+            createUserAccountDto("test@test1.com","testUser1",Role.USER,false),
+            createUserAccountDto("test@test2.com","testUser2",Role.USER,false)
+        );
+        UserDtoCursorResponse response = new UserDtoCursorResponse(
+            data,
+            "CUR2",
+            UUID.randomUUID().toString(),
+            false,
+            2L,
+            "email",
+            "ASCENDING"
+        );
+
+        given(userService.listUsers(
+            ArgumentMatchers.eq("CUR1"),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.eq(2),
+            ArgumentMatchers.eq("email"),
+            ArgumentMatchers.eq("ASCENDING"),
+            ArgumentMatchers.eq("test"),
+            ArgumentMatchers.eq("USER"),
+            ArgumentMatchers.eq(false)
+        )).willReturn(response);
+
+        // when
+        ResultActions result = mockMvc.perform(get("/api/users")
+            .param("cursor","CUR1")
+            .param("limit","2")
+            .param("sortBy","email")
+            .param("sortDirection","ASCENDING")
+            .param("emailLike","test")
+            .param("roleEqual","USER")
+            .param("locked","false")
+        );
+
+        // then
+
+        result.andExpect(status().isOk())
+            .andExpect(jsonPath("$.data").isArray())
+            .andExpect(jsonPath("$.hasNext").value(false))
+            .andExpect(jsonPath("$.totalCount").value(2))
+            .andExpect(jsonPath("$.sortBy").value("email"))
+            .andExpect(jsonPath("$.sortDirection").value("ASCENDING"));
+
+        then(userService).should().listUsers(
+            "CUR1",
+            null,
+            2,
+            "email",
+            "ASCENDING",
+            "test",
+            "USER",
+            false
+        );
+    }
+
+    @Test
+    @WithMockUser
+    void limit_누락으로_인해_계정_목록_조회_실패() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+            get("/api/users")
+                .param("sortBy","createdAt")
+                .param("sortDirection","DESCENDING")
+        );
+
+        // then
+        result.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    void 정렬값이_유효하지_않아_계정_목록_조회_실패() throws Exception {
+        // given
+
+        // when
+        ResultActions result = mockMvc.perform(
+            get("/api/users")
+                .param("limit","10")
+                .param("sortBy","invalid")
+                .param("sortDirection","DOWN")
+        );
+
+        // then
+        result.andExpect(status().isBadRequest());
     }
 }
