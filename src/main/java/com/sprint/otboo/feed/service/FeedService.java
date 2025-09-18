@@ -19,5 +19,6 @@ public interface FeedService {
         String sortDirection,
         String keywordLike,
         SkyStatus skyStatus,
-        PrecipitationType precipitationType);
+        PrecipitationType precipitationType,
+        UUID authorId);
 }

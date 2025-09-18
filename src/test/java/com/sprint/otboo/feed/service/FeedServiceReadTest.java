@@ -1,7 +1,6 @@
 package com.sprint.otboo.feed.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -104,7 +103,7 @@ class FeedServiceReadTest {
 
             given(feedRepository.searchByKeyword(
                 isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
-                isNull(), isNull(), isNull()
+                isNull(), isNull(), isNull(), isNull()
             )).willReturn(List.of(feed));
             given(feedRepository.countByFilters(isNull(), isNull(), isNull()))
                 .willReturn(1L);
@@ -112,7 +111,7 @@ class FeedServiceReadTest {
 
             // When
             CursorPageResponse<FeedDto> result =
-                feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, null, null);
+                feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, null, null, null);
 
             // Then
             assertThat(result.totalCount()).isEqualTo(1L);
@@ -120,7 +119,7 @@ class FeedServiceReadTest {
 
             then(feedRepository).should().searchByKeyword(
                 isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
-                isNull(), isNull(), isNull()
+                isNull(), isNull(), isNull(), isNull()
             );
             then(feedRepository).should().countByFilters(isNull(), isNull(), isNull());
             then(feedMapper).should().toDto(feed);
@@ -143,7 +142,7 @@ class FeedServiceReadTest {
 
                 given(feedRepository.searchByKeyword(
                     isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
-                    isNull(), eq(SkyStatus.CLEAR), isNull()
+                    isNull(), eq(SkyStatus.CLEAR), isNull(), isNull()
                 )).willReturn(List.of(feed));
                 given(feedRepository.countByFilters(isNull(), eq(SkyStatus.CLEAR), isNull()))
                     .willReturn(1L);
@@ -151,7 +150,7 @@ class FeedServiceReadTest {
 
                 // When
                 CursorPageResponse<FeedDto> result =
-                    feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null);
+                    feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null, null);
 
                 // Then
                 assertThat(result.content()).containsExactly(clearDto);
@@ -159,14 +158,14 @@ class FeedServiceReadTest {
             } else {
                 given(feedRepository.searchByKeyword(
                     isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
-                    isNull(), eq(filterStatus), isNull()
+                    isNull(), eq(filterStatus), isNull(), isNull()
                 )).willReturn(List.of());
                 given(feedRepository.countByFilters(isNull(), eq(filterStatus), isNull()))
                     .willReturn(0L);
 
                 // When
                 CursorPageResponse<FeedDto> result =
-                    feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null);
+                    feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null, null);
 
                 // Then
                 assertThat(result.content()).isEmpty();
@@ -204,7 +203,7 @@ class FeedServiceReadTest {
 
             given(feedRepository.searchByKeyword(
                 isNull(), eq(LIMIT), eq(sortBy), eq(dir),
-                isNull(), isNull(), isNull()
+                isNull(), isNull(), isNull(), isNull()
             )).willReturn(repoResult);
             given(feedRepository.countByFilters(isNull(), isNull(), isNull()))
                 .willReturn(2L);
@@ -212,7 +211,7 @@ class FeedServiceReadTest {
             given(feedMapper.toDto(olderFeed)).willReturn(olderDto);
 
             CursorPageResponse<FeedDto> result =
-                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null);
+                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null, null);
 
             if ("DESCENDING".equalsIgnoreCase(dir)) {
                 assertThat(result.content()).containsExactly(newerDto, olderDto);
@@ -232,7 +231,7 @@ class FeedServiceReadTest {
 
             given(feedRepository.searchByKeyword(
                 isNull(), eq(LIMIT), eq(sortBy), eq(dir),
-                isNull(), isNull(), isNull()
+                isNull(), isNull(), isNull(), isNull()
             )).willReturn(repoResult);
             given(feedRepository.countByFilters(isNull(), isNull(), isNull()))
                 .willReturn(2L);
@@ -240,7 +239,7 @@ class FeedServiceReadTest {
             given(feedMapper.toDto(olderFeed)).willReturn(olderDto);
 
             CursorPageResponse<FeedDto> result =
-                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null);
+                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null, null);
 
             if ("DESCENDING".equalsIgnoreCase(dir)) {
                 assertThat(result.content()).containsExactly(newerDto, olderDto);

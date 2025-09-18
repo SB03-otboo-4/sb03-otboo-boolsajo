@@ -82,14 +82,16 @@ public class FeedServiceImpl implements FeedService {
 
     public CursorPageResponse<FeedDto> getFeeds(
         String cursor, int limit, String sortBy, String sortDirection,
-        String keywordLike, SkyStatus skyStatus, PrecipitationType precipitationType
+        String keywordLike, SkyStatus skyStatus, PrecipitationType precipitationType, UUID authorId
     ) {
         List<Feed> rows = feedRepository.searchByKeyword(
-            cursor, limit, sortBy, sortDirection, keywordLike, skyStatus, precipitationType
-        );
+            cursor, limit, sortBy, sortDirection, keywordLike, skyStatus, precipitationType,
+            authorId);
 
         boolean hasNext = rows.size() > limit;
-        if (hasNext) rows = rows.subList(0, limit);
+        if (hasNext) {
+            rows = rows.subList(0, limit);
+        }
 
         List<FeedDto> feedDtos = rows.stream().map(feedMapper::toDto).toList();
 
@@ -155,7 +157,9 @@ public class FeedServiceImpl implements FeedService {
     }
 
     private PageCursor buildNextCursor(List<Feed> rows, boolean hasNext, String sortBy) {
-        if (!hasNext || rows.isEmpty()) return PageCursor.empty();
+        if (!hasNext || rows.isEmpty()) {
+            return PageCursor.empty();
+        }
 
         Feed last = rows.get(rows.size() - 1);
 
@@ -177,6 +181,9 @@ public class FeedServiceImpl implements FeedService {
     }
 
     private record PageCursor(String cursor, String idAfter) {
-        static PageCursor empty() { return new PageCursor(null, null); }
+
+        static PageCursor empty() {
+            return new PageCursor(null, null);
+        }
     }
 }

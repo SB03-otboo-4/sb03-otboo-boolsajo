@@ -13,4 +13,12 @@ public class UserFixture {
             .profileImageUrl(profileImageUrl)
             .build();
     }
+
+    public static User createUser() {
+        return User.builder()
+            .id(UUID.randomUUID())
+            .username("홍길동")
+            .profileImageUrl("profile.png")
+            .build();
+    }
 }

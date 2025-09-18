@@ -75,4 +75,45 @@ public class FeedFixture {
             likedByMe
         );
     }
+
+    public static Feed createFeedAt(User author, Weather weather, Instant createdAt) {
+        Instant now = Instant.now();
+        return Feed.builder()
+            .id(UUID.randomUUID())
+            .author(author)
+            .weather(weather)
+            .content("기본 컨텐츠")
+            .likeCount(0L)
+            .commentCount(0)
+            .createdAt(createdAt)
+            .updatedAt(now)
+            .build();
+    }
+
+    public static Feed createFeedWithLikeCount(User author, Weather weather, long likeCount) {
+        Instant now = Instant.now();
+        return Feed.builder()
+            .id(UUID.randomUUID())
+            .author(author)
+            .weather(weather)
+            .content("기본 컨텐츠")
+            .likeCount(likeCount)
+            .commentCount(0)
+            .createdAt(now)
+            .updatedAt(now)
+            .build();
+    }
+
+    public static Feed createFeedWithContent(User author, Weather weather, Instant createdAt, String content) {
+        return Feed.builder()
+            .id(UUID.randomUUID())
+            .author(author)
+            .weather(weather)
+            .content(content)
+            .likeCount(0L)
+            .commentCount(0)
+            .createdAt(createdAt)
+            .updatedAt(createdAt)
+            .build();
+    }
 }
