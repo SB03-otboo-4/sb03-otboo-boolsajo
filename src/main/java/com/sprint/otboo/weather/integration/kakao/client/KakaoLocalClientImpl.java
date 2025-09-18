@@ -1,11 +1,8 @@
 package com.sprint.otboo.weather.integration.kakao.client;
 
-import com.sprint.otboo.common.exception.weather.WeatherProviderException;
 import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -28,26 +25,20 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
         return kakao.get()
             .uri(uri)
             .retrieve()
-            .onStatus(HttpStatusCode::is4xxClientError, resp ->
-                resp.createException().flatMap(ex -> {
-                    int code = resp.statusCode().value();
-                    if (code == 429) { // Too Many Requests
-                        return reactor.core.publisher.Mono.error(WeatherProviderException.tooManyRequests());
-                    }
-                    return reactor.core.publisher.Mono.error(WeatherProviderException.badGateway());
-                })
-            )
-            .onStatus(HttpStatusCode::is5xxServerError, resp ->
-                resp.createException().flatMap(ex -> {
-                    int code = resp.statusCode().value();
-                    if (code == 504) { // Gateway Timeout
-                        return reactor.core.publisher.Mono.error(WeatherProviderException.timeout());
-                    }
-                    return reactor.core.publisher.Mono.error(WeatherProviderException.badGateway());
-                })
-            )
+            // 429, 502, 504는 도메인 예외로 매핑
+            .onStatus(s -> s.value() == 429, rsp -> reactor.core.publisher.Mono.error(
+                new com.sprint.otboo.common.exception.weather.WeatherProviderException(
+                    com.sprint.otboo.common.exception.ErrorCode.WEATHER_RATE_LIMIT)))
+            .onStatus(s -> s.value() == 502, rsp -> reactor.core.publisher.Mono.error(
+                new com.sprint.otboo.common.exception.weather.WeatherProviderException(
+                    com.sprint.otboo.common.exception.ErrorCode.WEATHER_PROVIDER_ERROR)))
+            .onStatus(s -> s.value() == 504, rsp -> reactor.core.publisher.Mono.error(
+                new com.sprint.otboo.common.exception.weather.WeatherProviderException(
+                    com.sprint.otboo.common.exception.ErrorCode.WEATHER_TIMEOUT)))
+            // 그 외 4xx/5xx → 기본 예외
+            .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError, rsp -> rsp.createException())
+            .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError, rsp -> rsp.createException())
             .bodyToMono(KakaoCoord2RegioncodeResponse.class)
-            .timeout(java.time.Duration.ofSeconds(5)) // 호출 타임아웃
             .block();
     }
 }
