@@ -115,7 +115,6 @@ public class TokenProvider {
 
         Role role = roles.isEmpty() ? null : Role.valueOf(roles.get(0).replace("ROLE_", ""));
 
-
         // 3. 추출한 정보로 UserDto 생성
         UserDto userDto = new UserDto(
             UUID.fromString(userId),

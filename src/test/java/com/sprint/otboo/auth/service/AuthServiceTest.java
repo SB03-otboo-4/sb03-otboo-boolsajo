@@ -1,7 +1,7 @@
 package com.sprint.otboo.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -59,7 +59,6 @@ public class AuthServiceTest {
     @Test
     void 로그인_성공_JwtDto를_반환한다() throws Exception {
         // given
-
         SignInRequest request = new SignInRequest(TEST_EMAIL, TEST_PASSWORD);
         CustomUserDetails userDetails = createTestUserDetails(false);
         UserDto userDto = userDetails.getUserDto();
@@ -88,10 +87,11 @@ public class AuthServiceTest {
         given(userDetailsService.loadUserByUsername(nonExistEmail))
             .willThrow(new UsernameNotFoundException("해당 이메일을 가진 사용자를 찾을 수 없습니다: " + nonExistEmail));
 
-        // when & then
-        assertThatThrownBy(() -> authService.signIn(new SignInRequest(nonExistEmail, "any_password")))
-            .isInstanceOf(InvalidCredentialsException.class);
+        // when
+        Throwable thrown = catchThrowable(() -> authService.signIn(new SignInRequest(nonExistEmail, "any_password")));
 
+        // then
+        assertThat(thrown).isInstanceOf(InvalidCredentialsException.class);
         verify(userDetailsService).loadUserByUsername(nonExistEmail);
         verifyNoInteractions(passwordEncoder, tokenProvider);
     }
@@ -105,10 +105,11 @@ public class AuthServiceTest {
         given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
         given(passwordEncoder.matches(wrongPassword, ENCODED_PASSWORD)).willReturn(false);
 
-        // when & then
-        assertThatThrownBy(() -> authService.signIn(new SignInRequest(TEST_EMAIL, wrongPassword)))
-            .isInstanceOf(InvalidCredentialsException.class);
+        // when
+        Throwable thrown = catchThrowable(() -> authService.signIn(new SignInRequest(TEST_EMAIL, wrongPassword)));
 
+        // then
+        assertThat(thrown).isInstanceOf(InvalidCredentialsException.class);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(wrongPassword, ENCODED_PASSWORD);
         verifyNoInteractions(tokenProvider);
@@ -120,10 +121,11 @@ public class AuthServiceTest {
         CustomUserDetails userDetails = createTestUserDetails(true);
         given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
 
-        // when & then
-        assertThatThrownBy(() -> authService.signIn(new SignInRequest(TEST_EMAIL, TEST_PASSWORD)))
-            .isInstanceOf(AccountLockedException.class);
+        // when
+        Throwable thrown = catchThrowable(() -> authService.signIn(new SignInRequest(TEST_EMAIL, TEST_PASSWORD)));
 
+        // then
+        assertThat(thrown).isInstanceOf(AccountLockedException.class);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verifyNoInteractions(passwordEncoder, tokenProvider);
     }
@@ -141,10 +143,11 @@ public class AuthServiceTest {
         given(tokenProvider.createAccessToken(userDto))
             .willThrow(new JOSEException("Failed to sign JWT"));
 
-        // when & then
-        assertThatThrownBy(() -> authService.signIn(request))
-            .isInstanceOf(TokenCreationException.class);
+        // when
+        Throwable thrown = catchThrowable(() -> authService.signIn(request));
 
+        // then
+        assertThat(thrown).isInstanceOf(TokenCreationException.class);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(TEST_PASSWORD, ENCODED_PASSWORD);
         verify(tokenProvider).createAccessToken(userDto);

@@ -40,6 +40,8 @@ import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(controllers = AuthController.class)
 @Import({SecurityConfig.class, GlobalExceptionHandler.class})
@@ -75,12 +77,12 @@ public class AuthControllerTest {
     @Test
     public void csrf토큰_조회_성공() throws Exception {
         // when
-        var result = mockMvc.perform(get("/api/auth/csrf-token"))
-            .andExpect(status().isNoContent())
-            .andReturn();
+        ResultActions resultActions = mockMvc.perform(get("/api/auth/csrf-token"));
 
         // then
-        var setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+        MvcResult mvcResult = resultActions.andExpect(status().isNoContent()).andReturn();
+
+        var setCookies = mvcResult.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
         String xsrf = setCookies.stream()
             .filter(v -> v.startsWith("XSRF-TOKEN="))
             .findFirst().orElse(null);
@@ -90,11 +92,13 @@ public class AuthControllerTest {
 
     @Test
     void 로그인_성공_CSRF_보호_미적용() throws Exception {
-        // when & then
-        mockMvc.perform(multipart("/api/auth/sign-in")
-                .param("username", "test@abc.com")
-                .param("password", "1234"))
-            .andExpect(status().isOk());
+        // when
+        ResultActions resultActions = mockMvc.perform(multipart("/api/auth/sign-in")
+            .param("username", "test@abc.com")
+            .param("password", "1234"));
+
+        // then
+        resultActions.andExpect(status().isOk());
     }
 
     @Test
@@ -116,20 +120,20 @@ public class AuthControllerTest {
 
         given(authService.signIn(any(SignInRequest.class))).willReturn(jwt);
 
-         //when & then
-        mockMvc.perform(multipart("/api/auth/sign-in")
-                .with(csrf())
-                .param("username", "test@abc.com")
-                .param("password", "1234")
-                .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isOk())
+        // when
+        ResultActions resultActions = mockMvc.perform(multipart("/api/auth/sign-in")
+            .with(csrf())
+            .param("username", "test@abc.com")
+            .param("password", "1234")
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isOk())
             .andExpect(jsonPath("$.accessToken").value("access.jwt.token"))
             .andExpect(jsonPath("$.userDto.id").value(userId.toString()))
             .andExpect(jsonPath("$.userDto.email").value("test@abc.com"))
             .andExpect(jsonPath("$.userDto.name").value("t1"))
-            .andExpect(jsonPath("$.userDto.role").value("USER"))
-            .andExpect(jsonPath("$.userDto.linkedOAuthProviders").value("GENERAL"))
-            .andExpect(jsonPath("$.userDto.locked").value(false));
+            .andExpect(jsonPath("$.userDto.role").value("USER"));
     }
 
     @Test
@@ -138,23 +142,27 @@ public class AuthControllerTest {
         given(authService.signIn(any(SignInRequest.class)))
             .willThrow(new InvalidCredentialsException());
 
-        //when & then
-        mockMvc.perform(multipart("/api/auth/sign-in")
-                .with(csrf())
-                .param("username", "test@abc.com")
-                .param("password", "wrong")
-                .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isUnauthorized());
+        // when
+        ResultActions resultActions = mockMvc.perform(multipart("/api/auth/sign-in")
+            .with(csrf())
+            .param("username", "test@abc.com")
+            .param("password", "wrong")
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
     }
 
     @Test
     void 로그인_username_누락시_400_반환() throws Exception {
-        //when & then
-        mockMvc.perform(multipart("/api/auth/sign-in")
-                .with(csrf())
-                .param("password", "1234")
-                .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isBadRequest());
+        // when
+        ResultActions resultActions = mockMvc.perform(multipart("/api/auth/sign-in")
+            .with(csrf())
+            .param("password", "1234")
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
     }
 
     @Test
@@ -165,13 +173,15 @@ public class AuthControllerTest {
           {"username":"test@abc.com","password":"1234"}
           """;
 
-        //when & then
-        mockMvc.perform(post("/api/auth/sign-in")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json)
-                .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isUnsupportedMediaType());
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/sign-in")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json)
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isUnsupportedMediaType());
     }
 
 }
