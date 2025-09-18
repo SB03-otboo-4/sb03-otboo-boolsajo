@@ -34,6 +34,9 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "이미 사용 중인 사용자명입니다."),
 
+    // 415 UNSUPPORTED_MEDIA_TYPE
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 미디어 타입입니다."),
+
     // 423 LOCKED
     ACCOUNT_LOCKED(HttpStatus.LOCKED, "잠긴 계정입니다."),
 

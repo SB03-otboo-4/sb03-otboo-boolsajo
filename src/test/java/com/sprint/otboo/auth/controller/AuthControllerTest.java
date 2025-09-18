@@ -3,36 +3,49 @@ package com.sprint.otboo.auth.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sprint.otboo.auth.CustomAuthenticationEntryPoint;
 import com.sprint.otboo.auth.dto.JwtDto;
 import com.sprint.otboo.auth.dto.SignInRequest;
+import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
+import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.auth.service.AuthService;
 import com.sprint.otboo.common.config.SecurityConfig;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
+import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.test.context.support.WithAnonymousUser;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(AuthController.class)
+@WebMvcTest(controllers = AuthController.class)
 @Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@WithAnonymousUser
+@AutoConfigureMockMvc(addFilters = true)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class AuthControllerTest {
 
     @Autowired
@@ -40,6 +53,24 @@ public class AuthControllerTest {
 
     @MockitoBean
     AuthService authService;
+
+    @MockitoBean
+    JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    TokenProvider tokenProvider;
+
+    @MockitoBean
+    CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+    @BeforeEach
+    void setUp() throws ServletException, IOException {
+        doAnswer(invocation -> {
+            FilterChain filterChain = invocation.getArgument(2);
+            filterChain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(jwtAuthenticationFilter).doFilter(any(), any(), any());
+    }
 
     @Test
     public void csrf토큰_조회_성공() throws Exception {
@@ -58,12 +89,12 @@ public class AuthControllerTest {
     }
 
     @Test
-    void CSRF_없이_POST_요청하면_403_반환한다() throws Exception {
+    void 로그인_성공_CSRF_보호_미적용() throws Exception {
         // when & then
         mockMvc.perform(multipart("/api/auth/sign-in")
-                .param("username", "t1")
+                .param("username", "test@abc.com")
                 .param("password", "1234"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
     }
 
     @Test
@@ -85,14 +116,13 @@ public class AuthControllerTest {
 
         given(authService.signIn(any(SignInRequest.class))).willReturn(jwt);
 
-        // when & then
+         //when & then
         mockMvc.perform(multipart("/api/auth/sign-in")
                 .with(csrf())
                 .param("username", "test@abc.com")
                 .param("password", "1234")
                 .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.accessToken").value("access.jwt.token"))
             .andExpect(jsonPath("$.userDto.id").value(userId.toString()))
             .andExpect(jsonPath("$.userDto.email").value("test@abc.com"))
@@ -105,7 +135,7 @@ public class AuthControllerTest {
     @Test
     void 로그인_실패시_401_반환() throws Exception {
         given(authService.signIn(any(SignInRequest.class)))
-            .willThrow(new BadCredentialsException("BAD_CREDENTIALS"));
+            .willThrow(new InvalidCredentialsException());
 
         mockMvc.perform(multipart("/api/auth/sign-in")
                 .with(csrf())

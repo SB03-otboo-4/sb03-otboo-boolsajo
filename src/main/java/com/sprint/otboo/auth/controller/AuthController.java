@@ -22,7 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @GetMapping("csrf-token")
+    @GetMapping("/csrf-token")
     public ResponseEntity<Void> getCsrfToken(CsrfToken csrfToken) {
         csrfToken.getToken();
 

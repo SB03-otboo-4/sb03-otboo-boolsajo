@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.sprint.otboo.auth.dto.JwtDto;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.TokenProvider;
+import com.sprint.otboo.common.exception.auth.AccountLockedException;
+import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -23,8 +25,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.LockedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,7 +62,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void 로그인_성공_JwtDto를_반환한다() {
+    void 로그인_성공_JwtDto를_반환한다() throws Exception {
         // given
         User unlockedUser = createTestUser(false);
 
@@ -75,7 +75,7 @@ public class AuthServiceTest {
 
         given(userRepository.findByEmail(TEST_EMAIL)).willReturn(Optional.of(unlockedUser));
         given(passwordEncoder.matches(TEST_PASSWORD, ENCODED_PASSWORD)).willReturn(true);
-        given(tokenProvider.createAccessToken(TEST_USER_ID)).willReturn("access.jwt.token");
+        given(tokenProvider.createAccessToken(unlockedUser)).willReturn("access.jwt.token");
         given(userMapper.toUserDto(unlockedUser)).willReturn(userDto);
 
         // when
@@ -88,7 +88,7 @@ public class AuthServiceTest {
 
         verify(userRepository).findByEmail(TEST_EMAIL);
         verify(passwordEncoder).matches(TEST_PASSWORD, ENCODED_PASSWORD);
-        verify(tokenProvider).createAccessToken(TEST_USER_ID);
+        verify(tokenProvider).createAccessToken(unlockedUser);
         verify(userMapper).toUserDto(unlockedUser);
     }
 
@@ -100,7 +100,7 @@ public class AuthServiceTest {
 
         // when & then
         assertThatThrownBy(() -> authService.signIn(new SignInRequest(nonExistEmail, "any_password")))
-            .isInstanceOf(BadCredentialsException.class);
+            .isInstanceOf(InvalidCredentialsException.class);
 
         verify(userRepository).findByEmail(nonExistEmail);
         verifyNoInteractions(passwordEncoder, tokenProvider, userMapper);
@@ -117,7 +117,7 @@ public class AuthServiceTest {
 
         // when & then
         assertThatThrownBy(() -> authService.signIn(new SignInRequest(TEST_EMAIL, wrongPassword)))
-            .isInstanceOf(BadCredentialsException.class);
+            .isInstanceOf(InvalidCredentialsException.class);
 
         verify(userRepository).findByEmail(TEST_EMAIL);
         verify(passwordEncoder).matches(wrongPassword, ENCODED_PASSWORD);
@@ -132,7 +132,7 @@ public class AuthServiceTest {
 
         // when & then
         assertThatThrownBy(() -> authService.signIn(new SignInRequest(TEST_EMAIL, "1324")))
-            .isInstanceOf(LockedException.class);
+            .isInstanceOf(AccountLockedException.class);
 
         verify(userRepository).findByEmail(TEST_EMAIL);
         verifyNoInteractions(passwordEncoder, tokenProvider, userMapper);
