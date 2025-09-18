@@ -13,7 +13,9 @@ import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.clothing.storage.FileStorageService;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -89,10 +91,40 @@ public class ClothesServiceImpl implements ClothesService {
         addAttributes(request, clothes);
 
         Clothes saved = clothesRepository.save(clothes);
+        log.info("의상 생성 완료: id = {}, ownerId = {}", saved.getId(), saved.getUser().getId());
 
         return clothesMapper.toDto(saved);
     }
 
+    /**
+     * 사용자 의상 목록 조회 (커서 페이지네이션)
+     *
+     * @param ownerId 조회할 사용자 ID
+     * @param limit 조회할 최대 개수
+     * @param cursor 마지막 조회 시각
+     * @param idAfter 마지막 조회 의상 ID
+     * @param type 조회할 의상 타입 (null이면 전체)
+     * @return CursorPageResponse<ClothesDto> 페이지네이션 결과
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPageResponse<ClothesDto> getClothesList(UUID ownerId, int limit, Instant cursor,
+        UUID idAfter, ClothesType type
+    ) {
+        // 유효성 검증
+        validateOwnerId(ownerId);
+        validateLimit(limit);
+
+        // 필터링
+        List<Clothes> clothesList = clothesRepository.findClothesByOwner(ownerId, type, cursor, idAfter, limit);
+        long total = clothesRepository.countByOwner(ownerId, type);
+
+        List<ClothesDto> content = clothesList.stream()
+            .map(clothesMapper::toDto)
+            .toList();
+
+        return buildCursorPageResponse(clothesList, content, total, limit);
+    }
 
     /**
      * 요청 기본 검증
@@ -124,22 +156,23 @@ public class ClothesServiceImpl implements ClothesService {
         if (type == null) throw new ClothesValidationException("의상 타입은 필수입니다");
     }
 
+    // 조회 limit 검증
+    private void validateLimit(int limit) {
+        if (limit <= 0) throw new ClothesValidationException("조회 개수(limit)는 1 이상이어야 합니다");
+    }
+
     /**
-     * 요청 DTO에 포함된 속성을 ClothesAttribute 엔티티로 변환하여
-     * 해당 Clothes 엔티티에 추가합니다.
+     * 요청 DTO 속성을 ClothesAttribute 엔티티로 변환하여 Clothes 엔티티에 추가
      *
      * @param request 의상 생성 요청 DTO
      * @param clothes 속성을 추가할 Clothes 엔티티
-     * @throws ClothesValidationException 유효하지 않은 속성 정의 ID가 있을 경우
      */
     private void addAttributes(ClothesCreateRequest request, Clothes clothes) {
-        if (request.attributes() == null || request.attributes().isEmpty()) {
-            return;
-        }
+        if (request.attributes() == null || request.attributes().isEmpty()) return;
 
         List<ClothesAttribute> attrs = request.attributes().stream()
+            // 속성 정의 조회
             .map(dto -> {
-                // 속성 정의 조회
                 var def = defRepository.findById(dto.definitionId())
                     .orElseThrow(() -> new ClothesValidationException("유효하지 않은 속성 정의"));
 
@@ -149,8 +182,45 @@ public class ClothesServiceImpl implements ClothesService {
                     .value(dto.value())
                     .build();
             })
-                .collect(Collectors.toList());
+            .collect(Collectors.toList());
 
         clothes.getAttributes().addAll(attrs);
+        log.debug("의상 속성 추가 완료: ownerId={}, attributesCount={}", clothes.getUser().getId(), attrs.size());
+    }
+
+    /**
+     * CursorPageResponse 생성 헬퍼
+     *
+     * <p>마지막 요소를 기준으로 다음 페이지 여부 및 커서 설정
+     *
+     * @param clothesList 조회된 의상 리스트
+     * @param content DTO 변환된 의상 리스트
+     * @param total 전체 의상 개수
+     * @param limit 조회 개수 제한
+     * @return CursorPageResponse<ClothesDto>
+     */
+    private CursorPageResponse<ClothesDto> buildCursorPageResponse(List<Clothes> clothesList, List<ClothesDto> content, long total, int limit
+    ) {
+        Instant nextCursor = null;
+        UUID nextIdAfter = null;
+        boolean hasNext = false;
+
+        if (!clothesList.isEmpty()) {
+            // 마지막 요소 기준으로 다음 페이지 존재 여부 계산
+            Clothes last = clothesList.get(clothesList.size() - 1);
+            nextCursor = last.getCreatedAt();
+            nextIdAfter = last.getId();
+            hasNext = clothesList.size() == limit && total > limit;
+        }
+
+        return new CursorPageResponse<>(
+            content,
+            nextCursor != null ? nextCursor.toString() : null,
+            nextIdAfter != null ? nextIdAfter.toString() : null,
+            hasNext,
+            total,
+            "createdAt",
+            "DESCENDING"
+        );
     }
 }
