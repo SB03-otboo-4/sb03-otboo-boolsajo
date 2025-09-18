@@ -7,12 +7,15 @@ import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryService {
 
     private final WeatherLocationRepository repo;
+    private final LocationNameResolver resolver;
 
     @Override
     public WeatherLocationResponse getWeatherLocation(double latitude, double longitude) {
@@ -21,9 +24,10 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
         return repo.findFirstByLatitudeAndLongitude(latitude, longitude)
             .map(WeatherMapper::toLocationResponse)
             .orElseGet(() -> {
-                // 2) 없으면 격자 계산 + 빈 이름 리스트
+                // 2) 없으면 격자 계산 + Resolver로 행정구역 이름 조회
                 KmaGridConverter.XY xy = KmaGridConverter.toXY(latitude, longitude);
-                return new WeatherLocationResponse(latitude, longitude, xy.x(), xy.y(), List.of());
+                List<String> names = resolver.resolve(latitude, longitude);
+                return new WeatherLocationResponse(latitude, longitude, xy.x(), xy.y(), names);
             });
     }
 }
