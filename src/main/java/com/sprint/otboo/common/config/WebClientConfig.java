@@ -1,5 +1,6 @@
 package com.sprint.otboo.common.config;
 
+import com.sprint.otboo.weather.integration.kakao.KakaoApiProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
