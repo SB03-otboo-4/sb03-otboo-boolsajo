@@ -58,6 +58,7 @@ public class SecurityConfig {
                 // 개발용 임시 설정
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()    // 계정 잠금
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").permitAll()    // 권한 변경
+                .requestMatchers(HttpMethod.GET, "/api/users/*/profiles").permitAll()   // 프로필 조회
 
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
