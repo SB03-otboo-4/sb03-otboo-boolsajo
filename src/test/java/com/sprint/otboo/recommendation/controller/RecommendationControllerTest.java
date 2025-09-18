@@ -1,4 +1,4 @@
-package com.sprint.otboo.recommendation.service;
+package com.sprint.otboo.recommendation.controller;
 
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -10,8 +10,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.entity.ClothesType;
-import com.sprint.otboo.recommendation.controller.RecommendationController;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
+import com.sprint.otboo.recommendation.service.RecommendationService;
+import com.sprint.otboo.recommendation.service.RecommendationServiceTest;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
