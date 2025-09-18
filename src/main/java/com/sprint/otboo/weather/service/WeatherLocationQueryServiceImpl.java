@@ -1,5 +1,6 @@
 package com.sprint.otboo.weather.service;
 
+import com.sprint.otboo.common.exception.weather.WeatherBadCoordinateException;
 import com.sprint.otboo.common.util.KmaGridConverter;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.mapper.WeatherMapper;
@@ -19,15 +20,20 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
 
     @Override
     public WeatherLocationResponse getWeatherLocation(double latitude, double longitude) {
+        validate(latitude, longitude);
 
-        // 1) 위경도 저장값이 있으면 반환
         return repo.findFirstByLatitudeAndLongitude(latitude, longitude)
             .map(WeatherMapper::toLocationResponse)
             .orElseGet(() -> {
-                // 2) 없으면 격자 계산 + Resolver로 행정구역 이름 조회
                 KmaGridConverter.XY xy = KmaGridConverter.toXY(latitude, longitude);
                 List<String> names = resolver.resolve(latitude, longitude);
                 return new WeatherLocationResponse(latitude, longitude, xy.x(), xy.y(), names);
             });
+    }
+
+    private void validate(double latitude, double longitude) {
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            throw new WeatherBadCoordinateException();
+        }
     }
 }
