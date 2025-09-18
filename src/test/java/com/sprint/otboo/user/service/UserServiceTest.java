@@ -579,6 +579,7 @@ public class UserServiceTest {
         UserProfile mockUserProfile = createCompleteUserProfile(userId, mockUser);
         ProfileDto expectedProfileDto = createExpectedCompleteProfileDto(userId);
 
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(userProfileRepository.findById(userId)).willReturn(Optional.of(mockUserProfile));
         given(userMapper.toProfileDto(mockUser, mockUserProfile)).willReturn(expectedProfileDto);
 
@@ -599,6 +600,7 @@ public class UserServiceTest {
         assertThat(result.locationNames()).containsExactly("인천광역시","서구","석남1동");
         assertThat(result.temperatureSensitivity()).isEqualTo(5);
 
+        then(userRepository).should().findById(userId);
         then(userProfileRepository).should().findById(userId);
         then(userMapper).should().toProfileDto(mockUser, mockUserProfile);
     }
@@ -607,6 +609,9 @@ public class UserServiceTest {
     void 존재하지_않는_사용자_프로필_조회시_예외_발생() {
         // given
         UUID userId = UUID.randomUUID();
+        User mockUser = createMockUserForProfile(userId, "testUser", "test@test.com", null);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(userProfileRepository.findById(userId)).willReturn(Optional.empty());
 
         // when
@@ -616,8 +621,9 @@ public class UserServiceTest {
         assertThat(thrown)
             .isInstanceOf(CustomException.class)
             .extracting("errorCode")
-            .isEqualTo(ErrorCode.USER_NOT_FOUND);
+            .isEqualTo(ErrorCode.USER_PROFILE_NOT_FOUND);
 
+        then(userRepository).should().findById(userId);
         then(userProfileRepository).should().findById(userId);
         then(userMapper).should(never()).toProfileDto(any(User.class), any(UserProfile.class));
     }
@@ -630,13 +636,14 @@ public class UserServiceTest {
         UserProfile mockUserProfile = createEmptyUserProfile(userId, mockUser);
         ProfileDto expectedProfileDto = createExpectedEmptyProfileDto(userId);
 
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(userProfileRepository.findById(userId)).willReturn(Optional.of(mockUserProfile));
         given(userMapper.toProfileDto(mockUser, mockUserProfile)).willReturn(expectedProfileDto);
 
         // when
         ProfileDto result = userService.getUserProfile(userId);
 
-        // when
+        // then
         assertThat(result).isNotNull();
         assertThat(result.userId()).isEqualTo(userId);
         assertThat(result.name()).isEqualTo("testUser");
@@ -648,6 +655,7 @@ public class UserServiceTest {
         assertThat(result.locationNames()).isEmpty();
         assertThat(result.temperatureSensitivity()).isNull();
 
+        then(userRepository).should().findById(userId);
         then(userProfileRepository).should().findById(userId);
         then(userMapper).should().toProfileDto(mockUser, mockUserProfile);
     }
