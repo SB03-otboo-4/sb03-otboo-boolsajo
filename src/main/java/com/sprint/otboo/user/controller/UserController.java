@@ -10,6 +10,7 @@ import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,13 +25,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
 
     private final UserService userService;
 
     @PostMapping
     public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserCreateRequest request) {
+        log.info("[UserController] 회원가입 요청 : email = {} ", request.email());
+
         UserDto userDto = userService.createUser(request);
+
+        log.info("[UserController] 회원가입 성공 : userId : {} ", userDto.id());
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
     }
 
@@ -39,7 +45,11 @@ public class UserController {
         @PathVariable UUID userId,
         @Valid @RequestBody ChangePasswordRequest request
     ) {
+        log.info("[UserController] 비밀번호 변경 요청 : userId = {} ", userId);
+
         userService.updatePassword(userId, request);
+
+        log.info("[UserController] 비밀번호 변경 성공 : userId = {} ", userId);
         return ResponseEntity.noContent().build();
     }
 
@@ -49,7 +59,11 @@ public class UserController {
         @PathVariable UUID userId,
         @Valid @RequestBody UserLockUpdateRequest request
     ) {
+        log.info("[UserController] 계정 잠금 상태 변경 요청 : userId = {}, locked = {}", userId, request.locked());
+
         UserDto updatedUser = userService.updateUserLockStatus(userId, request);
+
+        log.info("[UserController] 계정 잠금 상태 변경 성공 : userId = {}, locked = {}", userId, request.locked());
         return ResponseEntity.ok(updatedUser);
     }
 
@@ -59,13 +73,21 @@ public class UserController {
         @PathVariable UUID userId,
         @Valid @RequestBody UserRoleUpdateRequest request
     ) {
+        log.info("[UserController] 권한 수정 요청 : userId = {}, locked = {}", userId, request.role());
+
         UserDto updatedUser = userService.updateUserRole(userId, request);
+
+        log.info("[UserController] 권한 수정 성공 : userId = {} ", userId);
         return ResponseEntity.ok(updatedUser);
     }
 
     @GetMapping("/{userId}/profiles")
     public ResponseEntity<ProfileDto> getUserProfile(@PathVariable UUID userId) {
+        log.info("[UserController] 프로필 조회 요청 : userId = {}", userId);
+
         ProfileDto profileDto = userService.getUserProfile(userId);
+
+        log.info("[UserController] 프로필 조회 성공 : userId = {}", userId);
         return ResponseEntity.ok(profileDto);
     }
 }
