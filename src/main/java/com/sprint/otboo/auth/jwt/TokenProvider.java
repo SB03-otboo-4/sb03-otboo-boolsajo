@@ -13,7 +13,6 @@ import com.sprint.otboo.common.exception.auth.InvalidTokenException;
 import com.sprint.otboo.common.exception.auth.TokenExpiredException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.Role;
-import com.sprint.otboo.user.entity.User;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.Collection;
@@ -45,25 +44,25 @@ public class TokenProvider {
         this.accessTokenVerifier = new MACVerifier(accessTokenSecretBytes);
     }
 
-    public String createAccessToken(User user) throws JOSEException {
+    public String createAccessToken(UserDto user) throws JOSEException {
         return createToken(user, accessTokenExpiration, accessTokenSigner, "access");
     }
 
-    private String createToken(User user, long expiration, JWSSigner signer, String tokenType) throws JOSEException {
+    private String createToken(UserDto user, long expiration, JWSSigner signer, String tokenType) throws JOSEException {
         String tokenId = UUID.randomUUID().toString();
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-            .subject(user.getEmail())
+            .subject(user.email())
             .jwtID(tokenId)
             .issueTime(now)
             .expirationTime(expiryDate)
-            .claim("userId", user.getId().toString())
-            .claim("username", user.getUsername())
+            .claim("userId", user.id().toString())
+            .claim("username", user.name())
             .claim("type", tokenType)
-            .claim("roles", List.of("ROLE_" + user.getRole().name()))
+            .claim("roles", List.of("ROLE_" + user.role().name()))
             .build();
 
         SignedJWT signedJWT = new SignedJWT(

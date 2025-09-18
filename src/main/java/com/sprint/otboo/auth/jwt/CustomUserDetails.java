@@ -3,6 +3,7 @@ package com.sprint.otboo.auth.jwt;
 import com.sprint.otboo.user.dto.data.UserDto;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -29,5 +30,14 @@ public class CustomUserDetails implements UserDetails {
     @Override
     public String getUsername() {
         return userDto.email();
+    }
+
+    public UUID getUserId() {
+        return userDto.id();
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return !userDto.locked();
     }
 }

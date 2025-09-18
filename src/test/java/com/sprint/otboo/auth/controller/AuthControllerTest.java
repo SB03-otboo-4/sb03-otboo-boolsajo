@@ -134,9 +134,11 @@ public class AuthControllerTest {
 
     @Test
     void 로그인_실패시_401_반환() throws Exception {
+        //given
         given(authService.signIn(any(SignInRequest.class)))
             .willThrow(new InvalidCredentialsException());
 
+        //when & then
         mockMvc.perform(multipart("/api/auth/sign-in")
                 .with(csrf())
                 .param("username", "test@abc.com")
@@ -147,6 +149,7 @@ public class AuthControllerTest {
 
     @Test
     void 로그인_username_누락시_400_반환() throws Exception {
+        //when & then
         mockMvc.perform(multipart("/api/auth/sign-in")
                 .with(csrf())
                 .param("password", "1234")
@@ -156,10 +159,13 @@ public class AuthControllerTest {
 
     @Test
     void 로그인_JSON으로_보내면_415_반환() throws Exception {
+        //given
         String json =
           """
           {"username":"test@abc.com","password":"1234"}
           """;
+
+        //when & then
         mockMvc.perform(post("/api/auth/sign-in")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)

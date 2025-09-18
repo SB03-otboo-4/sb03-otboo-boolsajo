@@ -1,6 +1,5 @@
 package com.sprint.otboo.auth.jwt;
 
-import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
@@ -21,7 +20,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
-            .orElseThrow(UserNotFoundException::new);
+            .orElseThrow(() -> new UsernameNotFoundException("해당 이메일을 가진 사용자를 찾을 수 없습니다: " + email));
         UserDto userDto = userMapper.toUserDto(user);
 
         return new CustomUserDetails(
