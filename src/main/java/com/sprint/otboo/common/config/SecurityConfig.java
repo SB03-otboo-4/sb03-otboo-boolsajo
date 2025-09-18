@@ -6,6 +6,7 @@ import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,6 +18,7 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -34,8 +36,12 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
-                    .ignoringRequestMatchers("/api/auth/sign-in")
-                    .ignoringRequestMatchers("/api/users/*/password") // 비밀번호 변경 확인 테스트를 위해 개발용으로 CSRF 제외
+                    .ignoringRequestMatchers(
+                                  "/api/auth/sign-in",      // 로그인
+                                  "/api/users/*/password",  // 비밀번호 변경
+                                  "/api/users/*/lock",       // 계정 잠금 상태 변경
+                                  "/api/users/*/role" // 권한 변경
+                    )
             )
             .sessionManagement(s ->
                     s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -51,10 +57,23 @@ public class SecurityConfig {
                 // Actuator
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
+                // 사용자 관련 API
                 .requestMatchers("/api/users").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/password").permitAll()
+
+                // 개발용 임시 설정
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()    // 계정 잠금
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").permitAll()    // 권한 변경
+                .requestMatchers(HttpMethod.GET, "/api/users/*/profiles").permitAll()   // 프로필 조회
+
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
+
+                // 의상 관련 API
+                .requestMatchers(HttpMethod.POST, "/api/clothes").hasAnyRole("USER", "ADMIN")  // 의상 등록( 공용 )
+                .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs").hasRole("ADMIN")  // 의상 속성 등록( ADMIN )
+
+                // 나머지 인증 필요
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny())
