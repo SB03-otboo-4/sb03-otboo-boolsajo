@@ -3,10 +3,10 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:otboo}?currentSchema=${POSTGRES_SCHEMA}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:phoenixdb}?currentSchema=${POSTGRES_SCHEMA:phoenix}
     driver-class-name: org.postgresql.Driver
-    username: ${POSTGRES_USER:otboo_user}
-    password: ${POSTGRES_PASSWORD:otboo1234}
+    username: ${POSTGRES_USER:phoenix}
+    password: ${POSTGRES_PASSWORD:phoenix}
   jpa:
     open-in-view: false
     hibernate:

@@ -26,7 +26,15 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
             .map(WeatherMapper::toLocationResponse)
             .orElseGet(() -> {
                 KmaGridConverter.XY xy = KmaGridConverter.toXY(latitude, longitude);
-                List<String> names = resolver.resolve(latitude, longitude);
+
+                List<String> names;
+                try {
+                    names = resolver.resolve(latitude, longitude);
+                } catch (Exception ex) {
+                    // 외부 API(카카오) 실패 시에도 x,y와 원본 위경도는 반환
+                    names = List.of();
+                }
+
                 return new WeatherLocationResponse(latitude, longitude, xy.x(), xy.y(), names);
             });
     }
