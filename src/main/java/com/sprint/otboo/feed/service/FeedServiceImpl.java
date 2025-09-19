@@ -3,8 +3,10 @@ package com.sprint.otboo.feed.service;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.clothing.UserClothesNotFoundException;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
+import com.sprint.otboo.common.exception.paging.InvalidPagingParamException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
@@ -42,6 +44,10 @@ public class FeedServiceImpl implements FeedService {
     private final ClothesRepository clothesRepository;
     private final FeedLikeRepository feedLikeRepository;
     private final FeedMapper feedMapper;
+
+    private static final int MAX_LIMIT = 15;
+    private static final Set<String> ALLOWED_SORT_BY = Set.of("createdAt", "likeCount");
+    private static final Set<String> ALLOWED_SORT_DIR = Set.of("ASCENDING", "DESCENDING");
 
     @Override
     @Transactional
@@ -91,6 +97,8 @@ public class FeedServiceImpl implements FeedService {
         PrecipitationType precipitationType,
         UUID authorId
     ) {
+        validatePaging(limit, sortBy, sortDirection);
+
         List<Feed> rows = feedRepository.searchByKeyword(
             cursor,
             idAfter,
@@ -142,6 +150,18 @@ public class FeedServiceImpl implements FeedService {
         }
     }
 
+    private void validatePaging(int limit, String sortBy, String sortDirection) {
+        if (limit <= 0 || limit > MAX_LIMIT) {
+            throw new InvalidPagingParamException(ErrorCode.INVALID_PAGING_LIMIT);
+        }
+        if (sortBy == null || !ALLOWED_SORT_BY.contains(sortBy)) {
+            throw new InvalidPagingParamException(ErrorCode.INVALID_SORT_BY);
+        }
+        if (sortDirection == null || !ALLOWED_SORT_DIR.contains(sortDirection)) {
+            throw new InvalidPagingParamException(ErrorCode.INVALID_SORT_DIRECTION);
+        }
+    }
+
     private Set<UUID> distinctIdSet(List<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return Collections.emptySet();
@@ -187,7 +207,7 @@ public class FeedServiceImpl implements FeedService {
             key = (at == null ? "0" : at.toString());
         }
 
-        String nextCursor = key + last.getId();
+        String nextCursor = key;
         String nextIdAfter = last.getId().toString();
 
         log.info("[FeedService] paging lastId={}, nextCursor={}", last.getId(), nextCursor);
