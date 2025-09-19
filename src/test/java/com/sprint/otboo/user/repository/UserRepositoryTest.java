@@ -13,22 +13,25 @@ import com.sprint.otboo.user.service.support.UserListEnums;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@EnableJpaAuditing
+@EnableJpaAuditing(dateTimeProviderRef = "testDateTimeProvider")
 @DisplayName("UserRepository 테스트")
-@Import({QuerydslConfig.class,UserQueryRepositoryImpl.class})
+@Import({QuerydslConfig.class,UserQueryRepositoryImpl.class, UserRepositoryTest.TestAuditConfig.class})
 public class UserRepositoryTest {
 
     @Autowired
@@ -42,9 +45,6 @@ public class UserRepositoryTest {
 
     @BeforeEach
     void seedForCursorList() {
-        // given
-        Instant base = Instant.parse("2025-01-01T00:00:00Z");
-
         for (int i = 0; i < 5; i++) {
             User user = User.builder()
                 .username("user" + i)
@@ -54,9 +54,6 @@ public class UserRepositoryTest {
                 .provider(LoginType.GENERAL)
                 .locked(i >= 3)
                 .build();
-
-            ReflectionTestUtils.setField(user, "createdAt", base.plus(i, ChronoUnit.SECONDS));
-
             entityManager.persist(user);
         }
         entityManager.flush();
@@ -266,5 +263,17 @@ public class UserRepositoryTest {
         // then
         assertThat(second.rows()).isNotEmpty();
         assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
+    }
+
+    @TestConfiguration
+    static class TestAuditConfig {
+        private final AtomicLong seq = new AtomicLong(0);
+
+        @Bean("testDateTimeProvider")
+        public DateTimeProvider testDateTimeProvider() {
+            Instant base = Instant.parse("2025-01-01T00:00:00Z");
+            // persist 될 때마다 millisecond 단위로 0,1,2,... 증가시켜 유니크한 createdAt 보장
+            return () -> Optional.of(base.plus(seq.getAndIncrement(), ChronoUnit.MILLIS));
+        }
     }
 }
