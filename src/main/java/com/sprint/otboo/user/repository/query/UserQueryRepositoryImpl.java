@@ -1,4 +1,3 @@
-// package: com.sprint.otboo.user.repository.query
 package com.sprint.otboo.user.repository.query;
 
 import com.querydsl.core.BooleanBuilder;
@@ -23,6 +22,9 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
 
     private final JPAQueryFactory queryFactory;
 
+    /**
+     * 커서 기반 사용자 슬라이스 조회
+     * */
     @Override
     public UserSlice findSlice(
         String cursor,
@@ -36,7 +38,6 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
     ) {
         QUser u = QUser.user;
 
-        // 공통 필터
         BooleanBuilder where = new BooleanBuilder();
         if (emailLike != null && !emailLike.isBlank()) {
             where.and(u.email.containsIgnoreCase(emailLike));
@@ -48,7 +49,7 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
             where.and(u.locked.eq(locked));
         }
 
-        // 정렬
+        // 정렬 구성
         OrderSpecifier<?> primary;
         OrderSpecifier<?> tie;
         if (sortBy == SortBy.EMAIL) {
@@ -59,7 +60,7 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
             tie     = sortDirection == SortDirection.DESCENDING ? u.id.desc()        : u.id.asc();
         }
 
-        // 커서/아이디 기준 키셋 조건
+        // 경계 조건
         if (cursor != null && !cursor.isBlank()) {
             addCursorPredicate(where, sortBy, sortDirection, cursor, u);
         } else if (idAfter != null) {
@@ -84,6 +85,7 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
         boolean hasNext = rows.size() > limit;
         if (hasNext) rows = rows.subList(0, limit);
 
+        // nextCursor / nextIdAfter 구성
         String nextCursor = null;
         UUID nextIdAfter = null;
         if (!rows.isEmpty()) {
@@ -97,6 +99,9 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
         return new UserSlice(rows, hasNext, nextCursor, nextIdAfter);
     }
 
+    /**
+     * 목록 전체 개수 조회
+     * */
     @Override
     public long countAll(String emailLike, Role roleEqual, Boolean locked) {
         QUser u = QUser.user;
@@ -108,8 +113,9 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
         return cnt == null ? 0L : cnt;
     }
 
-    // --- helpers ---
-
+    /**
+     * 커서를 해석해서 where 절의 경계조건을 추가
+     * */
     private void addCursorPredicate(BooleanBuilder where, SortBy sortBy, SortDirection dir, String cursor, QUser u) {
         Decoded d = decode(cursor);
         if (sortBy == SortBy.EMAIL) {

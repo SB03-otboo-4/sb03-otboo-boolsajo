@@ -43,6 +43,10 @@ public class UserRepositoryTest {
     @Autowired
     private UserQueryRepository userQueryRepository;
 
+    /**
+     * 각 테스트 전에 동일한 데이터 시드 주입
+     * 정렬/커서 경계를 계산하여 주입
+     * */
     @BeforeEach
     void seedForCursorList() {
         for (int i = 0; i < 5; i++) {
@@ -265,6 +269,10 @@ public class UserRepositoryTest {
         assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
     }
 
+    /**
+     * 테스트 실행 속도,지연 등 외부 요인과 무관하게
+     * 모든 엔티티를 생성하게 하여 경계조건을 안정적으로 계산하기 위한 테스트 설정
+     * */
     @TestConfiguration
     static class TestAuditConfig {
         private final AtomicLong seq = new AtomicLong(0);

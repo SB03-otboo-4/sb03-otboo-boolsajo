@@ -691,6 +691,7 @@ public class UserServiceTest {
 
     @Test
     void 목록_조회_slice를_Response로_매핑() {
+        // given
         List<User> rows = List.of(makeUser("test@test1.com"), makeUser("test@test2.com"));
         UserSlice slice = new UserSlice(rows, true, "CUR_NEXT", UUID.randomUUID());
 
