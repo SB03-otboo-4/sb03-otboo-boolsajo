@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.controller;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
@@ -8,24 +9,29 @@ import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class UserController {
 
     private final UserService userService;
@@ -89,5 +95,34 @@ public class UserController {
 
         log.info("[UserController] 프로필 조회 성공 : userId = {}", userId);
         return ResponseEntity.ok(profileDto);
+    }
+
+    @GetMapping
+    public ResponseEntity<CursorPageResponse<UserDto>> listUsers(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) String idAfter,
+        @RequestParam(defaultValue = "20") @Min(1) Integer limit,
+        @RequestParam(defaultValue = "createdAt") @Pattern(regexp = "email|createdAt") String sortBy,
+        @RequestParam(defaultValue = "DESCENDING") @Pattern(regexp = "ASCENDING|DESCENDING") String sortDirection,
+        @RequestParam(required = false) String emailLike,
+        @RequestParam(required = false) String roleEqual,
+        @RequestParam(required = false) Boolean locked
+    ) {
+        log.info("[UserController] 계정 목록 조회 요청: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, emailLike={}, roleEqual={}, locked={}",
+            cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+
+        if (limit == null || limit <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!"email".equals(sortBy) && !"createdAt".equals(sortBy)) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!"ASCENDING".equals(sortDirection) && !"DESCENDING".equals(sortDirection)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        CursorPageResponse<UserDto> response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+
+        return ResponseEntity.ok(response);
     }
 }

@@ -249,12 +249,12 @@ public class ClothesServiceTest {
 
         // then: createdAt 기준 최신순 정렬 검증
         List<String> expectedOrder = List.of("신발", "모자", "바지", "재킷", "티셔츠");
-        List<String> actualOrder = response.content().stream()
+        List<String> actualOrder = response.data().stream()
             .map(ClothesDto::name)
             .collect(Collectors.toList());
 
         assertThat(actualOrder).isEqualTo(expectedOrder);
-        assertThat(response.content()).hasSize(5);
+        assertThat(response.data()).hasSize(5);
         assertThat(response.totalCount()).isEqualTo(5);
     }
 
@@ -302,9 +302,9 @@ public class ClothesServiceTest {
         );
 
         // then: TOP 타입만 포함되고, 다른 타입은 제외
-        assertThat(topRes.content()).hasSize(1);
-        assertThat(topRes.content().get(0).type()).isEqualTo(ClothesType.TOP);
-        assertThat(topRes.content().stream().anyMatch(c -> c.type() != ClothesType.TOP)).isFalse();
+        assertThat(topRes.data()).hasSize(1);
+        assertThat(topRes.data().get(0).type()).isEqualTo(ClothesType.TOP);
+        assertThat(topRes.data().stream().anyMatch(c -> c.type() != ClothesType.TOP)).isFalse();
         assertThat(topRes.totalCount()).isEqualTo(1);
     }
 
@@ -346,10 +346,10 @@ public class ClothesServiceTest {
 
         // then: 두 번째 페이지 내용 검증
         List<String> expectedNames = List.of("바지", "재킷");
-        List<String> actualNames = secondResponse.content().stream().map(ClothesDto::name).toList();
+        List<String> actualNames = secondResponse.data().stream().map(ClothesDto::name).toList();
 
         assertThat(actualNames).isEqualTo(expectedNames);
-        assertThat(secondResponse.content()).hasSize(2);
+        assertThat(secondResponse.data()).hasSize(2);
         assertThat(secondResponse.hasNext()).isTrue(); // 마지막 페이지가 아니므로 hasNext = true
         assertThat(secondResponse.totalCount()).isEqualTo(5);
     }
@@ -380,14 +380,14 @@ public class ClothesServiceTest {
         CursorPageResponse<ClothesDto> firstResponse = clothesService.getClothesList(ownerId, 2, null, null, ClothesType.TOP);
 
         // then: 첫 페이지 검증
-        assertThat(firstResponse.content()).hasSize(2);
-        assertThat(firstResponse.content().stream().allMatch(c -> c.type() == ClothesType.TOP)).isTrue();
+        assertThat(firstResponse.data()).hasSize(2);
+        assertThat(firstResponse.data().stream().allMatch(c -> c.type() == ClothesType.TOP)).isTrue();
         assertThat(firstResponse.hasNext()).isFalse(); // 총 2개라서 다음 페이지 없음
         assertThat(firstResponse.totalCount()).isEqualTo(2);
 
         // 순서 검증: 최신순
         List<String> expectedOrder = List.of("셔츠", "티셔츠");
-        List<String> actualOrder = firstResponse.content().stream()
+        List<String> actualOrder = firstResponse.data().stream()
             .map(ClothesDto::name)
             .toList();
         assertThat(actualOrder).isEqualTo(expectedOrder);
