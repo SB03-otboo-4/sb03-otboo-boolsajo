@@ -43,4 +43,14 @@ public class AuthController {
             .status(HttpStatus.OK)
             .body(dto);
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<JwtDto> refreshToken(String refreshToken) {
+
+        JwtDto dto = authService.reissueToken(refreshToken);
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(dto);
+    }
 }

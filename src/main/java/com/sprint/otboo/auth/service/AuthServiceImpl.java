@@ -58,4 +58,10 @@ public class AuthServiceImpl implements AuthService{
 
         return new JwtDto(userDto, accessToken);
     }
+
+    @Override
+    public JwtDto reissueToken(String accessToken) {
+
+        return null;
+    }
 }
