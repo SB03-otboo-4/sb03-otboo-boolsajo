@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
@@ -53,6 +54,9 @@ public class UserControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    TokenProvider tokenProvider;
 
     @MockitoBean
     private UserService userService;
