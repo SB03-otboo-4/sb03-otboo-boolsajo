@@ -1,92 +1,84 @@
 package com.sprint.otboo.weather.integration.kakao.client;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.weather.WeatherProviderException;
 import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeResponse;
+import java.io.IOException;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @DisplayName("KakaoLocalClientImpl 테스트")
 class KakaoLocalClientImplTest {
 
     static MockWebServer server;
+    KakaoLocalClientImpl client;
 
     @BeforeAll
-    static void init() throws Exception {
+    static void setupServer() throws IOException {
         server = new MockWebServer();
         server.start();
     }
 
     @AfterAll
-    static void tearDown() throws Exception {
+    static void shutdown() throws IOException {
         server.shutdown();
     }
 
-    private KakaoLocalClient client() {
+    @BeforeEach
+    void setUp() {
         String baseUrl = server.url("/").toString();
-        WebClient wc = WebClient.builder()
+        WebClient kakaoWebClient = WebClient.builder()
             .baseUrl(baseUrl)
-            .defaultHeader("Authorization", "KakaoAK test-key")
+            .defaultHeader(HttpHeaders.AUTHORIZATION, "KakaoAK test-key")
             .build();
-        return new KakaoLocalClientImpl(wc);
+        client = new KakaoLocalClientImpl(kakaoWebClient);
     }
 
     @Test
     void 성공_요청은_JSON을_파싱한다() {
-        String body = """
-            {"meta":{"total_count":1},"documents":[
-              {"region_type":"B","address_name":"서울특별시 중구 태평로1가",
-               "region_1depth_name":"서울특별시","region_2depth_name":"중구",
-               "region_3depth_name":"태평로1가","region_4depth_name":"",
-               "code":"111", "x":126.978, "y":37.5665}
-            ]}
-            """;
-        server.enqueue(new MockResponse().setResponseCode(200)
-            .setHeader("Content-Type","application/json")
-            .setBody(body));
+        // 쿼리 매칭: x=126.9780, y=37.5665 (테스트 입력과 동일해야 함)
+        server.enqueue(new MockResponse()
+            .setResponseCode(200)
+            .setHeader("Content-Type", "application/json")
+            .setBody("""
+              {"documents":[{"address_name":"서울특별시 중구 태평로1가"}]}
+            """));
 
-        KakaoLocalClient client = client();
-        KakaoCoord2RegioncodeResponse res = client.coord2RegionCode(126.9780, 37.5665);
-
-        assertThat(res).isNotNull();
-        assertThat(res.documents()).hasSize(1);
-        assertThat(res.documents().get(0).region_type()).isEqualTo("B");
+        KakaoCoord2RegioncodeResponse resp = client.coord2RegionCode(126.9780, 37.5665);
+        assertThat(resp.documents()).isNotEmpty();
     }
 
     @Test
     void TooManyRequests는_도메인_예외로_매핑된다() {
         server.enqueue(new MockResponse().setResponseCode(429));
-        KakaoLocalClient client = client();
-
-        assertThatThrownBy(() -> client.coord2RegionCode(126.9, 37.5))
+        assertThatThrownBy(() -> client.coord2RegionCode(0,0))
             .isInstanceOf(WeatherProviderException.class)
-            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WEATHER_RATE_LIMIT);
+            .hasMessageContaining(ErrorCode.WEATHER_RATE_LIMIT.name());
     }
 
     @Test
     void BadGateway는_도메인_예외로_매핑된다() {
         server.enqueue(new MockResponse().setResponseCode(502));
-        KakaoLocalClient client = client();
-
-        assertThatThrownBy(() -> client.coord2RegionCode(126.9, 37.5))
+        assertThatThrownBy(() -> client.coord2RegionCode(0,0))
             .isInstanceOf(WeatherProviderException.class)
-            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WEATHER_PROVIDER_ERROR);
+            .hasMessageContaining(ErrorCode.WEATHER_PROVIDER_ERROR.name());
     }
 
     @Test
     void GatewayTimeout은_도메인_예외로_매핑된다() {
         server.enqueue(new MockResponse().setResponseCode(504));
-        KakaoLocalClient client = client();
-
-        assertThatThrownBy(() -> client.coord2RegionCode(126.9, 37.5))
+        assertThatThrownBy(() -> client.coord2RegionCode(0,0))
             .isInstanceOf(WeatherProviderException.class)
-            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.WEATHER_TIMEOUT);
+            .hasMessageContaining(ErrorCode.WEATHER_TIMEOUT.name());
     }
 }

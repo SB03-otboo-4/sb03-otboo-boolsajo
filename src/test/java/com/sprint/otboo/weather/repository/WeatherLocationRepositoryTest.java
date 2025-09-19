@@ -3,6 +3,7 @@ package com.sprint.otboo.weather.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.otboo.weather.entity.WeatherLocation;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,8 @@ class WeatherLocationRepositoryTest {
     void xy로_저장된_위치를_조회할_수_있어야_한다() {
         WeatherLocation wl = new WeatherLocation();
         wl.setId(UUID.randomUUID());
-        wl.setLatitude(37.5665);
-        wl.setLongitude(126.9780);
+        wl.setLatitude(new BigDecimal("37.5665"));
+        wl.setLongitude(new BigDecimal("126.9780"));
         wl.setX(60);
         wl.setY(127);
         wl.setLocationNames("서울특별시 중구 태평로1가");
