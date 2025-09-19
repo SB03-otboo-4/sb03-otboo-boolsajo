@@ -93,7 +93,7 @@ public class ClothesController {
         // 서비스 호출
         CursorPageResponse<ClothesDto> response =
             clothesService.getClothesList(ownerId, limit, cursor, idAfter, typeEqual);
-        log.info("의상 목록 조회 완료: ownerId = {}, 반환 개수 = {}", ownerId, response.content().size());
+        log.info("의상 목록 조회 완료: ownerId = {}, 반환 개수 = {}", ownerId, response.data().size());
 
         return response;
     }

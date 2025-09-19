@@ -17,7 +17,7 @@ public record UserDtoCursorResponse(
 ) {
     public static UserDtoCursorResponse from(CursorPageResponse<UserDto> src) {
         return new UserDtoCursorResponse(
-            src.content(),
+            src.data(),
             src.nextCursor(),
             src.nextIdAfter(),
             src.hasNext(),
