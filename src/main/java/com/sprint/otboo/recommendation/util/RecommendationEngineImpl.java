@@ -60,10 +60,17 @@ public class RecommendationEngineImpl implements RecommendationEngine {
      */
     private boolean matchesSeasonAndCategory(Clothes clothes, Season season, TemperatureCategory category, Weather weather
     ) {
-        // 1. 의상 타입 기반 필터링
+        // 1. 일교차 기반 OUTER 강제 추천
+        double dailyRange = WeatherUtils.calculateDailyRange(weather.getMaxC(), weather.getMinC());
+        if ((season == Season.SPRING || season == Season.FALL)
+            && dailyRange >= 6
+            && clothes.getType() == ClothesType.OUTER) {
+            return true; // 강제 추천
+        }
+
+        // 2. 기존 타입/두께 필터 적용
         boolean typeRule = matchesTypeRule(clothes, season, category, weather);
 
-        // 2. 두께 기반 필터
         boolean thicknessRule = clothes.getAttributes().stream()
             .filter(attr -> attr.getDefinition() != null
                 && "thickness".equalsIgnoreCase(attr.getDefinition().getName()))
@@ -77,16 +84,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
             // Nullable : 값이 있다면 규칙 적용 / 없다면 규칙 패스
             .allMatch(thick -> thick == null || isSuitableThickness(clothes.getType(), thick, season, category));
 
-        // 3. 일교차 기반 OUTER 추천 확장
-        double dailyRange = WeatherUtils.calculateDailyRange(weather.getMaxC(), weather.getMinC());
-        boolean dailyRangeRule = true;
-
-        // 봄/가을, 일교차 6도 이상이면 OUTER 강제 추천
-        if ((season == Season.SPRING || season == Season.FALL) && dailyRange >= 6) {
-            dailyRangeRule = clothes.getType() == ClothesType.OUTER;
-        }
-
-        return typeRule && thicknessRule && dailyRangeRule;
+        return typeRule && thicknessRule;
     }
 
     /**

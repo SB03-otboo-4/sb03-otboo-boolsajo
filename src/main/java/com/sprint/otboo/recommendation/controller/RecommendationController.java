@@ -4,12 +4,19 @@ import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.service.RecommendationService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 사용자 의상 추천 관련 API 컨트롤러
+ * <p>
+ * 사용자의 보유 의상과 날씨 정보를 기반으로 추천 의상을 조회
+ */
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("api/recommendations")
@@ -17,12 +24,27 @@ public class RecommendationController {
 
     private final RecommendationService recommendationService;
 
+    /**
+     * 특정 사용자와 날씨 정보를 기반으로 추천 의상 조회
+     *
+     * @param userId    사용자 ID
+     * @param weatherId 날씨 정보 ID
+     * @return 추천 의상 정보를 담은 DTO
+     */
     @GetMapping
     public ResponseEntity<RecommendationDto> getRecommendations(
         @RequestParam UUID userId,
         @RequestParam UUID weatherId
     ) {
+        log.info("추천 요청 수신: 사용자 ID = {}, 날씨 ID = {}", userId, weatherId);
         RecommendationDto dto = recommendationService.getRecommendation(userId, weatherId);
+
+        if (dto == null || dto.clothes().isEmpty()) {
+            log.warn("추천 결과 없음: 사용자 ID = {}, 날씨 ID = {}", userId, weatherId);
+        } else {
+            log.info("추천 결과 존재: 사용자 ID = {}, 추천 의상 개수 = {}", userId, dto.clothes().size());
+        }
+
         return ResponseEntity.ok(dto);
     }
 
