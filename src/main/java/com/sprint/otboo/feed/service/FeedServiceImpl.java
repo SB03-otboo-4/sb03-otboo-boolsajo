@@ -97,6 +97,13 @@ public class FeedServiceImpl implements FeedService {
         PrecipitationType precipitationType,
         UUID authorId
     ) {
+
+        log.info(
+            "[FeedService] getFeeds in: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, keyword={}, skyStatus={}, precipitationType={}, authorId={}",
+            cursor, idAfter, limit, sortBy, sortDirection,
+            keywordLike,
+            skyStatus, precipitationType, authorId
+        );
         validatePaging(limit, sortBy, sortDirection);
 
         List<Feed> rows = feedRepository.searchByKeyword(
@@ -118,9 +125,14 @@ public class FeedServiceImpl implements FeedService {
         List<FeedDto> feedDtos = rows.stream().map(feedMapper::toDto).toList();
 
         PageCursor pageCursor = buildNextCursor(rows, hasNext, sortBy);
+        log.info("[FeedService] nextCursor built: cursor={}, idAfter={}",
+            pageCursor.cursor(), pageCursor.idAfter()
+        );
 
         long total = feedRepository.countByFilters(keywordLike, skyStatus, precipitationType,
             authorId);
+
+        log.debug("[FeedService] total count: {}", total);
 
         return new CursorPageResponse<>(
             feedDtos,

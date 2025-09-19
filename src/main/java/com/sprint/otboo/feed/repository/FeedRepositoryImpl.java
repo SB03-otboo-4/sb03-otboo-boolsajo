@@ -37,7 +37,13 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         UUID authorIdEqual
     ) {
         boolean desc = !"ASCENDING".equalsIgnoreCase(sortDirection);
-        String key = normalizeSortBy(sortBy);
+        String key = sortBy;
+
+        log.info(
+            "[FeedRepository] 피드 조회 시작: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, keyword{}, skyStatus={}, precipitationType={}, authorId={}",
+            cursor, idAfter, limit, sortBy, sortDirection,
+            keywordLike,
+            skyStatusEqual, precipitationTypeEqual, authorIdEqual);
 
         if ((cursor == null || cursor.isBlank()) && idAfter != null) {
             cursor = null;
@@ -62,13 +68,15 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         PrecipitationType precipitationTypeEqual,
         UUID authorIdEqual
     ) {
-        BooleanBuilder where = buildBaseFilters(keywordLike, skyStatusEqual, precipitationTypeEqual, authorIdEqual);
+        BooleanBuilder where = buildBaseFilters(keywordLike, skyStatusEqual, precipitationTypeEqual,
+            authorIdEqual);
 
-        BooleanExpression cursorPredicate = buildCreatedAtCursorPredicate(cursor,idAfter, desc);
+        BooleanExpression cursorPredicate = buildCreatedAtCursorPredicate(cursor, idAfter, desc);
         if (cursorPredicate != null) {
             where.and(cursorPredicate);
-        }
-        else if (idAfter != null) {
+            log.debug("[FeedRepository] createdAt-cursor 적용: cursor={}, idAfter={}, desc={}",
+                cursor, idAfter, desc);
+        } else if (idAfter != null) {
             where.and(desc ? feed.id.lt(idAfter) : feed.id.gt(idAfter));
         }
 
@@ -76,7 +84,7 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         orders.add(desc ? feed.createdAt.desc() : feed.createdAt.asc());
         orders.add(desc ? feed.id.desc() : feed.id.asc());
 
-        return queryFactory
+        List<Feed> rows = queryFactory
             .selectFrom(feed)
             .leftJoin(feed.author).fetchJoin()
             .leftJoin(feed.weather).fetchJoin()
@@ -84,6 +92,10 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
             .orderBy(orders.toArray(new OrderSpecifier[0]))
             .limit(limit + 1L)
             .fetch();
+
+        log.debug("[FeedRepository] createdAt fetch 결과: rows={}, (limit+1={})", rows.size(),
+            limit + 1);
+        return rows;
     }
 
     private List<Feed> searchByLikeCountCursor(
@@ -96,13 +108,15 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         PrecipitationType precipitationTypeEqual,
         UUID authorIdEqual
     ) {
-        BooleanBuilder where = buildBaseFilters(keywordLike, skyStatusEqual, precipitationTypeEqual, authorIdEqual);
+        BooleanBuilder where = buildBaseFilters(keywordLike, skyStatusEqual, precipitationTypeEqual,
+            authorIdEqual);
 
         BooleanExpression cursorPredicate = buildLikeCountCursorPredicate(cursor, idAfter, desc);
         if (cursorPredicate != null) {
             where.and(cursorPredicate);
-        }
-        else if (idAfter != null) {
+            log.debug("[FeedRepository] likeCount-cursor 적용: cursor={}, idAfter={}, desc={}",
+                cursor, idAfter, desc);
+        } else if (idAfter != null) {
             where.and(desc ? feed.id.lt(idAfter) : feed.id.gt(idAfter));
         }
 
@@ -110,7 +124,7 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         orders.add(desc ? feed.likeCount.desc() : feed.likeCount.asc());
         orders.add(desc ? feed.id.desc() : feed.id.asc());
 
-        return queryFactory
+        List<Feed> rows = queryFactory
             .selectFrom(feed)
             .leftJoin(feed.author).fetchJoin()
             .leftJoin(feed.weather).fetchJoin()
@@ -118,6 +132,10 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
             .orderBy(orders.toArray(new OrderSpecifier[0]))
             .limit(limit + 1L)
             .fetch();
+
+        log.debug("[FeedRepository] likeCount fetch 결과: rows={}, (limit+1={})", rows.size(),
+            limit + 1);
+        return rows;
     }
 
     private static BooleanBuilder buildBaseFilters(
@@ -139,11 +157,18 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         if (authorIdEqual != null) {
             where.and(feed.author.id.eq(authorIdEqual));
         }
+        log.debug(
+            "[FeedRepository] base filters: keyword={}, skyStatus={}, precipitationType={}, authorId={}",
+            keywordLike,
+            skyStatusEqual, precipitationTypeEqual, authorIdEqual);
         return where;
     }
 
-    private static BooleanExpression buildCreatedAtCursorPredicate(String curAt, UUID idAfter, boolean desc) {
-        if (curAt == null || idAfter == null) return null;
+    private static BooleanExpression buildCreatedAtCursorPredicate(String curAt, UUID idAfter,
+        boolean desc) {
+        if (curAt == null || idAfter == null) {
+            return null;
+        }
         Instant cur = Instant.parse(curAt);
 
         BooleanExpression primary = desc ? feed.createdAt.lt(cur) : feed.createdAt.gt(cur);
@@ -152,8 +177,11 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         return primary.or(tie);
     }
 
-    private static BooleanExpression buildLikeCountCursorPredicate(String curLike, UUID idAfter, boolean desc) {
-        if (curLike == null || idAfter == null) return null;
+    private static BooleanExpression buildLikeCountCursorPredicate(String curLike, UUID idAfter,
+        boolean desc) {
+        if (curLike == null || idAfter == null) {
+            return null;
+        }
         Long cur = Long.parseLong(curLike);
 
         BooleanExpression primary = desc ? feed.likeCount.lt(cur) : feed.likeCount.gt(cur);
@@ -169,7 +197,8 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         PrecipitationType precipitationTypeEqual,
         UUID authorIdEqual
     ) {
-        BooleanBuilder where = buildBaseFilters(keywordLike, skyStatusEqual, precipitationTypeEqual, authorIdEqual);
+        BooleanBuilder where = buildBaseFilters(keywordLike, skyStatusEqual, precipitationTypeEqual,
+            authorIdEqual);
 
         Long count = queryFactory
             .select(feed.id.count())
@@ -177,12 +206,12 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
             .where(where)
             .fetchOne();
 
-        return count != null ? count : 0L;
-    }
-
-    private static String normalizeSortBy(String sortBy) {
-        if ("likeCount".equalsIgnoreCase(sortBy)) return "likeCount";
-        return "createdAt";
+        long c = count != null ? count : 0L;
+        log.debug(
+            "[FeedRepository] countByFilters: count={}, keyword={}, skyStatus={}, precipitationType={}, authorId={}",
+            c, keywordLike,
+            skyStatusEqual, precipitationTypeEqual, authorIdEqual);
+        return c;
     }
 }
 

@@ -50,6 +50,11 @@ public class FeedController implements FeedApi {
         @RequestParam(name = "precipitationTypeEqual", required = false) PrecipitationType precipitationTypeEqual,
         @RequestParam(name = "authorIdEqual", required = false) UUID authorIdEqual
     ) {
+        log.info(
+            "[FeedController] 피드 목록 조회 요청: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, keywordLike={}, skyStatusEqual={}, precipitationTypeEqual={}, authorIdEqual={}",
+            cursor, idAfter, limit, sortBy, sortDirection, keywordLike, skyStatusEqual,
+            precipitationTypeEqual, authorIdEqual
+        );
         CursorPageResponse<FeedDto> body = feedService.getFeeds(
             cursor,
             idAfter,
