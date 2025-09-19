@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.only;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -614,8 +615,9 @@ public class UserControllerTest {
             null,
             null
         );
-        then(userService).should(never()).listUsers(any(),any(),any(),anyString(),
-                                            anyString(),any(),any(),any());
+        then(userService).should(only()).listUsers(
+            null, null, 3, "createdAt", "DESCENDING", null, null, null
+        );
     }
 
     @Test

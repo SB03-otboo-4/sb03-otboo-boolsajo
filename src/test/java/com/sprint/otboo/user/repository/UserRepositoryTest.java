@@ -6,6 +6,12 @@ import com.sprint.otboo.common.config.QuerydslConfig;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserQueryRepositoryImpl;
+import com.sprint.otboo.user.repository.query.UserSlice;
+import com.sprint.otboo.user.service.support.UserListEnums;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,12 +22,13 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
 @ActiveProfiles("test")
 @EnableJpaAuditing
 @DisplayName("UserRepository 테스트")
-@Import(QuerydslConfig.class)
+@Import({QuerydslConfig.class,UserQueryRepositoryImpl.class})
 public class UserRepositoryTest {
 
     @Autowired
@@ -36,6 +43,8 @@ public class UserRepositoryTest {
     @BeforeEach
     void seedForCursorList() {
         // given
+        Instant base = Instant.parse("2025-01-01T00:00:00Z");
+
         for (int i = 0; i < 5; i++) {
             User user = User.builder()
                 .username("user" + i)
@@ -45,6 +54,9 @@ public class UserRepositoryTest {
                 .provider(LoginType.GENERAL)
                 .locked(i >= 3)
                 .build();
+
+            ReflectionTestUtils.setField(user, "createdAt", base.plus(i, ChronoUnit.SECONDS));
+
             entityManager.persist(user);
         }
         entityManager.flush();
@@ -232,7 +244,7 @@ public class UserRepositoryTest {
         assertThat(first.rows()).hasSize(2);
         assertThat(second.rows()).hasSize(2);
         assertThat(second.hasNext()).isTrue();
-        assertThat(second.rows()).noneMatch(user -> first.rows().contains(u));
+        assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
     }
 
     @Test

@@ -11,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -184,6 +185,26 @@ public class GlobalExceptionHandler {
         } else {
             body.put("error", "잘못된 요청 파라미터입니다.");
         }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(MissingServletRequestParameterException e) {
+        log.error("필수 요청 파라미터 누락: name={}, type={}", e.getParameterName(), e.getParameterType());
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("parameterName", e.getParameterName());
+        details.put("parameterType", e.getParameterType());
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            "BAD_REQUEST",
+            "필수 요청 파라미터가 누락되었습니다.",
+            details,
+            e.getClass().getSimpleName(),
+            HttpStatus.BAD_REQUEST.value()
+        );
+
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 }

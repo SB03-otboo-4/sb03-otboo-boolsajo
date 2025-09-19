@@ -39,7 +39,8 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.annotation.Profile;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserSlice;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -704,7 +705,6 @@ public class UserServiceTest {
             ArgumentMatchers.eq(false)
         )).willReturn(slice);
         given(userQueryRepository.countAll(
-            ArgumentMatchers.any(),
             ArgumentMatchers.eq("test"),
             ArgumentMatchers.eq(Role.USER),
             ArgumentMatchers.eq(false)
@@ -734,6 +734,6 @@ public class UserServiceTest {
                 ArgumentMatchers.any(), ArgumentMatchers.any(),
                 ArgumentMatchers.any(), ArgumentMatchers.any(),ArgumentMatchers.any());
         then(userQueryRepository).should()
-            .countAll(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any());
+            .countAll(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any());
     }
 }

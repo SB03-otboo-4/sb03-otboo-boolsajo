@@ -6,6 +6,7 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -89,5 +91,34 @@ public class UserController {
 
         log.info("[UserController] 프로필 조회 성공 : userId = {}", userId);
         return ResponseEntity.ok(profileDto);
+    }
+
+    @GetMapping
+    public ResponseEntity<UserDtoCursorResponse> listUsers(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) String idAfter,
+        @RequestParam Integer limit,
+        @RequestParam String sortBy,
+        @RequestParam String sortDirection,
+        @RequestParam(required = false) String emailLike,
+        @RequestParam(required = false) String roleEqual,
+        @RequestParam(required = false) Boolean locked
+    ) {
+        log.info("[UserController] 계정 목록 조회 요청: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, emailLike={}, roleEqual={}, locked={}",
+            cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+
+        if (limit == null || limit <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!"email".equals(sortBy) && !"createdAt".equals(sortBy)) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!"ASCENDING".equals(sortDirection) && !"DESCENDING".equals(sortDirection)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        UserDtoCursorResponse response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+
+        return ResponseEntity.ok(response);
     }
 }

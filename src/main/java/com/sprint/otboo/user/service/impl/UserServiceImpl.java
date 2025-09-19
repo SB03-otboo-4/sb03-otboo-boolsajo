@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.service.impl;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
@@ -8,13 +9,19 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.UserService;
+import com.sprint.otboo.user.service.support.UserListEnums.SortBy;
+import com.sprint.otboo.user.service.support.UserListEnums.SortDirection;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +39,7 @@ public class UserServiceImpl implements UserService {
     private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
-
-
+    private final UserQueryRepository userQueryRepository;
 
     @Override
     @Transactional
@@ -117,10 +123,40 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         UserProfile userProfile = userProfileRepository.findById(userId)
-            .orElseThrow(() -> new CustomException(ErrorCode.USER_PROFILE_NOT_FOUND)); // 👈 분리
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
         log.debug("[UserServiceImpl] 프로필 조회 성공 : userId = {} ", userId);
         return userMapper.toProfileDto(user, userProfile);
+    }
+
+    @Override
+    public UserDtoCursorResponse listUsers(String cursor, String idAfter, Integer limit, String sortByParam, String sortDirParam,
+        String emailLike, String roleEqualParam, Boolean locked) {
+        // 파라미터 -> enum/타입 변환
+        SortBy sortBy = SortBy.fromParam(sortByParam);
+        SortDirection sd = SortDirection.fromParam(sortDirParam);
+        UUID idAfterUuid = (idAfter != null && !idAfter.isBlank()) ? UUID.fromString(idAfter) : null;
+        Role roleEqualRole = (roleEqualParam != null && !roleEqualParam.isBlank()) ? Role.valueOf(roleEqualParam) : null;
+
+        // 조회
+        UserSlice slice = userQueryRepository.findSlice(cursor, idAfterUuid, limit, sortBy, sd, emailLike, roleEqualRole, locked);
+        long total = userQueryRepository.countAll(emailLike, roleEqualRole, locked);
+
+        // 매핑
+        List<UserDto> data = slice.rows().stream()
+            .map(userMapper::toUserDto)
+            .toList();
+
+        CursorPageResponse<UserDto> page = new CursorPageResponse<>(
+            data,
+            slice.nextCursor(),
+            slice.nextIdAfter() != null ? slice.nextIdAfter().toString() : null,
+            slice.hasNext(),
+            total,
+            sortBy.toParam(),
+            sd.toParam()
+        );
+        return UserDtoCursorResponse.from(page);
     }
 
     private void validateDuplicateEmail(String email) {

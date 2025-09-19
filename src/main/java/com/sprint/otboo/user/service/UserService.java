@@ -6,6 +6,7 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import java.util.UUID;
 
 public interface UserService {
@@ -19,4 +20,6 @@ public interface UserService {
     UserDto updateUserRole(UUID userId, UserRoleUpdateRequest request);
 
     ProfileDto getUserProfile(UUID userId);
+
+    UserDtoCursorResponse listUsers(String cursor, String idAfter, Integer limit, String sortBy, String sortDirection, String emailLike, String roleEqual, Boolean locked);
 }
