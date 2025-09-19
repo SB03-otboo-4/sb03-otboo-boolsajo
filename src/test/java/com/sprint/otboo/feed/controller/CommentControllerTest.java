@@ -1,6 +1,7 @@
 package com.sprint.otboo.feed.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.feed.dto.data.CommentDto;
 import com.sprint.otboo.feed.dto.request.CommentCreateRequest;
 import com.sprint.otboo.feed.service.CommentService;
@@ -34,6 +35,9 @@ class CommentControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+
+    @MockitoBean
+    TokenProvider tokenProvider;
 
     @MockitoBean
     private CommentService commentService;

@@ -55,4 +55,8 @@ public class User extends BaseUpdatableEntity {
     public void updateLockStatus(Boolean lockStatus) {
         this.locked = lockStatus;
     }
+
+    public void updateRole(Role role) {
+        this.role = role;
+    }
 }

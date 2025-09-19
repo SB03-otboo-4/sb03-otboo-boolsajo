@@ -22,10 +22,13 @@ import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.clothing.service.impl.ClothesServiceImpl;
 import com.sprint.otboo.clothing.storage.FileStorageService;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -219,4 +222,175 @@ public class ClothesServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.attributes()).isEmpty();
     }
+
+    @Test
+    void 사용자_의상_목록_조회_최신순_정렬_검증() {
+        // given: 사용자와 의상 엔티티 5개
+        UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
+
+        Instant now = Instant.now();
+        Clothes c1 = Clothes.builder().id(UUID.randomUUID()).name("티셔츠").type(ClothesType.TOP).user(user).createdAt(now.minusSeconds(300)).build();
+        Clothes c2 = Clothes.builder().id(UUID.randomUUID()).name("재킷").type(ClothesType.OUTER).user(user).createdAt(now.minusSeconds(200)).build();
+        Clothes c3 = Clothes.builder().id(UUID.randomUUID()).name("바지").type(ClothesType.BOTTOM).user(user).createdAt(now.minusSeconds(100)).build();
+        Clothes c4 = Clothes.builder().id(UUID.randomUUID()).name("모자").type(ClothesType.HAT).user(user).createdAt(now.minusSeconds(50)).build();
+        Clothes c5 = Clothes.builder().id(UUID.randomUUID()).name("신발").type(ClothesType.SHOES).user(user).createdAt(now).build();
+
+        // 최신순 정렬
+        List<Clothes> mockList = List.of(c5, c4, c3, c2, c1);
+
+        when(clothesRepository.findClothesByOwner(ownerId, null, null, null, 10))
+            .thenReturn(mockList);
+        when(clothesRepository.countByOwner(ownerId, null))
+            .thenReturn(5L);
+
+        // when: 서비스 메서드 호출
+        CursorPageResponse<ClothesDto> response = clothesService.getClothesList(ownerId, 10, null, null, null);
+
+        // then: createdAt 기준 최신순 정렬 검증
+        List<String> expectedOrder = List.of("신발", "모자", "바지", "재킷", "티셔츠");
+        List<String> actualOrder = response.data().stream()
+            .map(ClothesDto::name)
+            .collect(Collectors.toList());
+
+        assertThat(actualOrder).isEqualTo(expectedOrder);
+        assertThat(response.data()).hasSize(5);
+        assertThat(response.totalCount()).isEqualTo(5);
+    }
+
+    @Test
+    void 사용자의_의상_목록_타입필터_검증() {
+        // given: 각 타입별 의상 1개씩 + 필터 대상
+        UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("티셔츠")
+            .type(ClothesType.TOP)
+            .user(user)
+            .createdAt(Instant.now())
+            .build();
+
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("재킷")
+            .type(ClothesType.OUTER)
+            .user(user)
+            .createdAt(Instant.now())
+            .build();
+
+        Clothes shoes = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("운동화")
+            .type(ClothesType.SHOES)
+            .user(user)
+            .createdAt(Instant.now())
+            .build();
+
+        List<Clothes> allClothes = List.of(top, outer, shoes);
+
+        // Repository mocking: TOP 타입만 반환
+        when(clothesRepository.findClothesByOwner(ownerId, ClothesType.TOP, null, null, 10))
+            .thenReturn(List.of(top));
+        when(clothesRepository.countByOwner(ownerId, ClothesType.TOP))
+            .thenReturn(1L);
+
+        // when: TOP 타입 조회
+        CursorPageResponse<ClothesDto> topRes = clothesService.getClothesList(
+            ownerId, 10, null, null, ClothesType.TOP
+        );
+
+        // then: TOP 타입만 포함되고, 다른 타입은 제외
+        assertThat(topRes.data()).hasSize(1);
+        assertThat(topRes.data().get(0).type()).isEqualTo(ClothesType.TOP);
+        assertThat(topRes.data().stream().anyMatch(c -> c.type() != ClothesType.TOP)).isFalse();
+        assertThat(topRes.totalCount()).isEqualTo(1);
+    }
+
+
+    @Test
+    void 사용자_의상_목록_조회_커서페이지네이션() {
+        // given: 사용자와 의상 엔티티 5개
+        UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
+
+        Instant now = Instant.now();
+        Clothes c1 = Clothes.builder().id(UUID.randomUUID()).name("티셔츠").type(ClothesType.TOP).user(user).createdAt(now.minusSeconds(300)).build();
+        Clothes c2 = Clothes.builder().id(UUID.randomUUID()).name("재킷").type(ClothesType.OUTER).user(user).createdAt(now.minusSeconds(200)).build();
+        Clothes c3 = Clothes.builder().id(UUID.randomUUID()).name("바지").type(ClothesType.BOTTOM).user(user).createdAt(now.minusSeconds(100)).build();
+        Clothes c4 = Clothes.builder().id(UUID.randomUUID()).name("모자").type(ClothesType.HAT).user(user).createdAt(now.minusSeconds(50)).build();
+        Clothes c5 = Clothes.builder().id(UUID.randomUUID()).name("신발").type(ClothesType.SHOES).user(user).createdAt(now).build();
+
+        // 첫 페이지에서 limit=2
+        List<Clothes> firstPage = List.of(c5, c4);
+        when(clothesRepository.findClothesByOwner(ownerId, null, null, null, 2))
+            .thenReturn(firstPage);
+        when(clothesRepository.countByOwner(ownerId, null))
+            .thenReturn(5L);
+
+        // 첫 페이지 호출
+        CursorPageResponse<ClothesDto> firstResponse = clothesService.getClothesList(ownerId, 2, null, null, null);
+
+        // 다음 페이지 조회를 위한 cursor와 idAfter
+        Instant nextCursor = Instant.parse(firstResponse.nextCursor());
+        UUID nextIdAfter = UUID.fromString(firstResponse.nextIdAfter());
+
+        // 두 번째 페이지: limit=2
+        List<Clothes> secondPage = List.of(c3, c2);
+        when(clothesRepository.findClothesByOwner(ownerId, null, nextCursor, nextIdAfter, 2))
+            .thenReturn(secondPage);
+
+        // when: 두 번째 페이지 호출
+        CursorPageResponse<ClothesDto> secondResponse = clothesService.getClothesList(ownerId, 2, nextCursor, nextIdAfter, null);
+
+        // then: 두 번째 페이지 내용 검증
+        List<String> expectedNames = List.of("바지", "재킷");
+        List<String> actualNames = secondResponse.data().stream().map(ClothesDto::name).toList();
+
+        assertThat(actualNames).isEqualTo(expectedNames);
+        assertThat(secondResponse.data()).hasSize(2);
+        assertThat(secondResponse.hasNext()).isTrue(); // 마지막 페이지가 아니므로 hasNext = true
+        assertThat(secondResponse.totalCount()).isEqualTo(5);
+    }
+
+    @Test
+    void 사용자_의상_목록_타입필터_커서페이지네이션_검증() {
+        // given: 사용자와 의상 엔티티 4개
+        UUID ownerId = UUID.randomUUID();
+        User user = User.builder().id(ownerId).build();
+
+        Instant now = Instant.now();
+        Clothes top1 = Clothes.builder().id(UUID.randomUUID()).name("티셔츠").type(ClothesType.TOP).user(user).createdAt(now.minusSeconds(300)).build();
+        Clothes top2 = Clothes.builder().id(UUID.randomUUID()).name("셔츠").type(ClothesType.TOP).user(user).createdAt(now.minusSeconds(200)).build();
+        Clothes outer = Clothes.builder().id(UUID.randomUUID()).name("재킷").type(ClothesType.OUTER).user(user).createdAt(now.minusSeconds(150)).build();
+        Clothes shoes = Clothes.builder().id(UUID.randomUUID()).name("운동화").type(ClothesType.SHOES).user(user).createdAt(now.minusSeconds(100)).build();
+
+        // 전체 TOP 타입 리스트: 최신순
+        List<Clothes> topClothes = List.of(top2, top1);
+
+        // 첫 페이지 limit=2
+        List<Clothes> firstPage = List.of(top2, top1);
+        when(clothesRepository.findClothesByOwner(ownerId, ClothesType.TOP, null, null, 2))
+            .thenReturn(firstPage);
+        when(clothesRepository.countByOwner(ownerId, ClothesType.TOP))
+            .thenReturn(2L);
+
+        // when: 첫 페이지 조회
+        CursorPageResponse<ClothesDto> firstResponse = clothesService.getClothesList(ownerId, 2, null, null, ClothesType.TOP);
+
+        // then: 첫 페이지 검증
+        assertThat(firstResponse.data()).hasSize(2);
+        assertThat(firstResponse.data().stream().allMatch(c -> c.type() == ClothesType.TOP)).isTrue();
+        assertThat(firstResponse.hasNext()).isFalse(); // 총 2개라서 다음 페이지 없음
+        assertThat(firstResponse.totalCount()).isEqualTo(2);
+
+        // 순서 검증: 최신순
+        List<String> expectedOrder = List.of("셔츠", "티셔츠");
+        List<String> actualOrder = firstResponse.data().stream()
+            .map(ClothesDto::name)
+            .toList();
+        assertThat(actualOrder).isEqualTo(expectedOrder);
+    }
+
 }
