@@ -35,6 +35,17 @@ public class FeedFixture {
             .build();
     }
 
+    public static Feed createEntity(User author, Weather weather, String content,
+        Instant createdAt, Instant updatedAt) {
+        return Feed.builder()
+            .author(author)
+            .weather(weather)
+            .content(content)
+            .createdAt(createdAt)
+            .updatedAt(updatedAt)
+            .build();
+    }
+
     public static Feed createWithId(UUID id) {
         return Feed.builder()
             .id(id)
@@ -76,10 +87,9 @@ public class FeedFixture {
         );
     }
 
-    public static Feed createFeedAt(User author, Weather weather, Instant createdAt) {
+    public static Feed createAt(User author, Weather weather, Instant createdAt) {
         Instant now = Instant.now();
         return Feed.builder()
-            .id(UUID.randomUUID())
             .author(author)
             .weather(weather)
             .content("기본 컨텐츠")
@@ -90,10 +100,9 @@ public class FeedFixture {
             .build();
     }
 
-    public static Feed createFeedWithLikeCount(User author, Weather weather, long likeCount) {
+    public static Feed createWithLikeCount(User author, Weather weather, long likeCount) {
         Instant now = Instant.now();
         return Feed.builder()
-            .id(UUID.randomUUID())
             .author(author)
             .weather(weather)
             .content("기본 컨텐츠")
@@ -104,9 +113,9 @@ public class FeedFixture {
             .build();
     }
 
-    public static Feed createFeedWithContent(User author, Weather weather, Instant createdAt, String content) {
+    public static Feed createWithContent(User author, Weather weather, Instant createdAt,
+        String content) {
         return Feed.builder()
-            .id(UUID.randomUUID())
             .author(author)
             .weather(weather)
             .content(content)

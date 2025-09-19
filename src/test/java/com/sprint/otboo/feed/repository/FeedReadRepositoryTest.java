@@ -9,6 +9,7 @@ import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.fixture.FeedFixture;
 import com.sprint.otboo.fixture.UserFixture;
 import com.sprint.otboo.fixture.WeatherFixture;
+import com.sprint.otboo.fixture.WeatherLocationFixture;
 import com.sprint.otboo.user.entity.User;
 
 import com.sprint.otboo.weather.entity.PrecipitationType;
@@ -16,11 +17,11 @@ import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 
 
+import com.sprint.otboo.weather.entity.WeatherLocation;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
-import java.util.UUID;
 import org.hibernate.query.SortDirection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,14 +43,18 @@ class FeedReadRepositoryTest {
 
     private User author;
     private Weather weather;
+    private WeatherLocation location;
 
     @BeforeEach
     void setUp() {
-        author = UserFixture.createUser();
+        author = UserFixture.createUserWithDefault();
         em.persist(author);
 
-        weather = WeatherFixture.createWeather();
-        em.persist(weather);
+        this.location = WeatherLocationFixture.createLocationWithDefault();
+        em.persist(location);
+
+        this.weather = WeatherFixture.createWeatherWithDefault(location);
+        em.persist(this.weather);
 
         em.flush();
         em.clear();
@@ -61,7 +66,7 @@ class FeedReadRepositoryTest {
         // Given
         Instant base = Instant.parse("2025-09-18T00:00:00Z");
         for (int i = 0; i < 5; i++) {
-            Feed f = FeedFixture.createFeedAt(author, weather, base.plusSeconds(i));
+            Feed f = FeedFixture.createAt(author, weather, base.plusSeconds(i));
             em.persist(f);
         }
         em.flush();
@@ -69,6 +74,7 @@ class FeedReadRepositoryTest {
 
         // When
         List<Feed> result = feedRepository.searchByKeyword(
+            null,
             null,
             5,
             "createdAt",
@@ -95,7 +101,7 @@ class FeedReadRepositoryTest {
     void likeCount로_정렬시_방향대로_동작한다(SortDirection dir) {
         // Given
         for (int i = 0; i < 5; i++) {
-            Feed f = FeedFixture.createFeedWithLikeCount(author, weather, i);
+            Feed f = FeedFixture.createWithLikeCount(author, weather, i);
             em.persist(f);
         }
         em.flush();
@@ -103,6 +109,7 @@ class FeedReadRepositoryTest {
 
         // When
         List<Feed> result = feedRepository.searchByKeyword(
+            null,
             null,
             5,
             "likeCount",
@@ -129,13 +136,13 @@ class FeedReadRepositoryTest {
         // Given
         Instant now = Instant.now();
 
-        Feed f1 = FeedFixture.createFeedWithContent(author, weather, now,
+        Feed f1 = FeedFixture.createWithContent(author, weather, now,
             "오늘의 코디 맑음");
-        Feed f2 = FeedFixture.createFeedWithContent(author, weather, now,
+        Feed f2 = FeedFixture.createWithContent(author, weather, now,
             "비 오는 날 코디");
-        Feed f3 = FeedFixture.createFeedWithContent(author, weather, now,
+        Feed f3 = FeedFixture.createWithContent(author, weather, now,
             "맑은날 산책 OOTD");
-        Feed f4 = FeedFixture.createFeedWithContent(author, weather, now,
+        Feed f4 = FeedFixture.createWithContent(author, weather, now,
             "키워드없음");
 
         em.persist(f1);
@@ -147,6 +154,7 @@ class FeedReadRepositoryTest {
 
         // When
         List<Feed> result = feedRepository.searchByKeyword(
+            null,
             null,
             10,
             "createdAt",
@@ -169,23 +177,23 @@ class FeedReadRepositoryTest {
         // Given
         Instant now = Instant.now();
 
-        Weather matched = WeatherFixture.create(UUID.randomUUID(), SkyStatus.CLEAR,
-            PrecipitationType.NONE);
-        Weather other = WeatherFixture.create(UUID.randomUUID(), SkyStatus.CLOUDY,
-            PrecipitationType.RAIN);
+        Weather matched = WeatherFixture.createWeatherWithDefault(location, SkyStatus.CLEAR,
+            PrecipitationType.NONE, now);
+        Weather other = WeatherFixture.createWeatherWithDefault(location, SkyStatus.CLOUDY,
+            PrecipitationType.RAIN, now.plusMillis(1));
 
         em.persist(matched);
         em.persist(other);
 
         em.persist(
-            FeedFixture.createEntity(UUID.randomUUID(), author, matched, "matched", now, null));
-        em.persist(FeedFixture.createEntity(UUID.randomUUID(), author, other, "other", now, null));
+            FeedFixture.createEntity(author, matched, "matched", now, null));
+        em.persist(FeedFixture.createEntity(author, other, "other", now, null));
         em.flush();
         em.clear();
 
         // When
         List<Feed> result = feedRepository.searchByKeyword(
-            null, 10, "createdAt", "DESCENDING",
+            null, null, 10, "createdAt", "DESCENDING",
             null,
             SkyStatus.CLEAR,
             null,
@@ -204,23 +212,23 @@ class FeedReadRepositoryTest {
         // Given
         Instant now = Instant.now();
 
-        Weather matched = WeatherFixture.create(UUID.randomUUID(), SkyStatus.CLEAR,
-            PrecipitationType.RAIN);
-        Weather other = WeatherFixture.create(UUID.randomUUID(), SkyStatus.CLOUDY,
-            PrecipitationType.NONE);
+        Weather matched = WeatherFixture.createWeatherWithDefault(location, SkyStatus.CLEAR,
+            PrecipitationType.RAIN, now);
+        Weather other = WeatherFixture.createWeatherWithDefault(location, SkyStatus.CLOUDY,
+            PrecipitationType.NONE, now.plusMillis(1));
 
         em.persist(matched);
         em.persist(other);
 
         em.persist(
-            FeedFixture.createEntity(UUID.randomUUID(), author, matched, "matched", now, null));
-        em.persist(FeedFixture.createEntity(UUID.randomUUID(), author, other, "other", now, null));
+            FeedFixture.createEntity(author, matched, "matched", now, null));
+        em.persist(FeedFixture.createEntity(author, other, "other", now, null));
         em.flush();
         em.clear();
 
         // When
         List<Feed> result = feedRepository.searchByKeyword(
-            null, 10, "createdAt", "DESCENDING",
+            null, null, 10, "createdAt", "DESCENDING",
             null,
             null,
             PrecipitationType.RAIN,
@@ -239,15 +247,15 @@ class FeedReadRepositoryTest {
         // Given
         Instant now = Instant.now();
 
-        User matchedAuthor = UserFixture.createUser();
+        User matchedAuthor = UserFixture.createUserWithEmail("email1@email.com");
         em.persist(matchedAuthor);
 
-        User otherAuthor = UserFixture.createUser();
+        User otherAuthor = UserFixture.createUserWithEmail("email2@email.com");
         em.persist(otherAuthor);
 
-        Feed f1 = FeedFixture.createEntity(UUID.randomUUID(), matchedAuthor, weather, null,
+        Feed f1 = FeedFixture.createEntity(matchedAuthor, weather, "matched",
             now, null);
-        Feed f2 = FeedFixture.createEntity(UUID.randomUUID(), otherAuthor, weather, null, now,
+        Feed f2 = FeedFixture.createEntity(otherAuthor, weather, "other", now,
             null);
 
         em.persist(f1);
@@ -257,6 +265,7 @@ class FeedReadRepositoryTest {
 
         // When
         List<Feed> result = feedRepository.searchByKeyword(
+            null,
             null,
             10,
             "createdAt",

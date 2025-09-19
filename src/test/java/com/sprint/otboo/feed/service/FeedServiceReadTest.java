@@ -102,26 +102,26 @@ class FeedServiceReadTest {
             FeedDto dto = newDtoFrom(feed, "맑음", "비", 10L, 2);
 
             given(feedRepository.searchByKeyword(
-                isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
+                isNull(), isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
                 isNull(), isNull(), isNull(), isNull()
             )).willReturn(List.of(feed));
-            given(feedRepository.countByFilters(isNull(), isNull(), isNull()))
+            given(feedRepository.countByFilters(isNull(), isNull(), isNull(), isNull()))
                 .willReturn(1L);
             given(feedMapper.toDto(feed)).willReturn(dto);
 
             // When
             CursorPageResponse<FeedDto> result =
-                feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, null, null, null);
+                feedService.getFeeds(null, null, LIMIT, SORT_BY, SORT_DIR, null, null, null, null);
 
             // Then
             assertThat(result.totalCount()).isEqualTo(1L);
-            assertThat(result.content()).containsExactly(dto);
+            assertThat(result.data()).containsExactly(dto);
 
             then(feedRepository).should().searchByKeyword(
-                isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
+                isNull(), isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
                 isNull(), isNull(), isNull(), isNull()
             );
-            then(feedRepository).should().countByFilters(isNull(), isNull(), isNull());
+            then(feedRepository).should().countByFilters(isNull(), isNull(), isNull(), isNull());
             then(feedMapper).should().toDto(feed);
             then(feedRepository).shouldHaveNoMoreInteractions();
             then(feedMapper).shouldHaveNoMoreInteractions();
@@ -141,34 +141,39 @@ class FeedServiceReadTest {
                 FeedDto clearDto = newDtoFrom(feed, SkyStatus.CLEAR.name(), "없음", 3L, 1);
 
                 given(feedRepository.searchByKeyword(
-                    isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
+                    isNull(), isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
                     isNull(), eq(SkyStatus.CLEAR), isNull(), isNull()
                 )).willReturn(List.of(feed));
-                given(feedRepository.countByFilters(isNull(), eq(SkyStatus.CLEAR), isNull()))
+                given(feedRepository.countByFilters(isNull(), eq(SkyStatus.CLEAR), isNull(),
+                    isNull()))
                     .willReturn(1L);
                 given(feedMapper.toDto(feed)).willReturn(clearDto);
 
                 // When
                 CursorPageResponse<FeedDto> result =
-                    feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null, null);
+                    feedService.getFeeds(null, null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus,
+                        null,
+                        null);
 
                 // Then
-                assertThat(result.content()).containsExactly(clearDto);
+                assertThat(result.data()).containsExactly(clearDto);
                 assertThat(result.totalCount()).isEqualTo(1L);
             } else {
                 given(feedRepository.searchByKeyword(
-                    isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
+                    isNull(), isNull(), eq(LIMIT), eq(SORT_BY), eq(SORT_DIR),
                     isNull(), eq(filterStatus), isNull(), isNull()
                 )).willReturn(List.of());
-                given(feedRepository.countByFilters(isNull(), eq(filterStatus), isNull()))
+                given(feedRepository.countByFilters(isNull(), eq(filterStatus), isNull(), isNull()))
                     .willReturn(0L);
 
                 // When
                 CursorPageResponse<FeedDto> result =
-                    feedService.getFeeds(null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null, null);
+                    feedService.getFeeds(null, null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus,
+                        null,
+                        null);
 
                 // Then
-                assertThat(result.content()).isEmpty();
+                assertThat(result.data()).isEmpty();
                 assertThat(result.totalCount()).isEqualTo(0L);
             }
         }
@@ -202,21 +207,28 @@ class FeedServiceReadTest {
                 : List.of(olderFeed, newerFeed);
 
             given(feedRepository.searchByKeyword(
-                isNull(), eq(LIMIT), eq(sortBy), eq(dir),
-                isNull(), isNull(), isNull(), isNull()
+                isNull(),
+                isNull(),
+                eq(LIMIT),
+                eq(sortBy),
+                eq(dir),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
             )).willReturn(repoResult);
-            given(feedRepository.countByFilters(isNull(), isNull(), isNull()))
+            given(feedRepository.countByFilters(isNull(), isNull(), isNull(), isNull()))
                 .willReturn(2L);
             given(feedMapper.toDto(newerFeed)).willReturn(newerDto);
             given(feedMapper.toDto(olderFeed)).willReturn(olderDto);
 
             CursorPageResponse<FeedDto> result =
-                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null, null);
+                feedService.getFeeds(null, null, LIMIT, sortBy, dir, null, null, null, null);
 
             if ("DESCENDING".equalsIgnoreCase(dir)) {
-                assertThat(result.content()).containsExactly(newerDto, olderDto);
+                assertThat(result.data()).containsExactly(newerDto, olderDto);
             } else {
-                assertThat(result.content()).containsExactly(olderDto, newerDto);
+                assertThat(result.data()).containsExactly(olderDto, newerDto);
             }
             assertThat(result.totalCount()).isEqualTo(2L);
         }
@@ -230,21 +242,28 @@ class FeedServiceReadTest {
                 : List.of(olderFeed, newerFeed);
 
             given(feedRepository.searchByKeyword(
-                isNull(), eq(LIMIT), eq(sortBy), eq(dir),
-                isNull(), isNull(), isNull(), isNull()
+                isNull(),
+                isNull(),
+                eq(LIMIT),
+                eq(sortBy),
+                eq(dir),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull()
             )).willReturn(repoResult);
-            given(feedRepository.countByFilters(isNull(), isNull(), isNull()))
+            given(feedRepository.countByFilters(isNull(), isNull(), isNull(), isNull()))
                 .willReturn(2L);
             given(feedMapper.toDto(newerFeed)).willReturn(newerDto);
             given(feedMapper.toDto(olderFeed)).willReturn(olderDto);
 
             CursorPageResponse<FeedDto> result =
-                feedService.getFeeds(null, LIMIT, sortBy, dir, null, null, null, null);
+                feedService.getFeeds(null, null, LIMIT, sortBy, dir, null, null, null, null);
 
             if ("DESCENDING".equalsIgnoreCase(dir)) {
-                assertThat(result.content()).containsExactly(newerDto, olderDto);
+                assertThat(result.data()).containsExactly(newerDto, olderDto);
             } else {
-                assertThat(result.content()).containsExactly(olderDto, newerDto);
+                assertThat(result.data()).containsExactly(olderDto, newerDto);
             }
             assertThat(result.totalCount()).isEqualTo(2L);
         }

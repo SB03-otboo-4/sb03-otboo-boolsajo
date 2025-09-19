@@ -81,13 +81,27 @@ public class FeedServiceImpl implements FeedService {
     }
 
     public CursorPageResponse<FeedDto> getFeeds(
-        String cursor, int limit, String sortBy, String sortDirection,
-        String keywordLike, SkyStatus skyStatus, PrecipitationType precipitationType, UUID authorId
+        String cursor,
+        UUID idAfter,
+        int limit,
+        String sortBy,
+        String sortDirection,
+        String keywordLike,
+        SkyStatus skyStatus,
+        PrecipitationType precipitationType,
+        UUID authorId
     ) {
         List<Feed> rows = feedRepository.searchByKeyword(
-            cursor, limit, sortBy, sortDirection, keywordLike, skyStatus, precipitationType,
-            authorId);
-
+            cursor,
+            idAfter,
+            limit,
+            sortBy,
+            sortDirection,
+            keywordLike,
+            skyStatus,
+            precipitationType,
+            authorId
+        );
         boolean hasNext = rows.size() > limit;
         if (hasNext) {
             rows = rows.subList(0, limit);
@@ -97,7 +111,8 @@ public class FeedServiceImpl implements FeedService {
 
         PageCursor pageCursor = buildNextCursor(rows, hasNext, sortBy);
 
-        long total = feedRepository.countByFilters(keywordLike, skyStatus, precipitationType);
+        long total = feedRepository.countByFilters(keywordLike, skyStatus, precipitationType,
+            authorId);
 
         return new CursorPageResponse<>(
             feedDtos,

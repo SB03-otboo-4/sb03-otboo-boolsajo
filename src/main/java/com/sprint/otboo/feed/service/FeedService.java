@@ -13,7 +13,9 @@ public interface FeedService {
 
     void addLike(UUID feedId, UUID userId);
 
-    CursorPageResponse<FeedDto> getFeeds(String cursor,
+    CursorPageResponse<FeedDto> getFeeds(
+        String cursor,
+        UUID idAfter,
         int limit,
         String sortBy,
         String sortDirection,
