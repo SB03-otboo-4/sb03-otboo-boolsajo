@@ -3,6 +3,7 @@ package com.sprint.otboo.user.dto.data;
 import com.sprint.otboo.user.entity.Gender;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public record ProfileDto(
@@ -15,7 +16,7 @@ public record ProfileDto(
     BigDecimal longitude,
     Integer x,
     Integer y,
-    String locationNames,
+    List<String> locationNames,
     Integer temperatureSensitivity
 ) {
 
