@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,6 +17,7 @@ public class KakaoLocationNameResolver implements LocationNameResolver {
     private final KakaoLocalClient client;
 
     @Override
+    @Cacheable(cacheNames = "kakao:region", key = "T(java.lang.String).format('%.6f:%.6f', #latitude, #longitude)")
     public List<String> resolve(double latitude, double longitude) {
         KakaoCoord2RegioncodeResponse res =
             client.coord2RegionCode(longitude, latitude);
