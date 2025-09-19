@@ -171,26 +171,6 @@ public class RecommendationEngineImpl implements RecommendationEngine {
      * <p>
      * 의상 타입과 계절, 세부 온도 범주 기준으로 의상 두께가 적합한지 판별
      *
-     * <ul>
-     *   <li><b>OUTER</b>
-     *     <ul>
-     *       <li>SPRING: HIGH -> 얇거나 중간, LOW -> 중간</li>
-     *       <li>SUMMER: LIGHT</li>
-     *       <li>FALL: HIGH -> 얇거나 중간, LOW -> 중간 또는 두껍게</li>
-     *       <li>WINTER: HEAVY</li>
-     *     </ul>
-     *   </li>
-     *   <li><b>TOP & BOTTOM</b>
-     *     <ul>
-     *       <li>SPRING: HIGH -> 얇거나 중간, LOW -> 중간</li>
-     *       <li>SUMMER: LIGHT</li>
-     *       <li>FALL: HIGH -> 중간, LOW -> 중간 또는 두껍게</li>
-     *       <li>WINTER: HEAVY</li>
-     *     </ul>
-     *   </li>
-     *   <li>그 외 타입: 두께 제한 없음</li>
-     * </ul>
-     *
      * @param type 의상 타입
      * @param thickness 의상 두께
      * @param season 계절
@@ -203,36 +183,49 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         if (thickness == null) return true;
 
         return switch (type) {
-            // OUTER 의상 두께 규칙
-            case OUTER -> switch (season) {
-                case SPRING -> switch (category) {
-                    case HIGH -> thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM;
-                    case LOW  -> thickness == Thickness.MEDIUM;
-                };
-                case SUMMER -> thickness == Thickness.LIGHT;
-                case FALL -> switch (category) {
-                    case HIGH -> thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM;
-                    case LOW  -> thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
-                };
-                case WINTER -> thickness == Thickness.HEAVY;
-            };
+            case OUTER -> isOuterSuitable(thickness, season, category);
+            case TOP, BOTTOM -> isTopBottomSuitable(thickness, season, category);
+            default -> true; // 나머지 타입은 두께 제한 없음
+        };
+    }
 
-            // TOP & BOTTOM 의상 두께 규칙
-            case TOP, BOTTOM -> switch (season) {
-                case SPRING -> switch (category) {
-                    case HIGH -> thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM;
-                    case LOW  -> thickness == Thickness.MEDIUM;
-                };
-                case SUMMER -> thickness == Thickness.LIGHT;
-                case FALL -> switch (category) {
-                    case HIGH -> thickness == Thickness.MEDIUM;
-                    case LOW  -> thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
-                };
-                case WINTER -> thickness == Thickness.HEAVY;
-            };
+    /**
+     * OUTER 전용 두께 추천 규칙
+     *   SPRING: HIGH -> 얇음 또는 중간, LOW -> 중간
+     *   SUMMER: 얇음
+     *   FALL: HIGH -> 얇음 또는 중간, LOW -> 중간 또는 두꺼움
+     *   WINTER: 두꺼움
+     */
+    private boolean isOuterSuitable(Thickness thickness, Season season, TemperatureCategory category) {
+        return switch (season) {
+            case SPRING -> category == TemperatureCategory.HIGH
+                ? thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM
+                : thickness == Thickness.MEDIUM;
+            case SUMMER -> thickness == Thickness.LIGHT;
+            case FALL -> category == TemperatureCategory.HIGH
+                ? thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM
+                : thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
+            case WINTER -> thickness == Thickness.HEAVY;
+        };
+    }
 
-            // 기타 의상 타입: 두께 제한 없음
-            default -> true;
+    /**
+     * TOP & BOTTOM 전용 두께 추천 규칙
+     *   SPRING: HIGH -> 얇음 또는 중간, LOW -> 중간
+     *   SUMMER: 얇음
+     *   FALL: HIGH -> 중간, LOW -> 중간 또는 두꺼움
+     *   WINTER: 두꺼움
+     */
+    private boolean isTopBottomSuitable(Thickness thickness, Season season, TemperatureCategory category) {
+        return switch (season) {
+            case SPRING -> category == TemperatureCategory.HIGH
+                ? thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM
+                : thickness == Thickness.MEDIUM;
+            case SUMMER -> thickness == Thickness.LIGHT;
+            case FALL -> category == TemperatureCategory.HIGH
+                ? thickness == Thickness.MEDIUM
+                : thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
+            case WINTER -> thickness == Thickness.HEAVY;
         };
     }
 }
