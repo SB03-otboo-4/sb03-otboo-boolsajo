@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.jwt.TokenProvider;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
@@ -24,7 +25,6 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
-import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -570,7 +570,7 @@ public class UserControllerTest {
             createUserAccountDto("test@test2.com","testUser2",Role.USER,false),
             createUserAccountDto("test@test3.com","testUser3",Role.USER,false)
         );
-        UserDtoCursorResponse response = new UserDtoCursorResponse(
+        CursorPageResponse<UserDto> response = new CursorPageResponse<>(
             data,
             "CUR_NEXT",
             UUID.randomUUID().toString(),
@@ -631,7 +631,7 @@ public class UserControllerTest {
             createUserAccountDto("test@test1.com","testUser1",Role.USER,false),
             createUserAccountDto("test@test2.com","testUser2",Role.USER,false)
         );
-        UserDtoCursorResponse response = new UserDtoCursorResponse(
+        CursorPageResponse<UserDto> response = new CursorPageResponse<>(
             data,
             "CUR2",
             UUID.randomUUID().toString(),

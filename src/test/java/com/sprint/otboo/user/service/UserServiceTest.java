@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
@@ -16,7 +17,6 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
-import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -718,7 +718,7 @@ public class UserServiceTest {
         });
 
         // when
-        UserDtoCursorResponse response = userService.listUsers(
+        CursorPageResponse<UserDto> response = userService.listUsers(
             "CUR1", null, 2 , "createdAt", "DESCENDING", "test", "USER", false
         );
 

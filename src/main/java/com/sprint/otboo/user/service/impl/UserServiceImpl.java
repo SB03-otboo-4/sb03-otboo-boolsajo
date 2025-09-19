@@ -9,7 +9,6 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
-import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
@@ -130,7 +129,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserDtoCursorResponse listUsers(String cursor, String idAfter, Integer limit, String sortByParam, String sortDirParam,
+    public CursorPageResponse<UserDto> listUsers(String cursor, String idAfter, Integer limit, String sortByParam, String sortDirParam,
         String emailLike, String roleEqualParam, Boolean locked) {
         // 파라미터 -> enum/타입 변환
         SortBy sortBy = SortBy.fromParam(sortByParam);
@@ -147,7 +146,8 @@ public class UserServiceImpl implements UserService {
             .map(userMapper::toUserDto)
             .toList();
 
-        CursorPageResponse<UserDto> page = new CursorPageResponse<>(
+
+        return new CursorPageResponse<>(
             data,
             slice.nextCursor(),
             slice.nextIdAfter() != null ? slice.nextIdAfter().toString() : null,
@@ -156,7 +156,6 @@ public class UserServiceImpl implements UserService {
             sortBy.toParam(),
             sd.toParam()
         );
-        return UserDtoCursorResponse.from(page);
     }
 
     private void validateDuplicateEmail(String email) {

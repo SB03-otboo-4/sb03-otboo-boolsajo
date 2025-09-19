@@ -1,12 +1,12 @@
 package com.sprint.otboo.user.controller;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
-import com.sprint.otboo.user.dto.response.UserDtoCursorResponse;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -94,7 +94,7 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<UserDtoCursorResponse> listUsers(
+    public ResponseEntity<CursorPageResponse<UserDto>> listUsers(
         @RequestParam(required = false) String cursor,
         @RequestParam(required = false) String idAfter,
         @RequestParam Integer limit,
@@ -117,7 +117,7 @@ public class UserController {
             return ResponseEntity.badRequest().build();
         }
 
-        UserDtoCursorResponse response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+        CursorPageResponse<UserDto> response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
 
         return ResponseEntity.ok(response);
     }
