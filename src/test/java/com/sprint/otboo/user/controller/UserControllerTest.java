@@ -1,11 +1,13 @@
 package com.sprint.otboo.user.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.only;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -29,6 +31,7 @@ import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.service.UserService;
+import jakarta.validation.ConstraintViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -686,18 +689,35 @@ public class UserControllerTest {
 
     @Test
     @WithMockUser
-    void limit_누락으로_인해_계정_목록_조회_실패() throws Exception {
+    void limit_누락시_기본_값으로_계정_목록_조회_성공() throws Exception {
         // given
+        CursorPageResponse<UserDto> response = new CursorPageResponse<>(
+            List.of(),
+            null,
+            null,
+            false,
+            0L,
+            "createdAt",
+            "DESCENDING"
+        );
+        given(userService.listUsers(
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.eq(20),
+            ArgumentMatchers.eq("createdAt"),
+            ArgumentMatchers.eq("DESCENDING"),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.isNull()
+        )).willReturn(response);
 
         // when
-        ResultActions result = mockMvc.perform(
-            get("/api/users")
-                .param("sortBy","createdAt")
-                .param("sortDirection","DESCENDING")
-        );
+        ResultActions result = mockMvc.perform(get("/api/users"));
 
-        // then
-        result.andExpect(status().isBadRequest());
+        result.andExpect(status().isOk());
+        then(userService).should().listUsers(
+            null, null, 20, "createdAt", "DESCENDING", null, null, null
+        );
     }
 
     @Test
@@ -714,6 +734,9 @@ public class UserControllerTest {
         );
 
         // then
-        result.andExpect(status().isBadRequest());
+        result.andExpect(status().isBadRequest())
+            .andExpect(res -> assertThat(res.getResolvedException())
+                .isInstanceOf(ConstraintViolationException.class));
+        verifyNoInteractions(userService);
     }
 }

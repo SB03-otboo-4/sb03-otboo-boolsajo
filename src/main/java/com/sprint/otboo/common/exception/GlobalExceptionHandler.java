@@ -1,6 +1,7 @@
 package com.sprint.otboo.common.exception;
 
 import com.sprint.otboo.common.dto.ErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -226,6 +227,25 @@ public class GlobalExceptionHandler {
             HttpStatus.BAD_REQUEST.value()
         );
 
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        log.error("요청 파라미터 제약 위반: {}", ex.getMessage());
+        Map<String, Object> details = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation ->
+            details.put(violation.getPropertyPath().toString(), violation.getMessage())
+        );
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            ErrorCode.VALIDATION_FAILED.name(),
+            ErrorCode.VALIDATION_FAILED.getMessage(),
+            details,
+            ex.getClass().getSimpleName(),
+            ErrorCode.VALIDATION_FAILED.getStatus().value()
+        );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 }
