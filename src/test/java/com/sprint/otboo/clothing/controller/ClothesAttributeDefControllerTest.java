@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -28,6 +30,9 @@ public class ClothesAttributeDefControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    TokenProvider tokenProvider;
 
     @Test
     @WithMockUser(username = "admin", roles = {"ADMIN"})

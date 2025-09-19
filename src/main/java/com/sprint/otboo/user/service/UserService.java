@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.service;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
@@ -19,4 +20,6 @@ public interface UserService {
     UserDto updateUserRole(UUID userId, UserRoleUpdateRequest request);
 
     ProfileDto getUserProfile(UUID userId);
+
+    CursorPageResponse<UserDto> listUsers(String cursor, String idAfter, Integer limit, String sortBy, String sortDirection, String emailLike, String roleEqual, Boolean locked);
 }
