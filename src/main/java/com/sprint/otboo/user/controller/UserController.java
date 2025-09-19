@@ -9,12 +9,15 @@ import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class UserController {
 
     private final UserService userService;
@@ -97,9 +101,9 @@ public class UserController {
     public ResponseEntity<CursorPageResponse<UserDto>> listUsers(
         @RequestParam(required = false) String cursor,
         @RequestParam(required = false) String idAfter,
-        @RequestParam Integer limit,
-        @RequestParam String sortBy,
-        @RequestParam String sortDirection,
+        @RequestParam(defaultValue = "20") @Min(1) Integer limit,
+        @RequestParam(defaultValue = "createdAt") @Pattern(regexp = "email|createdAt") String sortBy,
+        @RequestParam(defaultValue = "DESCENDING") @Pattern(regexp = "ASCENDING|DESCENDING") String sortDirection,
         @RequestParam(required = false) String emailLike,
         @RequestParam(required = false) String roleEqual,
         @RequestParam(required = false) Boolean locked
