@@ -1,16 +1,19 @@
 package com.sprint.otboo.common.config;
 
+import com.sprint.otboo.auth.CustomAuthenticationEntryPoint;
 import com.sprint.otboo.auth.SpaCsrfTokenRequestHandler;
+import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 @Configuration
@@ -25,13 +28,16 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(
-            HttpSecurity http
+        HttpSecurity http,
+        JwtAuthenticationFilter jwtAuthenticationFilter,
+        CustomAuthenticationEntryPoint customAuthenticationEntryPoint
     ) throws Exception {
         http
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                     .ignoringRequestMatchers(
+                                  "/api/auth/sign-in",      // 로그인
                                   "/api/users/*/password",  // 비밀번호 변경
                                   "/api/users/*/lock",       // 계정 잠금 상태 변경
                                   "/api/users/*/role" // 권한 변경
@@ -72,8 +78,13 @@ public class SecurityConfig {
             )
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny())
             )
-            .formLogin(form ->form.disable())
-            .httpBasic(basic ->basic.disable());
+            .formLogin(form ->form.disable()
+            )
+            .httpBasic(basic ->basic.disable())
+            .exceptionHandling(handler -> handler
+                .authenticationEntryPoint(customAuthenticationEntryPoint)
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
