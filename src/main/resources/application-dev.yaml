@@ -3,10 +3,13 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:otboo}?currentSchema=${POSTGRES_SCHEMA:public}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:otboo}?currentSchema=${POSTGRES_SCHEMA:otboo_schema}
     driver-class-name: org.postgresql.Driver
-    username: ${POSTGRES_USER:otboo_user}
-    password: ${POSTGRES_PASSWORD:otboo1234}
+    username: ${POSTGRES_USER:phoenix}
+    password: ${POSTGRES_PASSWORD:phoenix}
+    hikari:
+      connection-init-sql: SET search_path TO ${POSTGRES_SCHEMA:otboo_schema}, public;
+      schema: ${POSTGRES_SCHEMA:otboo_schema}
   jpa:
     open-in-view: false
     hibernate:
@@ -15,6 +18,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        default_schema: ${POSTGRES_SCHEMA:otboo_schema}
     show-sql: true
   logging:
     level:
