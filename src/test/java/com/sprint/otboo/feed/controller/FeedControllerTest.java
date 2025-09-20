@@ -76,7 +76,7 @@ class FeedControllerTest {
             TemperatureDto temperature = new TemperatureDto(20.5, -1.0, 18.0, 25.0);
             PrecipitationDto precipitation = new PrecipitationDto("RAIN", 12.3, 80.0);
             WeatherSummaryDto weather = new WeatherSummaryDto(
-                weatherId, /* skyStatus */ "CLOUDY", precipitation, temperature
+                weatherId, "CLOUDY", precipitation, temperature
             );
             OotdDto ootd = new OotdDto(
                 clothesId,
