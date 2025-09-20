@@ -43,6 +43,5 @@ public class LikeServiceImpl implements LikeService {
 
         log.debug("[LikeServiceImpl] 좋아요 등록 완료: feedId={}, userId={}, likeCount={}",
             feedId, userId, feed.getLikeCount());
-
     }
 }
