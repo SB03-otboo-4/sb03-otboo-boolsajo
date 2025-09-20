@@ -11,14 +11,12 @@ import com.sprint.otboo.user.repository.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class LikeServiceImpl implements LikeService {
 
     private final FeedRepository feedRepository;
@@ -33,11 +31,12 @@ public class LikeServiceImpl implements LikeService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> UserNotFoundException.withId(userId));
 
-        try {
-            feedLikeRepository.save(FeedLike.builder().feed(feed).user(user).build());
-            feed.increaseLikeCount();
-        } catch (DataIntegrityViolationException e) {
-            log.debug("[FeedServiceImpl] feedLike가 이미 존재함: feedId={}, userId={}", feedId, userId);
+        boolean exists = feedLikeRepository.existsByFeedIdAndUserId(feedId, userId);
+        if (exists) {
+            log.debug("[LikeService] 좋아요가 이미 존재함: feedId={}, userId={}", feedId, userId);
+            return;
         }
+        feedLikeRepository.save(FeedLike.builder().feed(feed).user(user).build());
+        feed.increaseLikeCount();
     }
 }

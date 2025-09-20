@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface FeedLikeRepository extends JpaRepository<FeedLike, UUID> {
 
+    boolean existsByFeedIdAndUserId(UUID feedId, UUID userId);
 }

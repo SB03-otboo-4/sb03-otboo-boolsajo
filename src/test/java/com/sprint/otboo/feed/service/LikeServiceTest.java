@@ -21,6 +21,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,13 +30,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class LikeServiceTest {
 
     @Mock
-    private LikeService likeService;
-    @Mock
     private UserRepository userRepository;
     @Mock
     private FeedRepository feedRepository;
     @Mock
     private FeedLikeRepository feedLikeRepository;
+    @InjectMocks
+    private LikeServiceImpl likeService;
 
     @Nested
     @DisplayName("피드 좋아요 등록 테스트")
@@ -60,13 +61,15 @@ public class LikeServiceTest {
 
             given(userRepository.findById(userId)).willReturn(Optional.of(liker));
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+            given(feedLikeRepository.existsByFeedIdAndUserId(feedId, userId)).willReturn(false);
+            given(feedLikeRepository.save(any(FeedLike.class))).willAnswer(
+                inv -> inv.getArgument(0));
 
             // When
             likeService.addLike(feedId, userId);
 
             // Then
             assertThat(feed.getLikeCount()).isEqualTo(1L);
-            then(feedLikeRepository).should().save(any(FeedLike.class));
             then(feedLikeRepository).shouldHaveNoMoreInteractions();
             then(feedRepository).should().findById(feedId);
             then(feedRepository).shouldHaveNoMoreInteractions();
