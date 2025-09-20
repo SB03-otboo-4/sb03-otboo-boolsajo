@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -39,6 +40,7 @@ public class ClothesAttributeDef extends BaseEntity {
     @Column(name = "select_values", length = 255)
     private String selectValues;
 
+    @Builder.Default
     @OneToMany(mappedBy = "definition", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ClothesAttribute> attributes = new ArrayList<>();
 }

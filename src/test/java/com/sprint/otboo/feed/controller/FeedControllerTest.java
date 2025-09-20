@@ -1,6 +1,7 @@
 package com.sprint.otboo.feed.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
@@ -44,6 +45,9 @@ class FeedControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    TokenProvider tokenProvider;
 
     @MockitoBean
     private FeedService feedService;
