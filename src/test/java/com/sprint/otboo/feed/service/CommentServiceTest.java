@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.entity.Comment;
@@ -21,6 +22,7 @@ import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +51,7 @@ public class CommentServiceTest {
 
     @Nested
     @DisplayName("댓글 등록 테스트")
-    class CreateTests {
+    class CommentCreateTests {
 
         @Test
         void 댓글을_등록하면_DTO가_반환된다() {
@@ -121,6 +123,86 @@ public class CommentServiceTest {
             // When & Then
             assertThatThrownBy(() -> commentService.create(authorId, feedId, content))
                 .isInstanceOf(FeedNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("댓글 조회 테스트")
+    class CommentReadTests {
+
+        @Test
+        void 댓글을_조회하면_최신순으로_댓글이_조회된다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            int limit = 2;
+
+            Instant t2 = Instant.now();
+            Instant t1 = t2.minusSeconds(10);
+
+            User author = UserFixture.create(UUID.randomUUID(), "홍길동", "profile.png");
+            Feed feed = FeedFixture.createWithId(feedId);
+
+            Comment comment1 = CommentFixture.create(UUID.randomUUID(), author, feed, "첫 댓글", t2);
+            Comment comment2 = CommentFixture.create(UUID.randomUUID(), author, feed, "둘째 댓글", t1);
+
+            CommentDto d1 = new CommentDto(
+                comment1.getId(), comment1.getCreatedAt(), feedId,
+                new AuthorDto(author.getId(), "홍길동", "profile.png"),
+                "첫 댓글"
+            );
+            CommentDto d2 = new CommentDto(
+                comment2.getId(), comment2.getCreatedAt(), feedId,
+                new AuthorDto(author.getId(), "홍길동", "profile.png"),
+                "둘째 댓글"
+            );
+
+            given(commentRepository.findByFeedId(feedId, null, null, limit))
+                .willReturn(List.of(comment1, comment2));
+            given(commentMapper.toDto(comment1)).willReturn(d1);
+            given(commentMapper.toDto(comment2)).willReturn(d2);
+
+            // When
+            CursorPageResponse<CommentDto> result = commentService.getComments(feedId, null, null,
+                limit);
+
+            // Then
+            assertThat(result.data()).containsExactly(d1, d2);
+            String expectedNextCursor =
+                comment2.getCreatedAt().toEpochMilli() + ":" + comment2.getId();
+            assertThat(result.nextCursor()).isEqualTo(expectedNextCursor);
+            assertThat(result.nextIdAfter()).isEqualTo(comment2.getId().toString());
+            assertThat(result.hasNext()).isTrue();
+
+            then(commentRepository).should().findByFeedId(feedId, null, null, limit);
+            then(commentMapper).should().toDto(comment1);
+            then(commentMapper).should().toDto(comment2);
+            then(commentRepository).shouldHaveNoMoreInteractions();
+            then(commentMapper).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 댓글이_없으면_빈_결과를_반환한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            int limit = 10;
+
+            given(commentRepository.findByFeedId(feedId, null, null, limit))
+                .willReturn(List.of());
+
+            // When
+            CursorPageResponse<CommentDto> result = commentService.getComments(feedId, null, null,
+                limit);
+
+            // Then
+            assertThat(result.data()).isEmpty();
+            assertThat(result.nextCursor()).isNull();
+            assertThat(result.nextIdAfter()).isNull();
+            assertThat(result.hasNext()).isFalse();
+
+            then(commentRepository).should()
+                .findByFeedId(feedId, null, null, limit);
+            then(commentRepository).shouldHaveNoMoreInteractions();
+            then(commentMapper).shouldHaveNoInteractions();
         }
     }
 }
