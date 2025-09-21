@@ -1,5 +1,6 @@
 package com.sprint.otboo.feed.service;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.CommentDto;
@@ -10,6 +11,7 @@ import com.sprint.otboo.feed.repository.CommentRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,5 +51,41 @@ public class CommentServiceImpl implements CommentService {
         log.debug("[CommentServiceImpl] 댓글 생성 완료: commentId={}", saved.getId());
 
         return commentMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPageResponse<CommentDto> getComments(UUID feedId, String cursor, UUID idAfter,
+        int limit) {
+        List<Comment> rows = commentRepository.findByFeedId(
+            feedId, cursor, idAfter, limit
+        );
+
+        List<CommentDto> data = rows.stream()
+            .map(commentMapper::toDto)
+            .toList();
+
+        String nextCursor = null;
+        String nextIdAfter = null;
+        if (!rows.isEmpty()) {
+            Comment last = rows.get(rows.size() - 1);
+            nextCursor = last.getCreatedAt().toEpochMilli() + ":" + last.getId();
+            nextIdAfter = last.getId().toString();
+        }
+
+        boolean hasNext = rows.size() == limit;
+
+        String sortBy = "createdAt";
+        String sortDirection = "DESCENDING";
+
+        return new CursorPageResponse<>(
+            data,
+            nextCursor,
+            nextIdAfter,
+            hasNext,
+            limit,
+            sortBy,
+            sortDirection
+        );
     }
 }
