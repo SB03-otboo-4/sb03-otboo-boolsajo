@@ -1,6 +1,7 @@
 package com.sprint.otboo.recommendation.util;
 
 import com.sprint.otboo.clothing.entity.Clothes;
+import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.entity.attribute.Season;
 import com.sprint.otboo.clothing.entity.attribute.Thickness;
@@ -9,6 +10,7 @@ import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,43 +54,10 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     /**
      * 계절 + 세부 온도 범주 + 날씨 기반 필터링
      *
-     * @param clothes 의상
-     * @param season 계절
-     * @param category 세부 온도 범주
-     * @param weather 날씨 정보
-     * @return 추천 가능 여부
-     */
-    private boolean matchesSeasonAndCategory(Clothes clothes, Season season, TemperatureCategory category, Weather weather
-    ) {
-        // 1. 일교차 기반 OUTER 강제 추천
-        double dailyRange = WeatherUtils.calculateDailyRange(weather.getMaxC(), weather.getMinC());
-        if ((season == Season.SPRING || season == Season.FALL)
-            && dailyRange >= 6
-            && clothes.getType() == ClothesType.OUTER) {
-            return true; // 강제 추천
-        }
-
-        // 2. 기존 타입/두께 필터 적용
-        boolean typeRule = matchesTypeRule(clothes, season, category, weather);
-
-        boolean thicknessRule = clothes.getAttributes().stream()
-            .filter(attr -> attr.getDefinition() != null
-                && "thickness".equalsIgnoreCase(attr.getDefinition().getName()))
-            .map(attr -> {
-                try {
-                    return Thickness.valueOf(attr.getValue().toUpperCase());
-                } catch (Exception e) {
-                    return null;
-                }
-            })
-            // Nullable : 값이 있다면 규칙 적용 / 없다면 규칙 패스
-            .allMatch(thick -> thick == null || isSuitableThickness(clothes.getType(), thick, season, category));
-
-        return typeRule && thicknessRule;
-    }
-
-    /**
-     * 의상 타입별 기본 필터링
+     * <p>
+     * 1) 의상 season 속성 필터 적용( nullable )
+     * 2) 일교차 기반 OUTER 강제 추천
+     * 3) 타입 + 두께 필터( nullable ) 적용
      *
      * @param clothes 의상
      * @param season 계절
@@ -96,17 +65,141 @@ public class RecommendationEngineImpl implements RecommendationEngine {
      * @param weather 날씨 정보
      * @return 추천 가능 여부
      */
-    private boolean matchesTypeRule(Clothes clothes, Season season, TemperatureCategory category, Weather weather
-    ) {
+    private boolean matchesSeasonAndCategory(Clothes clothes, Season season, TemperatureCategory category, Weather weather) {
+        // 1. 의상 season 속성 필터
+        if (!matchesClothesSeasonAttribute(clothes, season)) {
+            return false; // 계절 속성 불일치면 추천 제외
+        }
+
+        // 2. 일교차 기반 OUTER 강제 추천
+        if (isForcedOuterRecommendation(clothes, season, weather)) {
+            return true;
+        }
+
+        // 3. 타입 + 두께 기반 규칙 적용
+        return matchesTypeAndThickness(clothes, season, category, weather);
+    }
+
+    /**
+     * 일교차 기반 OUTER 강제 추천 여부
+     *
+     * @param clothes 의상
+     * @param season 계절
+     * @param weather 날씨 정보
+     * @return 추천 가능 여부
+     */
+    private boolean isForcedOuterRecommendation(Clothes clothes, Season season, Weather weather) {
+        if (clothes.getType() != ClothesType.OUTER) {
+            return false;
+        }
+
+        double dailyRange = WeatherUtils.calculateDailyRange(weather.getMaxC(), weather.getMinC());
+
+        // 규칙 1: 봄/가을 & 일교차 6도 이상
+        boolean rule1 = (season == Season.SPRING || season == Season.FALL)
+            && dailyRange >= 6;
+
+        // 규칙 2: 봄/가을 & 일교차 4도 이상 & 풍속 >= 3m/s & 구름 많음
+        boolean rule2 = (season == Season.SPRING || season == Season.FALL)
+            && dailyRange >= 4
+            && windSpeed >= 3.0
+            && weather.getSkyStatus() == SkyStatus.CLOUDY;
+
+        return rule1 || rule2;
+    }
+
+    /**
+     * 의상 속성 이름과 값을 기반으로 계절 속성 필터링
+     *
+     * <p>
+     * - 속성명이 "season" 또는 "계절"이면 필터 적용
+     * - value가 SPRING, SUMMER, FALL, WINTER, 또는 한글 "봄", "여름", "가을", "겨울"이면 enum 변환
+     * - 변환 실패 시 필터 통과
+     *
+     * @param clothes 사용자 의상
+     * @param currentSeason 현재 분기된 계절
+     * @return 추천 가능 여부
+     */
+    private boolean matchesClothesSeasonAttribute(Clothes clothes, Season currentSeason) {
+        // 의상 속성 중 계절 속성 탐색
+        Optional<ClothesAttribute> seasonAttrOpt = clothes.getAttributes().stream()
+            .filter(attr -> attr.getDefinition() != null
+                && ("season".equalsIgnoreCase(attr.getDefinition().getName())
+                || "계절".equals(attr.getDefinition().getName())))
+            .findFirst();
+
+        if (seasonAttrOpt.isEmpty()) {
+            return true; // 속성 없으면 통과
+        }
+
+        String value = seasonAttrOpt.get().getValue();
+        if (value == null || value.isBlank()) {
+            return true; // 값 없으면 통과
+        }
+
+        Season clothesSeason = Season.fromString(value);
+        if (clothesSeason == null) {
+            return true; // enum에 매핑되지 않으면 통과
+        }
+
+        return clothesSeason == currentSeason; // 값이 존재하면 비교
+    }
+
+    /**
+     * 타입 + 두께 통합 필터
+     *
+     * @param clothes 의상
+     * @param season 계절
+     * @param category 세부 온도 범주
+     * @param weather 날씨 정보
+     * @return 추천 가능 여부
+     */
+    private boolean matchesTypeAndThickness(Clothes clothes, Season season, TemperatureCategory category, Weather weather) {
+        return matchesTypeRuleOnly(clothes, season, category, weather)
+            && matchesThicknessRule(clothes, season, category);
+    }
+
+    /**
+     * 타입 기반 필터
+     *
+     * @param clothes 의상
+     * @param season 계절
+     * @param category 세부 온도 범주
+     * @param weather 날씨 정보
+     * @return 추천 가능 여부
+     */
+    private boolean matchesTypeRuleOnly(Clothes clothes, Season season, TemperatureCategory category, Weather weather) {
         return switch (clothes.getType()) {
             case OUTER -> matchesOuterRule(season, category, weather);
             case HAT -> matchesHatRule(season, category, weather);
             case SCARF -> matchesScarfRule(season, category, weather);
-            default ->
-                // TOP, BOTTOM, UNDERWEAR, ACCESSORY, SHOES, SOCKS, ETC 등 기본 추천
-                true;
+            default -> true; // TOP, BOTTOM, UNDERWEAR, ACCESSORY, SHOES, SOCKS, ETC 등 기본 추천
         };
+    }
 
+    /**
+     * 의상 속성 이름과 값을 기반으로 두께 속성 필터링
+     *
+     * <p>
+     * - 속성명이 "thickness" 또는 "두께"이면 필터 적용
+     * - value가 LIGHT, MEDIUM, HEAVY, 또는 한글 "얇음", "가벼움", "보통", "두꺼움", "무거움" 이면 enum 변환
+     * - 변환 실패 시 규칙 적용 없이 통과
+     *
+     * @param clothes 사용자 의상
+     * @param season 계절
+     * @param category 세부 온도 범주
+     * @return 두께 필터 통과 여부
+     */
+    private boolean matchesThicknessRule(Clothes clothes, Season season, TemperatureCategory category) {
+        // 허용 속성명 목록
+        List<String> validNames = List.of("thickness", "두께");
+
+        // 의상 속성 중 thickness 관련 속성 검색 후 변환 및 규칙 적용
+        return clothes.getAttributes().stream()
+            .filter(attr -> attr.getDefinition() != null
+                && validNames.contains(attr.getDefinition().getName()))
+            .map(attr -> Thickness.fromString(attr.getValue()))
+            .allMatch(thick -> thick == null || isSuitableThickness(clothes.getType(), thick, season, category));
     }
 
     /**

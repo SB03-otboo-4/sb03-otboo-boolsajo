@@ -14,13 +14,23 @@ public enum Season {
     FALL,
     WINTER;
 
-    // 다국어 처리 : 한국어
-    public String getKoreanName() {
-        return switch (this) {
-            case SPRING -> "봄";
-            case SUMMER -> "여름";
-            case FALL   -> "가을";
-            case WINTER -> "겨울";
+    /**
+     * 문자열을 Season enum으로 변환
+     * <p>
+     * 한글/영어 모두 지원하며, 매핑되지 않으면 null 반환
+     *
+     * @param value 계절 문자열 (예: "SPRING", "봄")
+     * @return 해당하는 Season enum 또는 null
+     */
+    public static Season fromString(String value) {
+        if (value == null) return null;
+
+        return switch (value.toUpperCase()) {
+            case "SPRING", "봄" -> SPRING;
+            case "SUMMER", "여름" -> SUMMER;
+            case "FALL", "가을" -> FALL;
+            case "WINTER", "겨울" -> WINTER;
+            default -> null;
         };
     }
 }
