@@ -61,7 +61,6 @@ public class CommentRepositoryTest {
         Instant t1 = t2.minusSeconds(10);
 
         latest = Comment.builder()
-            .id(UUID.randomUUID())
             .feed(feed)
             .author(author)
             .content("첫 댓글")
@@ -70,7 +69,6 @@ public class CommentRepositoryTest {
         em.persist(latest);
 
         older = Comment.builder()
-            .id(UUID.randomUUID())
             .feed(feed)
             .author(author)
             .content("둘째 댓글")
