@@ -169,7 +169,12 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         if (curAt == null || idAfter == null) {
             return null;
         }
-        Instant cur = Instant.parse(curAt);
+        final Instant cur;
+        try {
+            cur = Instant.parse(curAt);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("[FeedRepository] 유효하지 않은 커서: " + curAt, e);
+        }
 
         BooleanExpression primary = desc ? feed.createdAt.lt(cur) : feed.createdAt.gt(cur);
         BooleanExpression tie = feed.createdAt.eq(cur)
@@ -182,7 +187,12 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         if (curLike == null || idAfter == null) {
             return null;
         }
-        Long cur = Long.parseLong(curLike);
+        final long cur;
+        try {
+            cur = Long.parseLong(curLike);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("[FeedRepository] 유효하지 않은 커서 " + curLike, e);
+        }
 
         BooleanExpression primary = desc ? feed.likeCount.lt(cur) : feed.likeCount.gt(cur);
         BooleanExpression tie = feed.likeCount.eq(cur)
