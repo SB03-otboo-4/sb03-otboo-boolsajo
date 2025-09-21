@@ -10,7 +10,9 @@ import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 /**
@@ -26,12 +28,17 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     private double windSpeed;
 
     /**
-     * 사용자의 의상 리스트와 체감온도, 날씨 정보를 기반으로 추천 의상 리스트 반환
+     * 사용자의 의상 리스트와 체감온도, 날씨 정보를 기반으로
+     * 추천 의상 리스트를 반환
+     *
+     * <p>
+     * - 계절, 세부 온도 범주, 타입, 두께 및 날씨 규칙을 적용
+     * - 동일 타입 의상이 여러 개일 경우, 타입별로 1개만 선택
      *
      * @param clothes 사용자 의상 리스트
      * @param perceivedTemp 체감 온도 (°C)
      * @param weather 날씨 정보
-     * @return 추천 대상 의상 리스트
+     * @return 추천 대상 의상 리스트 (타입별 1개)
      */
     @Override
     public List<Clothes> recommend(List<Clothes> clothes, double perceivedTemp, Weather weather
@@ -46,8 +53,16 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         TemperatureCategory category = WeatherUtils.classifyTemperatureCategory(season, perceivedTemp);
 
         // 3. 추천 필터링
-        return clothes.stream()
+        List<Clothes> filtered = clothes.stream()
             .filter(c -> matchesSeasonAndCategory(c, season, category, weather))
+            .toList();
+
+        // 4. 타입별 그룹화 후 첫 번째 요소 선택
+        Map<ClothesType, List<Clothes>> groupedByType = filtered.stream()
+            .collect(Collectors.groupingBy(Clothes::getType));
+
+        return groupedByType.values().stream()
+            .map(list -> list.get(0))
             .toList();
     }
 

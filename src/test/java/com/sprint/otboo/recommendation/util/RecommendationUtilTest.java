@@ -10,7 +10,10 @@ import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -227,5 +230,354 @@ public class RecommendationUtilTest {
 
         // then: 의상이 추천 목록에 포함되지 않음
         assertThat(recommended).doesNotContain(fallOuterHeavy);
+    }
+
+    @Test
+    void OUTER_강제추천_조건일교차4이상_풍속3이상_구름많음() {
+        // given: OUTER 의상과 날씨
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("thickness").build(),
+                    "MEDIUM")
+            ))
+            .build();
+        List<Clothes> userClothes = List.of(outer);
+        Weather weather = Weather.builder()
+            .maxC(15.0)
+            .minC(10.0)
+            .speedMs(3.5)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        // when: 체감 온도 계산 및 추천 실행
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 외투가 추천 목록에 포함되어야 함
+        assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void 계절속성_영문_추천_필터적용() {
+        // given: 계절 속성 의상과 날씨
+        Clothes springTop = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("season").build(),
+                    "SPRING")
+            ))
+            .build();
+        Weather weather = Weather.builder()
+            .maxC(17.0)
+            .minC(15.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = 16.0; // SPRING 범위 강제
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springTop), perceivedTemp, weather);
+
+        // then: 의상이 추천 목록에 포함
+        assertThat(recommended).extracting(Clothes::getId).contains(springTop.getId());
+    }
+
+    @Test
+    void 계절속성_한글_추천_필터적용() {
+        // given: 계절 속성 의상(한글)과 날씨
+        Clothes springTop = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("계절").build(),
+                    "봄")
+            ))
+            .build();
+        Weather weather = Weather.builder()
+            .maxC(17.0)
+            .minC(15.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = 16.0; // SPRING으로 분류
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springTop), perceivedTemp, weather);
+
+        // then: 의상이 추천 목록에 포함
+        assertThat(recommended).extracting(Clothes::getId).contains(springTop.getId());
+    }
+
+    @Test
+    void 두께속성_영문_추천_필터적용() {
+        // given: 두께 속성 의상과 날씨
+        Clothes topWithThickness = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("thickness").build(),
+                    "MEDIUM")
+            ))
+            .build();
+        List<Clothes> userClothes = List.of(topWithThickness);
+        Weather weather = Weather.builder()
+            .maxC(17.0)
+            .minC(15.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 의상이 추천 목록에 포함
+        assertThat(recommended).contains(topWithThickness);
+    }
+
+    @Test
+    void 두께속성_한글_추천_필터적용() {
+        // given: 두께 속성 의상(한글)과 날씨
+        Clothes mediumTop = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("두께").build(),
+                    "보통")
+            ))
+            .build();
+        Weather weather = Weather.builder()
+            .maxC(17.0)
+            .minC(15.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = 16.0;
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(mediumTop), perceivedTemp, weather);
+
+        // then: 의상이 추천 목록에 포함
+        assertThat(recommended).extracting(Clothes::getId).contains(mediumTop.getId());
+    }
+
+    @Test
+    void 계절_두께_속성_추천_필터적용() {
+        // given: 계절 + 두께 속성 의상과 날씨
+        Clothes springMediumTop = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("season").build(),
+                    "SPRING"),
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("두께").build(),
+                    "보통")
+            ))
+            .build();
+        Weather weather = Weather.builder()
+            .maxC(17.0)
+            .minC(15.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = 16.0;
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springMediumTop), perceivedTemp, weather);
+
+        // then: 의상이 추천 목록에 포함
+        assertThat(recommended).extracting(Clothes::getId).contains(springMediumTop.getId());
+    }
+
+    @Test
+    void 계절속성_불일치_추천제외() {
+        // given: 계절 속성 의상과 날씨
+        Clothes summerTop = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("season").build(),
+                    "SUMMER")
+            ))
+            .build();
+        Weather weather = Weather.builder()
+            .maxC(16.0)
+            .minC(15.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = 16.0; // SPRING 범위
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(summerTop), perceivedTemp, weather);
+
+        // then: 의상이 추천 목록에 포함되지 않음
+        assertThat(recommended).extracting(Clothes::getId).doesNotContain(summerTop.getId());
+    }
+
+    @Test
+    void 모든타입_추천_및_제외_통합_첫번째선택() {
+        // given: 의상 타입별 테스트용 의상 생성
+        Clothes topSpring = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("계절").build(),
+                    "봄"),                       // 계절: SPRING -> 체감 온도 SPRING과 일치
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("thickness").build(),
+                    "MEDIUM")                     // 두께: 적합
+            ))
+            .build();
+
+        Clothes topSummer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("계절").build(),
+                    "SUMMER"),                     // 계절: SUMMER -> 제외 대상
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("thickness").build(),
+                    "LIGHT")
+            ))
+            .build();
+
+        Clothes bottomSpring = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.BOTTOM)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("season").build(),
+                    "SPRING")                     // 계절: SPRING -> 추천 대상
+            ))
+            .build();
+
+        Clothes bottomWinter = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.BOTTOM)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("season").build(),
+                    "WINTER")                     // 계절: WINTER -> 제외 대상
+            ))
+            .build();
+
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("두께").build(),
+                    "중간")                       // OUTER: 일교차 강제 추천
+            ))
+            .build();
+
+        Clothes hat = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.HAT)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("season").build(),
+                    "SUMMER")                     // 계절: SUMMER -> SPRING 체감 온도에서 제외
+            ))
+            .build();
+
+        Clothes scarf = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.SCARF)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("thickness").build(),
+                    "HEAVY")                       // 계절/두께 규칙에 의해 제외
+            ))
+            .build();
+
+        Clothes shoes = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.SHOES)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("두께").build(),
+                    "LIGHT")                       // 두께 제한 없음
+            ))
+            .build();
+
+        Clothes accessory = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.ACCESSORY)
+            .attributes(List.of())                  // 항상 추천 가능
+            .build();
+
+        List<Clothes> userClothes = List.of(
+            topSpring, topSummer,
+            bottomSpring, bottomWinter,
+            outer, hat, scarf, shoes, accessory
+        );
+
+        // 날씨: SPRING, 체감 온도 LOW 구간, 일교차 7°C, 풍속 1 m/s
+        Weather weather = Weather.builder()
+            .maxC(20.0)
+            .minC(14.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        // 체감 온도 계산 (SPRING, LOW 구간)
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        RecommendationEngine engine = new RecommendationEngineImpl();
+
+        // when: 추천 실행
+        List<Clothes> recommended = engine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 필터링 결과 확인
+        Set<UUID> recommendedIds = recommended.stream()
+            .map(Clothes::getId)
+            .collect(Collectors.toSet());
+
+        // 추천되어야 하는 의상
+        assertThat(recommendedIds).contains(topSpring.getId());      // TOP: 계절 일치
+        assertThat(recommendedIds).contains(bottomSpring.getId());   // BOTTOM: 계절 일치
+        assertThat(recommendedIds).contains(outer.getId());          // OUTER: 일교차 강제 추천
+        assertThat(recommendedIds).contains(shoes.getId());          // SHOES: 제한 없음
+        assertThat(recommendedIds).contains(accessory.getId());      // ACCESSORY: 제한 없음
+
+        // 추천 제외 의상
+        assertThat(recommendedIds).doesNotContain(topSummer.getId());   // TOP: 계절 불일치
+        assertThat(recommendedIds).doesNotContain(bottomWinter.getId());// BOTTOM: 계절 불일치
+        assertThat(recommendedIds).doesNotContain(hat.getId());         // HAT: 계절 불일치
+        assertThat(recommendedIds).doesNotContain(scarf.getId());       // SCARF: 계절/두께 규칙에 의해 제외
+
+        // 타입별로 1개씩만 포함되는지 확인
+        Map<ClothesType, Long> typeCount = recommended.stream()
+            .collect(Collectors.groupingBy(Clothes::getType, Collectors.counting()));
+        typeCount.forEach((type, count) -> assertThat(count).isEqualTo(1));
     }
 }
