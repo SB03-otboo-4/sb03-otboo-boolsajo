@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS clothes_attribute
     id            UUID PRIMARY KEY,
     clothes_id    UUID         NOT NULL,
     definition_id UUID         NOT NULL,
-    attr_value         VARCHAR(100) NOT NULL,
+    "value"         VARCHAR(100) NOT NULL,
     created_at    TIMESTAMP  NOT NULL,
     updated_at    TIMESTAMP,
     CONSTRAINT fk_clothes_attr_clothes FOREIGN KEY (clothes_id) REFERENCES clothes (id) ON DELETE CASCADE,

@@ -1,6 +1,7 @@
 package com.sprint.otboo.common.exception;
 
 import com.sprint.otboo.common.dto.ErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -226,6 +228,45 @@ public class GlobalExceptionHandler {
         } else {
             body.put("error", "잘못된 요청 파라미터입니다.");
         }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(MissingServletRequestParameterException e) {
+        log.error("필수 요청 파라미터 누락: name={}, type={}", e.getParameterName(), e.getParameterType());
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("parameterName", e.getParameterName());
+        details.put("parameterType", e.getParameterType());
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            "BAD_REQUEST",
+            "필수 요청 파라미터가 누락되었습니다.",
+            details,
+            e.getClass().getSimpleName(),
+            HttpStatus.BAD_REQUEST.value()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        log.error("요청 파라미터 제약 위반: {}", ex.getMessage());
+        Map<String, Object> details = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation ->
+            details.put(violation.getPropertyPath().toString(), violation.getMessage())
+        );
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            ErrorCode.VALIDATION_FAILED.name(),
+            ErrorCode.VALIDATION_FAILED.getMessage(),
+            details,
+            ex.getClass().getSimpleName(),
+            ErrorCode.VALIDATION_FAILED.getStatus().value()
+        );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 }

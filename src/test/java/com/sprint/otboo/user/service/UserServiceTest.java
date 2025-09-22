@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
@@ -34,10 +35,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.annotation.Profile;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserSlice;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +55,8 @@ public class UserServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private UserQueryRepository userQueryRepository;
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -150,6 +155,30 @@ public class UserServiceTest {
             .locked(currentLockStatus)
             .provider(LoginType.GENERAL)
             .build();
+    }
+
+    private User makeUser(String email) {
+        return User.builder()
+            .id(UUID.randomUUID())
+            .username("testUser")
+            .email(email)
+            .password("encodedPassword")
+            .role(Role.USER)
+            .locked(false)
+            .provider(LoginType.GENERAL)
+            .build();
+    }
+
+    private UserDto makeDto(String email) {
+        return new UserDto(
+            UUID.randomUUID(),
+            Instant.now(),
+            email,
+            "testUser",
+            Role.USER,
+            LoginType.GENERAL,
+            false
+        );
     }
 
     private UserDto createExpectedUserDtoForLockUpdate(UUID userId, boolean locked) {
@@ -658,5 +687,54 @@ public class UserServiceTest {
         then(userRepository).should().findById(userId);
         then(userProfileRepository).should().findById(userId);
         then(userMapper).should().toProfileDto(mockUser, mockUserProfile);
+    }
+
+    @Test
+    void 목록_조회_slice를_Response로_매핑() {
+        // given
+        List<User> rows = List.of(makeUser("test@test1.com"), makeUser("test@test2.com"));
+        UserSlice slice = new UserSlice(rows, true, "CUR_NEXT", UUID.randomUUID());
+
+        given(userQueryRepository.findSlice(
+            ArgumentMatchers.eq("CUR1"),
+            ArgumentMatchers.isNull(),
+            ArgumentMatchers.eq(2),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.any(),
+            ArgumentMatchers.eq("test"),
+            ArgumentMatchers.eq(Role.USER),
+            ArgumentMatchers.eq(false)
+        )).willReturn(slice);
+        given(userQueryRepository.countAll(
+            ArgumentMatchers.eq("test"),
+            ArgumentMatchers.eq(Role.USER),
+            ArgumentMatchers.eq(false)
+        )).willReturn(42L);
+        given(userMapper.toUserDto(
+            ArgumentMatchers.any(User.class)
+        )).willAnswer(inv -> {
+            User user = inv.getArgument(0);
+            return makeDto(user.getEmail());
+        });
+
+        // when
+        CursorPageResponse<UserDto> response = userService.listUsers(
+            "CUR1", null, 2 , "createdAt", "DESCENDING", "test", "USER", false
+        );
+
+        // then
+        assertThat(response.data()).hasSize(2);
+        assertThat(response.hasNext()).isTrue();
+        assertThat(response.nextCursor()).isEqualTo("CUR_NEXT");
+        assertThat(response.totalCount()).isEqualTo(42L);
+        assertThat(response.sortBy()).isEqualTo("createdAt");
+        assertThat(response.sortDirection()).isEqualTo("DESCENDING");
+
+        then(userQueryRepository).should()
+            .findSlice(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.anyInt(),
+                ArgumentMatchers.any(), ArgumentMatchers.any(),
+                ArgumentMatchers.any(), ArgumentMatchers.any(),ArgumentMatchers.any());
+        then(userQueryRepository).should()
+            .countAll(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any());
     }
 }

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
@@ -45,6 +46,9 @@ public class ClothesControllerTest {
 
     @MockitoBean
     private ClothesService clothesService;
+
+    @MockitoBean
+    TokenProvider tokenProvider;
 
     @Test
     @WithMockUser(username = "testUser", roles = {"USER"})
@@ -163,8 +167,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].name").value("재킷"))
-            .andExpect(jsonPath("$.content[1].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].name").value("재킷"))
+            .andExpect(jsonPath("$.data[1].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(2))
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
@@ -204,8 +208,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].type").value("TOP"))
-            .andExpect(jsonPath("$.content[0].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].type").value("TOP"))
+            .andExpect(jsonPath("$.data[0].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(1));
     }
@@ -250,8 +254,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].name").value("재킷"))
-            .andExpect(jsonPath("$.content[1].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].name").value("재킷"))
+            .andExpect(jsonPath("$.data[1].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(2))
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
@@ -291,8 +295,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].type").value("TOP"))
-            .andExpect(jsonPath("$.content[0].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].type").value("TOP"))
+            .andExpect(jsonPath("$.data[0].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(1));
     }

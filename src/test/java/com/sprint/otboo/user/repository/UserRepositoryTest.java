@@ -6,21 +6,32 @@ import com.sprint.otboo.common.config.QuerydslConfig;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserQueryRepositoryImpl;
+import com.sprint.otboo.user.repository.query.UserSlice;
+import com.sprint.otboo.user.service.support.UserListEnums;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@EnableJpaAuditing
+@EnableJpaAuditing(dateTimeProviderRef = "testDateTimeProvider")
 @DisplayName("UserRepository 테스트")
-@Import(QuerydslConfig.class)
+@Import({QuerydslConfig.class,UserQueryRepositoryImpl.class, UserRepositoryTest.TestAuditConfig.class})
 public class UserRepositoryTest {
 
     @Autowired
@@ -28,6 +39,30 @@ public class UserRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserQueryRepository userQueryRepository;
+
+    /**
+     * 각 테스트 전에 동일한 데이터 시드 주입
+     * 정렬/커서 경계를 계산하여 주입
+     * */
+    @BeforeEach
+    void seedForCursorList() {
+        for (int i = 0; i < 5; i++) {
+            User user = User.builder()
+                .username("user" + i)
+                .email((char)('a' + i) + "@test.com")
+                .password("encodedPassword")
+                .role(i % 2 == 0 ? Role.USER : Role.ADMIN)
+                .provider(LoginType.GENERAL)
+                .locked(i >= 3)
+                .build();
+            entityManager.persist(user);
+        }
+        entityManager.flush();
+        entityManager.clear();
+    }
 
     @Test
     void 사용자_저장_성공() {
@@ -138,5 +173,115 @@ public class UserRepositoryTest {
         assertThat(foundUser).isPresent();
         assertThat(foundUser.get().getId()).isEqualTo(savedUser.getId());
         assertThat(foundUser.get().getUsername()).isEqualTo("testUser");
+    }
+
+    @Test
+    void 첫_페이지_created_DESC_limit3() {
+        // given
+        int limit = 3;
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null,null,limit,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // then
+        assertThat(slice.rows()).hasSize(3);
+        assertThat(slice.hasNext()).isTrue();
+        assertThat(slice.nextCursor()).isNotBlank();
+        assertThat(slice.nextIdAfter()).isNotNull();
+    }
+
+    @Test
+    void email_ASC_emailLike() {
+        // given
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null, null, 10,
+            UserListEnums.SortBy.EMAIL, UserListEnums.SortDirection.ASCENDING,
+            "test", null, null
+        );
+
+        // then
+        assertThat(slice.rows()).hasSize(5);
+        assertThat(slice.hasNext()).isFalse();
+    }
+
+    @Test
+    void role_USER_locked_false_필터() {
+        // given
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null, null, 10,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, Role.USER, false
+        );
+
+        // then
+        assertThat(slice.rows()).allMatch(user -> user.getRole() == Role.USER && !user.getLocked());
+    }
+
+    @Test
+    void cursor_두_번째_페이지() {
+        // given
+        UserSlice first = userQueryRepository.findSlice(
+            null, null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // when
+        UserSlice second = userQueryRepository.findSlice(
+            first.nextCursor(), null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // then
+        assertThat(first.rows()).hasSize(2);
+        assertThat(second.rows()).hasSize(2);
+        assertThat(second.hasNext()).isTrue();
+        assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
+    }
+
+    @Test
+    void idAfter_다음페이지() {
+        // given
+        UserSlice first = userQueryRepository.findSlice(
+            null, null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // when
+        UserSlice second = userQueryRepository.findSlice(
+            first.nextCursor(), null, 2,
+            UserListEnums.SortBy.CREATED_AT, UserListEnums.SortDirection.DESCENDING,
+            null, null, null
+        );
+
+        // then
+        assertThat(second.rows()).isNotEmpty();
+        assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
+    }
+
+    /**
+     * 테스트 실행 속도,지연 등 외부 요인과 무관하게
+     * 모든 엔티티를 생성하게 하여 경계조건을 안정적으로 계산하기 위한 테스트 설정
+     * */
+    @TestConfiguration
+    static class TestAuditConfig {
+        private final AtomicLong seq = new AtomicLong(0);
+
+        @Bean("testDateTimeProvider")
+        public DateTimeProvider testDateTimeProvider() {
+            Instant base = Instant.parse("2025-01-01T00:00:00Z");
+            // persist 될 때마다 millisecond 단위로 0,1,2,... 증가시켜 유니크한 createdAt 보장
+            return () -> Optional.of(base.plus(seq.getAndIncrement(), ChronoUnit.MILLIS));
+        }
     }
 }
