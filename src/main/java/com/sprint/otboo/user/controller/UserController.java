@@ -4,6 +4,7 @@ import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
@@ -25,7 +26,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
@@ -124,5 +127,14 @@ public class UserController {
         CursorPageResponse<UserDto> response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
 
         return ResponseEntity.ok(response);
+    }
+
+    public ResponseEntity<ProfileDto> updateUserProfile(
+        @PathVariable UUID userId,
+        @RequestPart("request") @Valid ProfileUpdateRequest request,
+        @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        ProfileDto profileDto = userService.updateUserProfile(userId, request, image);
+        return ResponseEntity.ok(profileDto);
     }
 }
