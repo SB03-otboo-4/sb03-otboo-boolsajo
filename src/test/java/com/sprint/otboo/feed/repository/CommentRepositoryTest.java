@@ -43,8 +43,15 @@ public class CommentRepositoryTest {
     private Comment latest;
     private Comment older;
 
+    private static final Comparator<UUID> DB_UUID_DESC = (u1, u2) -> {
+        int c = Long.compareUnsigned(u2.getMostSignificantBits(), u1.getMostSignificantBits());
+        if (c != 0) return c;
+        return Long.compareUnsigned(u2.getLeastSignificantBits(), u1.getLeastSignificantBits());
+    };
+
     @BeforeEach
     void setUp() {
+
         author = UserFixture.createUserWithDefault();
         em.persist(author);
 
@@ -90,7 +97,7 @@ public class CommentRepositoryTest {
         // Then
         Comparator<Comment> cmp = Comparator
             .comparing(Comment::getCreatedAt).reversed()
-            .thenComparing(Comment::getId, Comparator.reverseOrder());
+            .thenComparing(Comment::getId, DB_UUID_DESC);
 
         assertThat(rows)
             .hasSize(2)
@@ -126,7 +133,7 @@ public class CommentRepositoryTest {
         // Then
         List<UUID> firstTwo = rows.subList(0, 2).stream().map(Comment::getId).toList();
         List<UUID> firstTwoSortedDesc = firstTwo.stream()
-            .sorted(Comparator.reverseOrder())
+            .sorted(DB_UUID_DESC)
             .toList();
 
         assertThat(firstTwo).containsExactlyElementsOf(firstTwoSortedDesc);
