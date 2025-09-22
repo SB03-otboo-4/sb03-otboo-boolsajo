@@ -26,6 +26,7 @@ public class CommentController implements CommentApi {
 
     private final CommentService commentService;
 
+    @Override
     @PostMapping("/{feedId}/comments")
     public ResponseEntity<CommentDto> create(@PathVariable UUID feedId,
         @Valid @RequestBody CommentCreateRequest request) {
@@ -37,6 +38,7 @@ public class CommentController implements CommentApi {
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
+    @Override
     @GetMapping("/{feedId}/comments")
     public ResponseEntity<CursorPageResponse<CommentDto>> getComments(
         @PathVariable UUID feedId,
@@ -44,8 +46,15 @@ public class CommentController implements CommentApi {
         @RequestParam(required = false) UUID idAfter,
         @RequestParam int limit
     ) {
-        CursorPageResponse<CommentDto> dto = commentService.getComments(feedId, cursor, idAfter,
+        log.info("[CommentController] 댓글 조회 요청: feedId={}, cursor={}, idAfter={}, limit={}",
+            feedId, cursor, idAfter, limit);
+        CursorPageResponse<CommentDto> body = commentService.getComments(feedId, cursor, idAfter,
             limit);
-        return ResponseEntity.status(HttpStatus.OK).body(dto);
+
+        log.info("[CommentController] 댓글 조회 완료: feedId={}, count={}, hasNext={}",
+            feedId, body.data().size(), body.hasNext()
+        );
+
+        return ResponseEntity.status(HttpStatus.OK).body(body);
     }
 }

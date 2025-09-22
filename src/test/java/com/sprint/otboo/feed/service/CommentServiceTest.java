@@ -136,46 +136,54 @@ public class CommentServiceTest {
             UUID feedId = UUID.randomUUID();
             int limit = 2;
 
-            Instant t2 = Instant.now();
-            Instant t1 = t2.minusSeconds(10);
+            Instant t3 = Instant.now();
+            Instant t2 = t3.minusSeconds(10);
+            Instant t1 = t3.minusSeconds(20);
 
             User author = UserFixture.create(UUID.randomUUID(), "홍길동", "profile.png");
             Feed feed = FeedFixture.createWithId(feedId);
 
-            Comment comment1 = CommentFixture.create(UUID.randomUUID(), author, feed, "첫 댓글", t2);
-            Comment comment2 = CommentFixture.create(UUID.randomUUID(), author, feed, "둘째 댓글", t1);
+            Comment c1 = CommentFixture.create(UUID.randomUUID(), author, feed, "첫 댓글", t3);
+            Comment c2 = CommentFixture.create(UUID.randomUUID(), author, feed, "둘째 댓글", t2);
+            Comment c3 = CommentFixture.create(UUID.randomUUID(), author, feed, "셋째 댓글", t1);
 
             CommentDto d1 = new CommentDto(
-                comment1.getId(), comment1.getCreatedAt(), feedId,
+                c1.getId(), c1.getCreatedAt(), feedId,
                 new AuthorDto(author.getId(), "홍길동", "profile.png"),
                 "첫 댓글"
             );
             CommentDto d2 = new CommentDto(
-                comment2.getId(), comment2.getCreatedAt(), feedId,
+                c2.getId(), c2.getCreatedAt(), feedId,
                 new AuthorDto(author.getId(), "홍길동", "profile.png"),
                 "둘째 댓글"
             );
 
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+
             given(commentRepository.findByFeedId(feedId, null, null, limit))
-                .willReturn(List.of(comment1, comment2));
-            given(commentMapper.toDto(comment1)).willReturn(d1);
-            given(commentMapper.toDto(comment2)).willReturn(d2);
+                .willReturn(List.of(c1, c2, c3));
+
+            given(commentRepository.countByFeedId(feedId)).willReturn(3L);
+
+            given(commentMapper.toDto(c1)).willReturn(d1);
+            given(commentMapper.toDto(c2)).willReturn(d2);
 
             // When
-            CursorPageResponse<CommentDto> result = commentService.getComments(feedId, null, null,
-                limit);
+            CursorPageResponse<CommentDto> result =
+                commentService.getComments(feedId, null, null, limit);
 
             // Then
             assertThat(result.data()).containsExactly(d1, d2);
-            String expectedNextCursor =
-                comment2.getCreatedAt().toEpochMilli() + ":" + comment2.getId();
-            assertThat(result.nextCursor()).isEqualTo(expectedNextCursor);
-            assertThat(result.nextIdAfter()).isEqualTo(comment2.getId().toString());
             assertThat(result.hasNext()).isTrue();
 
+            assertThat(result.nextCursor()).isEqualTo(c2.getCreatedAt().toString());
+            assertThat(result.nextIdAfter()).isEqualTo(c2.getId().toString());
+
+            then(feedRepository).should().findById(feedId);
             then(commentRepository).should().findByFeedId(feedId, null, null, limit);
-            then(commentMapper).should().toDto(comment1);
-            then(commentMapper).should().toDto(comment2);
+            then(commentRepository).should().countByFeedId(feedId);
+            then(commentMapper).should().toDto(c1);
+            then(commentMapper).should().toDto(c2);
             then(commentRepository).shouldHaveNoMoreInteractions();
             then(commentMapper).shouldHaveNoMoreInteractions();
         }
@@ -186,12 +194,16 @@ public class CommentServiceTest {
             UUID feedId = UUID.randomUUID();
             int limit = 10;
 
+            Feed feed = FeedFixture.createWithId(feedId);
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
             given(commentRepository.findByFeedId(feedId, null, null, limit))
                 .willReturn(List.of());
+            given(commentRepository.countByFeedId(feedId)).willReturn(0L);
 
             // When
-            CursorPageResponse<CommentDto> result = commentService.getComments(feedId, null, null,
-                limit);
+            CursorPageResponse<CommentDto> result =
+                commentService.getComments(feedId, null, null, limit);
 
             // Then
             assertThat(result.data()).isEmpty();
@@ -199,10 +211,11 @@ public class CommentServiceTest {
             assertThat(result.nextIdAfter()).isNull();
             assertThat(result.hasNext()).isFalse();
 
-            then(commentRepository).should()
-                .findByFeedId(feedId, null, null, limit);
-            then(commentRepository).shouldHaveNoMoreInteractions();
+            then(feedRepository).should().findById(feedId);
+            then(commentRepository).should().findByFeedId(feedId, null, null, limit);
+            then(commentRepository).should().countByFeedId(feedId);
             then(commentMapper).shouldHaveNoInteractions();
+            then(commentRepository).shouldHaveNoMoreInteractions();
         }
     }
 }

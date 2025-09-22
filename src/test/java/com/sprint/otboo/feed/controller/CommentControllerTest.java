@@ -26,6 +26,8 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -184,13 +186,16 @@ class CommentControllerTest {
                 d2.id().toString(),
                 true,
                 2L,
-                "createAt",
+                "createdAt",
                 "DESCENDING"
             );
 
-            given(commentService.getComments(any(UUID.class), any(String.class), any(UUID.class),
-                anyInt()))
-                .willReturn(page);
+            given(commentService.getComments(
+                eq(feedId),
+                isNull(),
+                isNull(),
+                eq(2)
+            )).willReturn(page);
 
             // When & Then
             mockMvc.perform(
@@ -203,11 +208,11 @@ class CommentControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.hasNext").value(true))
-                .andExpect(jsonPath("$.content[0].content").value("첫 댓글"))
-                .andExpect(jsonPath("$.content[0].feedId").value(feedId.toString()))
-                .andExpect(jsonPath("$.content[0].author.name").value("홍길동"));
+                .andExpect(jsonPath("$.data[0].content").value("첫 댓글"))
+                .andExpect(jsonPath("$.data[0].feedId").value(feedId.toString()))
+                .andExpect(jsonPath("$.data[0].author.name").value("홍길동"));
         }
 
         @Test

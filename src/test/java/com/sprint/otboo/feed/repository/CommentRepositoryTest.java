@@ -103,7 +103,7 @@ public class CommentRepositoryTest {
     @Test
     void 같은_createdAt에서는_id가_타이브레이커로_동작한다() {
         // Given
-        Instant same = Instant.now();
+        Instant same = Instant.parse("2025-09-22T00:00:00Z");
 
         Comment a = Comment.builder()
             .feed(feed).author(author)

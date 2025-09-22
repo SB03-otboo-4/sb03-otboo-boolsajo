@@ -57,12 +57,20 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(readOnly = true)
     public CursorPageResponse<CommentDto> getComments(UUID feedId, String cursor, UUID idAfter,
         int limit) {
+        log.debug("[CommentServiceImpl] 댓글 조회 시작: feedId={}, cursor={}, idAfter={}, limit={}",
+            feedId, cursor, idAfter, limit);
         feedRepository.findById(feedId)
             .orElseThrow(() -> FeedNotFoundException.withId(feedId));
 
-        List<Comment> rows = commentRepository.findByFeedId(
-            feedId, cursor, idAfter, limit
-        );
+        List<Comment> fetched = commentRepository.findByFeedId(feedId, cursor, idAfter, limit);
+
+        boolean hasNext = fetched.size() > limit;
+        List<Comment> rows = hasNext ? fetched.subList(0, limit) : fetched;
+        log.debug("[CommentServiceImpl] fetched={}, rows={}, hasNext={}", fetched.size(),
+            rows.size(), hasNext);
+
+        long totalCount = commentRepository.countByFeedId(feedId);
+        log.debug("[CommentServiceImpl] totalCount={}", totalCount);
 
         List<CommentDto> data = rows.stream()
             .map(commentMapper::toDto)
@@ -70,24 +78,29 @@ public class CommentServiceImpl implements CommentService {
 
         String nextCursor = null;
         String nextIdAfter = null;
-        if (!rows.isEmpty()) {
+        if (hasNext && !rows.isEmpty()) {
             Comment last = rows.get(rows.size() - 1);
             nextCursor = last.getCreatedAt().toString();
             nextIdAfter = last.getId().toString();
         }
 
-        boolean hasNext = rows.size() == limit;
         String sortBy = "createdAt";
         String sortDirection = "DESCENDING";
 
-        return new CursorPageResponse<>(
+        CursorPageResponse<CommentDto> response = new CursorPageResponse<>(
             data,
             nextCursor,
             nextIdAfter,
             hasNext,
-            limit,
+            totalCount,
             sortBy,
             sortDirection
         );
+
+        log.info(
+            "[CommentServiceImpl] 댓글 조회 완료: nextCursor={}, nextIdAfter={}, hasNext={}, size={}",
+            nextCursor, nextIdAfter, hasNext, rows.size());
+
+        return response;
     }
 }

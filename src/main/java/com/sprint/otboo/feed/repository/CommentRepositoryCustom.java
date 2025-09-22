@@ -12,4 +12,6 @@ public interface CommentRepositoryCustom {
         UUID idAfter,
         int limit
     );
+
+    long countByFeedId(UUID feedId);
 }

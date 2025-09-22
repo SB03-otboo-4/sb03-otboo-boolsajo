@@ -21,6 +21,7 @@ public class FeedController implements FeedApi {
 
     private final FeedService feedService;
 
+    @Override
     @PostMapping
     public ResponseEntity<FeedDto> create(@Valid @RequestBody FeedCreateRequest request) {
         log.info("[FeedController] 피드 생성 요청: authorId={}, weatherId={}",

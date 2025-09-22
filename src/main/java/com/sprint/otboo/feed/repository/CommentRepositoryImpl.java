@@ -22,7 +22,11 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
 
     @Override
     public List<Comment> findByFeedId(UUID feedId, String cursor, UUID idAfter, int limit) {
-        BooleanBuilder where = new com.querydsl.core.BooleanBuilder()
+        log.debug("[CommentRepository] 댓글 조회 시작: feedId={}, cursor={}, idAfter={}, limit={}",
+            feedId, cursor,
+            idAfter, limit);
+
+        BooleanBuilder where = new BooleanBuilder()
             .and(comment.feed.id.eq(feedId));
 
         if (cursor != null && idAfter != null) {
@@ -40,14 +44,35 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
             where.and(comment.id.lt(idAfter));
         }
 
-        return queryFactory
+        List<Comment> result = queryFactory
             .selectFrom(comment)
             .where(where)
             .orderBy(
                 comment.createdAt.desc(),
                 comment.id.desc()
             )
-            .limit(limit)
+            .limit(limit + 1L)
             .fetch();
+
+        log.info(
+            "[CommentRepository] 댓글 조회 완료: result.size={} (feedId={}, cursor={}, idAfter={}, limit={})",
+            result.size(), feedId, cursor, idAfter, limit);
+
+        if (!result.isEmpty()) {
+            Comment last = result.get(result.size() - 1);
+            log.debug("[CommentRepository] lastComment.id={}, lastComment.createdAt={}",
+                last.getId(), last.getCreatedAt());
+        }
+
+        return result;
+    }
+
+    public long countByFeedId(UUID feedId) {
+        Long cnt = queryFactory
+            .select(comment.count())
+            .from(comment)
+            .where(comment.feed.id.eq(feedId))
+            .fetchOne();
+        return cnt != null ? cnt : 0L;
     }
 }
