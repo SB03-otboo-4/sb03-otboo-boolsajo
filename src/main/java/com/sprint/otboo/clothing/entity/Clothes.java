@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -67,14 +68,16 @@ public class Clothes extends BaseUpdatableEntity {
      * @param name 의상 이름
      * @param imageUrl 의상 이미지 URL
      * @param type 의상 종류
+     * @param createdAt 의상 생성 시각
      * @return 새로 생성된 Clothes 엔티티
      */
-    public static Clothes create(User user, String name, String imageUrl, ClothesType type) {
+    public static Clothes create(User user, String name, String imageUrl, ClothesType type, Instant createdAt) {
         return Clothes.builder()
             .user(user)
             .name(name)
             .imageUrl(imageUrl)
             .type(type)
+            .createdAt(createdAt)
             .build();
     }
 }
