@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,111 +52,116 @@ class FeedControllerTest {
     @MockitoBean
     private FeedService feedService;
 
-    @Test
-    void 피드를_등록하면_201과_DTO가_반환한다() throws Exception {
-        // Given
-        UUID authorId = UUID.randomUUID();
-        UUID weatherId = UUID.randomUUID();
-        UUID clothesId = UUID.randomUUID();
+    @Nested
+    @DisplayName("피드 등록 테스트")
+    class FeedCreateTests {
 
-        FeedCreateRequest request = new FeedCreateRequest(
-            authorId,
-            weatherId,
-            List.of(clothesId),
-            "오늘의 코디"
-        );
+        @Test
+        void 피드를_등록하면_201과_DTO가_반환한다() throws Exception {
+            // Given
+            UUID authorId = UUID.randomUUID();
+            UUID weatherId = UUID.randomUUID();
+            UUID clothesId = UUID.randomUUID();
 
-        AuthorDto author = new AuthorDto(
-            authorId, "홍길동", "https://example.com/profile.png"
-        );
-        TemperatureDto temperature = new TemperatureDto(20.5, -1.0, 18.0, 25.0);
-        PrecipitationDto precipitation = new PrecipitationDto("RAIN", 12.3, 80.0);
-        WeatherSummaryDto weather = new WeatherSummaryDto(
-            weatherId, /* skyStatus */ "CLOUDY", precipitation, temperature
-        );
-        OotdDto ootd = new OotdDto(
-            clothesId,
-            "스포츠 자켓",
-            "https://example.com/image.png",
-            ClothesType.TOP,
-            List.of()
-        );
+            FeedCreateRequest request = new FeedCreateRequest(
+                authorId,
+                weatherId,
+                List.of(clothesId),
+                "오늘의 코디"
+            );
 
-        FeedDto response = new FeedDto(
-            UUID.randomUUID(),
-            Instant.now(),
-            Instant.now(),
-            author,
-            weather,
-            List.of(ootd),
-            "오늘의 코디",
-            0L,
-            0,
-            false
-        );
+            AuthorDto author = new AuthorDto(
+                authorId, "홍길동", "https://example.com/profile.png"
+            );
+            TemperatureDto temperature = new TemperatureDto(20.5, -1.0, 18.0, 25.0);
+            PrecipitationDto precipitation = new PrecipitationDto("RAIN", 12.3, 80.0);
+            WeatherSummaryDto weather = new WeatherSummaryDto(
+                weatherId, /* skyStatus */ "CLOUDY", precipitation, temperature
+            );
+            OotdDto ootd = new OotdDto(
+                clothesId,
+                "스포츠 자켓",
+                "https://example.com/image.png",
+                ClothesType.TOP,
+                List.of()
+            );
 
-        given(feedService.create(any(FeedCreateRequest.class))).willReturn(response);
+            FeedDto response = new FeedDto(
+                UUID.randomUUID(),
+                Instant.now(),
+                Instant.now(),
+                author,
+                weather,
+                List.of(ootd),
+                "오늘의 코디",
+                0L,
+                0,
+                false
+            );
 
-        // When & Then
-        mockMvc.perform(
-                post("/api/feeds")
-                    .with(csrf())
-                    .with(user("tester").roles("USER"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsBytes(request))
-            )
-            .andExpect(status().isCreated())
-            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.content").value("오늘의 코디"))
-            .andExpect(jsonPath("$.author.name").value("홍길동"))
-            .andExpect(jsonPath("$.weather.skyStatus").value("CLOUDY"))
-            .andExpect(jsonPath("$.ootds[0].name").value("스포츠 자켓"));
-    }
+            given(feedService.create(any(FeedCreateRequest.class))).willReturn(response);
 
-    @Test
-    void 존재하지_않는_작성자로_피드를_등록하려하면_404를_반환한다() throws Exception {
-        // Given
-        FeedCreateRequest request = new FeedCreateRequest(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            List.of(UUID.randomUUID()),
-            "오늘의 코디"
-        );
+            // When & Then
+            mockMvc.perform(
+                    post("/api/feeds")
+                        .with(csrf())
+                        .with(user("tester").roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(request))
+                )
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.content").value("오늘의 코디"))
+                .andExpect(jsonPath("$.author.name").value("홍길동"))
+                .andExpect(jsonPath("$.weather.skyStatus").value("CLOUDY"))
+                .andExpect(jsonPath("$.ootds[0].name").value("스포츠 자켓"));
+        }
 
-        given(feedService.create(any(FeedCreateRequest.class)))
-            .willThrow(new UserNotFoundException());
+        @Test
+        void 존재하지_않는_작성자로_피드를_등록하려하면_404를_반환한다() throws Exception {
+            // Given
+            FeedCreateRequest request = new FeedCreateRequest(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                List.of(UUID.randomUUID()),
+                "오늘의 코디"
+            );
 
-        // When & Then
-        mockMvc.perform(
-                post("/api/feeds")
-                    .with(csrf())
-                    .with(user("tester").roles("USER"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsBytes(request))
-            )
-            .andExpect(status().isNotFound())
-            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-    }
+            given(feedService.create(any(FeedCreateRequest.class)))
+                .willThrow(new UserNotFoundException());
 
-    @Test
-    void 작성자를_입력하지_않으면_400을_반환한다() throws Exception {
-        // Given
-        FeedCreateRequest badRequest = new FeedCreateRequest(
-            null,
-            UUID.randomUUID(),
-            List.of(UUID.randomUUID()),
-            "오늘의 코디"
-        );
+            // When & Then
+            mockMvc.perform(
+                    post("/api/feeds")
+                        .with(csrf())
+                        .with(user("tester").roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(request))
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        }
 
-        // When & Then
-        mockMvc.perform(
-                post("/api/feeds")
-                    .with(csrf())
-                    .with(user("tester").roles("USER"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsBytes(badRequest))
-            )
-            .andExpect(status().isBadRequest())
-            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        @Test
+        void 작성자를_입력하지_않으면_400을_반환한다() throws Exception {
+            // Given
+            FeedCreateRequest badRequest = new FeedCreateRequest(
+                null,
+                UUID.randomUUID(),
+                List.of(UUID.randomUUID()),
+                "오늘의 코디"
+            );
+
+            // When & Then
+            mockMvc.perform(
+                    post("/api/feeds")
+                        .with(csrf())
+                        .with(user("tester").roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(badRequest))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        }
     }
 }

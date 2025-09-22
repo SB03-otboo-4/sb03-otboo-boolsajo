@@ -7,22 +7,24 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.mapper.FeedMapper;
+import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
-import com.sprint.otboo.user.dto.data.AuthorDto;
+import com.sprint.otboo.fixture.ClothesFixture;
+import com.sprint.otboo.fixture.FeedFixture;
+import com.sprint.otboo.fixture.UserFixture;
+import com.sprint.otboo.fixture.WeatherFixture;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
-import com.sprint.otboo.weather.dto.data.PrecipitationDto;
-import com.sprint.otboo.weather.dto.data.TemperatureDto;
-import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.time.Instant;
@@ -52,7 +54,8 @@ public class FeedServiceTest {
     WeatherRepository weatherRepository;
     @Mock
     ClothesRepository clothesRepository;
-
+    @Mock
+    FeedLikeRepository feedLikeRepository;
     @InjectMocks
     FeedServiceImpl feedService;
 
@@ -66,53 +69,27 @@ public class FeedServiceTest {
             UUID authorId = UUID.randomUUID();
             UUID weatherId = UUID.randomUUID();
             UUID clothesId = UUID.randomUUID();
+            UUID feedId = UUID.randomUUID();
 
-            User author = User.builder()
-                .id(authorId)
-                .username("홍길동")
-                .profileImageUrl("profile.png")
-                .build();
+            User author = UserFixture.create(authorId, "홍길동", "profile.png");
+            Weather weather = WeatherFixture.create(weatherId);
+            Clothes clothes = ClothesFixture.create(clothesId, author, "셔츠", "image.png",
+                ClothesType.TOP);
 
-            Weather weather = Weather.builder()
-                .id(weatherId)
-                .build();
+            FeedCreateRequest request = FeedFixture.createRequest(authorId, weatherId,
+                List.of(clothesId), "오늘의 코디");
 
-            Clothes clothes = Clothes.builder()
-                .id(clothesId)
-                .user(author)
-                .name("셔츠")
-                .imageUrl("image.png")
-                .type(ClothesType.TOP)
-                .build();
+            Instant now = Instant.now();
+            Feed savedFeed = FeedFixture.createEntity(feedId, author, weather, "오늘의 코디", now, now);
 
-            FeedCreateRequest request =
-                new FeedCreateRequest(authorId, weatherId, List.of(clothesId), "오늘의 코디");
-
-            Feed savedFeed = Feed.builder()
-                .id(UUID.randomUUID())
-                .author(author)
-                .weather(weather)
-                .content("오늘의 코디")
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-
-            FeedDto expected = new FeedDto(
-                UUID.randomUUID(),
-                Instant.now(),
-                Instant.now(),
-                new AuthorDto(authorId, "홍길동", "profile.png"),
-                new WeatherSummaryDto(
-                    weatherId,
-                    "맑음",
-                    new PrecipitationDto("비", 0.0, 0.0),
-                    new TemperatureDto(25.0, -1.0, 20.0, 27.0)
-                ),
-                List.of(new OotdDto(clothesId, "셔츠", "image.png", ClothesType.TOP, List.of())),
-                "오늘의 코디",
-                10L,
-                2,
-                false
+            FeedDto expected = FeedFixture.createDto(
+                feedId, now, now,
+                authorId, "홍길동", "profile.png",
+                weatherId, "맑음",
+                "비", 0.0, 0.0,
+                25.0, -1.0, 20.0, 27.0,
+                clothesId, "셔츠", "image.png", ClothesType.TOP,
+                "오늘의 코디", 10L, 2, false
             );
 
             given(userRepository.findById(authorId)).willReturn(Optional.of(author));
@@ -144,16 +121,89 @@ public class FeedServiceTest {
             UUID weatherId = UUID.randomUUID();
             UUID clothesId = UUID.randomUUID();
 
-            FeedCreateRequest req = new FeedCreateRequest(
+            FeedCreateRequest request = new FeedCreateRequest(
                 authorId, weatherId, List.of(clothesId), "오늘의 코디"
             );
 
             given(userRepository.findById(authorId)).willReturn(java.util.Optional.empty());
             // When / Then
-            assertThatThrownBy(() -> feedService.create(req))
+            assertThatThrownBy(() -> feedService.create(request))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다.");
         }
     }
 
+    @Nested
+    @DisplayName("피드 좋아요 등록 테스트")
+    class FeedLikeCreateTests {
+
+        @Test
+        void 좋아요를_등록하면_likeCount가_1_증가한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            User liker = User.builder().id(userId).build();
+            Feed feed = Feed.builder()
+                .id(feedId)
+                .author(User.builder().id(UUID.randomUUID()).build())
+                .content("hi")
+                .likeCount(0L)
+                .commentCount(0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+            given(userRepository.findById(userId)).willReturn(Optional.of(liker));
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+
+            // When
+            feedService.addLike(feedId, userId);
+
+            // Then
+            assertThat(feed.getLikeCount()).isEqualTo(1L);
+            then(feedLikeRepository).should().save(any(FeedLike.class));
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(feedRepository).should().findById(feedId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).should().findById(userId);
+            then(userRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 피드가_존재하지_않으면_예외가_발생한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.empty());
+
+            // When / Then
+            assertThatThrownBy(() -> feedService.addLike(feedId, userId))
+                .isInstanceOf(FeedNotFoundException.class)
+                .hasMessageContaining("피드를 찾을 수 없습니다.");
+        }
+
+        @Test
+        void 유저가_존재하지_않으면_예외가_발생한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            Feed feed = Feed.builder()
+                .id(feedId)
+                .author(User.builder().id(UUID.randomUUID()).build())
+                .content("hi")
+                .likeCount(0L)
+                .commentCount(0L)
+                .build();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+            given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> feedService.addLike(feedId, userId))
+                .isInstanceOf(UserNotFoundException.class);
+        }
+    }
 }

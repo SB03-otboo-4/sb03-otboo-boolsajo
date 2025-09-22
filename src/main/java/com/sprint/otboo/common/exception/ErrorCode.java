@@ -14,6 +14,10 @@ public enum ErrorCode {
     WEATHER_BAD_COORDINATE(HttpStatus.BAD_REQUEST, "잘못된 좌표 값입니다."),
     WEATHER_GRID_CONVERSION_FAILED(HttpStatus.BAD_REQUEST, "격자 변환에 실패했습니다."),
 
+    INVALID_PAGING_LIMIT(HttpStatus.BAD_REQUEST, "limit 값이 올바르지 않습니다."),
+    INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 컬럼입니다."),
+    INVALID_SORT_DIRECTION(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 방향입니다."),
+
     // 401 UNAUTHORIZED
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."),
     AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "인증에 실패했습니다."),
