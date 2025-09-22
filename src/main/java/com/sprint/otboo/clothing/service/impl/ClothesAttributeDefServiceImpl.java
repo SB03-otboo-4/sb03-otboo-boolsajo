@@ -74,18 +74,33 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         return clothesMapper.toClothesAttributeDefDto(saved);
     }
 
+    /**
+     * 기존 의상 속성 정의 수정
+     *
+     * <p>요청 검증 후 엔티티 조회, update 헬퍼 메서드 호출 후 저장 및 DTO 변환.
+     *
+     * @param id 수정 대상 의상 속성 정의 ID
+     * @param request 수정 요청 DTO
+     * @return 수정된 의상 속성 정의 DTO
+     * @throws ClothesValidationException 요청 데이터가 없거나 필수 값이 누락되거나 존재하지 않는 정의 ID일 때 발생
+     */
+    @Transactional
     @Override
     public ClothesAttributeDefDto updateAttributeDef(UUID id, ClothesAttributeDefUpdateRequest request) {
+        log.info("의상 속성 정의 수정 요청 - id: {}, request: {}", id, request);
 
         validateUpdateRequest(request);
 
         ClothesAttributeDef def = clothesAttributeDefRepository.findById(id)
-            .orElseThrow(() -> new ClothesValidationException("존재하지 않는 의상 속성 정의"));
+            .orElseThrow(() ->
+                new ClothesValidationException("존재하지 않는 의상 속성 정의"));
+        log.debug("의상 속성 정의 조회 성공 - id: {}", id);
 
         // 엔티티의 update 헬퍼 메서드 활용
         def.update(request.name(), convertSelectableValues(request.selectableValues()));
 
         ClothesAttributeDef updated = clothesAttributeDefRepository.save(def);
+        log.info("의상 속성 정의 저장 완료 - id: {}", id);
 
         return clothesMapper.toClothesAttributeDefDto(updated);
     }
@@ -105,7 +120,15 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         }
         log.debug("속성 정의 요청 검증 완료: name={}", request.name());
     }
-    
+
+    /**
+     * 의상 속성 정의 수정 요청 검증
+     *
+     * <p>속성 이름과 선택값 리스트 존재 여부 확인
+     *
+     * @param request 수정 요청 DTO
+     * @throws ClothesValidationException 필수 값 누락 시 발생
+     */
     private void validateUpdateRequest(ClothesAttributeDefUpdateRequest request) {
         if (request == null) {
             throw new ClothesValidationException("요청 데이터가 존재하지 않습니다");
