@@ -16,11 +16,15 @@ import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
+import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +37,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-
 
 @WebMvcTest(controllers = ClothesController.class)
 @DisplayName("의상 API")
@@ -340,4 +343,225 @@ public class ClothesControllerTest {
             );
     }
 
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상수정_API_USER_성공() throws Exception {
+        // given: USER 권한으로 의상 수정 요청 준비
+        UUID clothesId = UUID.randomUUID();
+        UUID defId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        var attrDto = new ClothesAttributeDto(defId, "Black");
+        var updateRequest = new ClothesUpdateRequest(
+            "새 티셔츠",
+            ClothesType.TOP,
+            List.of(attrDto)
+        );
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request",
+            "",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(updateRequest)
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+            "image",
+            "test.png",
+            MediaType.IMAGE_PNG_VALUE,
+            "dummy-image".getBytes()
+        );
+
+        var response = new ClothesDto(clothesId, ownerId, "새 티셔츠", "/uploads/new.png", ClothesType.TOP, List.of(attrDto));
+
+        when(clothesService.updateClothes(eq(clothesId), any(), any())).thenReturn(response);
+
+        // when: API 호출
+        mockMvc.perform(multipart("/api/clothes/{clothesId}", clothesId)
+                .file(requestPart)
+                .file(imagePart)
+                .with(csrf())
+                .with(request -> { request.setMethod("PATCH"); return request; }) // multipart에서 PATCH 지정
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+            // then: 응답 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(clothesId.toString()))
+            .andExpect(jsonPath("$.name").value("새 티셔츠"))
+            .andExpect(jsonPath("$.type").value("TOP"))
+            .andExpect(jsonPath("$.attributes[0].value").value("Black"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin1", roles = {"ADMIN"})
+    void 의상수정_API_ADMIN_성공() throws Exception {
+        // given: ADMIN 권한으로 의상 수정 요청 준비
+        UUID clothesId = UUID.randomUUID();
+        UUID defId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+
+        var attrDto = new ClothesAttributeDto(defId, "White");
+        var adminUpdateRequest = new ClothesUpdateRequest(
+            "새 재킷",
+            ClothesType.OUTER,
+            List.of(attrDto)
+        );
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request",
+            "",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(adminUpdateRequest)
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+            "image",
+            "admin.png",
+            MediaType.IMAGE_PNG_VALUE,
+            "dummy-image".getBytes()
+        );
+
+        var response = new ClothesDto(clothesId, ownerId, "새 재킷", "/uploads/admin.png", ClothesType.OUTER, List.of(attrDto));
+
+        when(clothesService.updateClothes(eq(clothesId), any(), any())).thenReturn(response);
+
+        // when: API 호출
+        mockMvc.perform(multipart("/api/clothes/{clothesId}", clothesId)
+                .file(requestPart)
+                .file(imagePart)
+                .with(csrf())
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+            // then: 응답 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(clothesId.toString()))
+            .andExpect(jsonPath("$.name").value("새 재킷"))
+            .andExpect(jsonPath("$.type").value("OUTER"))
+            .andExpect(jsonPath("$.attributes[0].value").value("White"));
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상_수정_실패_존재하지_않는_의상() throws Exception {
+        // given: 존재하지 않는 의상 ID와 요청 DTO
+        UUID clothesId = UUID.randomUUID();
+        var notFoundRequest = new ClothesUpdateRequest(
+            "새 티셔츠", ClothesType.TOP, Collections.emptyList()
+        );
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request", "", MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(notFoundRequest)
+        );
+
+        when(clothesService.updateClothes(eq(clothesId), any(), any()))
+            .thenThrow(new CustomException(ErrorCode.CLOTHES_NOT_FOUND));
+
+        // when: PATCH multipart 요청
+        mockMvc.perform(multipart("/api/clothes/{clothesId}", clothesId)
+                .file(requestPart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+            // then: 404 Not Found + 에러 코드/메시지 검증
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("CLOTHES_NOT_FOUND"))
+            .andExpect(jsonPath("$.message").value("의상 정보를 찾을 수 없습니다."));
+    }
+
+    @Test
+    void 의상_수정_실패_권한_없는_사용자() throws Exception {
+        // given: 요청 DTO (인증 없이)
+        UUID clothesId = UUID.randomUUID();
+        var unauthorizedRequest = new ClothesUpdateRequest(
+            "새 티셔츠", ClothesType.TOP, Collections.emptyList()
+        );
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request", "", MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(unauthorizedRequest)
+        );
+
+        // when: PATCH multipart 요청 (인증 없음)
+        mockMvc.perform(multipart("/api/clothes/{clothesId}", clothesId)
+                .file(requestPart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+            // then: 403 Forbidden
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상_수정_이미지_없이_이름_타입_속성만_갱신() throws Exception {
+        // given: 의상 ID, 수정 요청 DTO (이미지 없음)
+        UUID clothesId = UUID.randomUUID();
+        UUID defId = UUID.randomUUID();
+
+        var updateRequest = new ClothesUpdateRequest(
+            "새 상의", ClothesType.OUTER, List.of(new ClothesAttributeDto(defId, "BLUE"))
+        );
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request", "", MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(updateRequest)
+        );
+
+        var response = new ClothesDto(clothesId, UUID.randomUUID(), "새 상의", "old_image_url", ClothesType.OUTER,
+            List.of(new ClothesAttributeDto(defId, "BLUE")));
+
+        when(clothesService.updateClothes(eq(clothesId), any(), isNull())).thenReturn(response);
+
+        // when: PATCH multipart 요청
+        mockMvc.perform(multipart("/api/clothes/{clothesId}", clothesId)
+                .file(requestPart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+            // then: 200 OK + 필드 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("새 상의"))
+            .andExpect(jsonPath("$.type").value("OUTER"))
+            .andExpect(jsonPath("$.imageUrl").value("old_image_url"))
+            .andExpect(jsonPath("$.attributes[0].value").value("BLUE"));
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상_수정_이미지_포함() throws Exception {
+        // given: 의상 ID, 수정 요청 DTO, 새 이미지
+        UUID clothesId = UUID.randomUUID();
+        UUID defId = UUID.randomUUID();
+
+        var updateRequest = new ClothesUpdateRequest(
+            "새 티셔츠", ClothesType.TOP, List.of(new ClothesAttributeDto(defId, "BLACK"))
+        );
+
+        MockMultipartFile requestPart = new MockMultipartFile(
+            "request", "", MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(updateRequest)
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+            "image", "new.png", MediaType.IMAGE_PNG_VALUE, "dummy-image".getBytes()
+        );
+
+        var response = new ClothesDto(clothesId, UUID.randomUUID(), "새 티셔츠", "/uploads/new.png", ClothesType.TOP,
+            List.of(new ClothesAttributeDto(defId, "BLACK")));
+
+        when(clothesService.updateClothes(eq(clothesId), any(), any())).thenReturn(response);
+
+        // when: PATCH multipart 요청 (이미지 포함)
+        mockMvc.perform(multipart("/api/clothes/{clothesId}", clothesId)
+                .file(requestPart)
+                .file(imagePart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+            // then: 200 OK + 필드 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("새 티셔츠"))
+            .andExpect(jsonPath("$.type").value("TOP"))
+            .andExpect(jsonPath("$.imageUrl").value("/uploads/new.png"))
+            .andExpect(jsonPath("$.attributes[0].value").value("BLACK"));
+    }
 }
