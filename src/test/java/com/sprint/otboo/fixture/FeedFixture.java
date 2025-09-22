@@ -106,6 +106,8 @@ public class FeedFixture {
             .content("컨텐츠")
             .createdAt(Instant.now())
             .updatedAt(Instant.now())
+            .build();
+    }
 
     public static Feed createEntity(User author, Weather weather, String content,
         Instant createdAt, Instant updatedAt) {
