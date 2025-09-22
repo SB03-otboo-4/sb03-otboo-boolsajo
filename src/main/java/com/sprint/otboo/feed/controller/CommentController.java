@@ -26,7 +26,7 @@ public class CommentController implements CommentApi {
     @PostMapping("/{feedId}/comments")
     public ResponseEntity<CommentDto> create(@PathVariable UUID feedId,
         @Valid @RequestBody CommentCreateRequest request) {
-        log.info("[CommentController] 댓글 생성 요청: feedId={}, authorId={}, content={}",
+        log.info("[CommentController] 댓글 생성 요청: feedId={}, authorId={}, data={}",
             feedId, request.authorId(), request.content());
         CommentDto dto = commentService.create(request.authorId(), feedId, request.content());
 
