@@ -3,10 +3,13 @@ package com.sprint.otboo.feed.service;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.common.exception.clothing.UserClothesNotFoundException;
+import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
+import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedRepository;
@@ -14,6 +17,7 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,6 +72,25 @@ public class FeedServiceImpl implements FeedService {
                 saved.getId(), clothesList.size());
         }
 
+        return feedMapper.toDto(saved);
+    }
+
+    @Override
+    public FeedDto update(UUID authorId, UUID feedId, FeedUpdateRequest request) {
+        userRepository.findById(authorId)
+            .orElseThrow(() -> UserNotFoundException.withId(authorId));
+
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+
+        if (!feed.getAuthor().getId().equals(authorId)) {
+            throw FeedAccessDeniedException.withAuthorIdAndFeedId(authorId, feedId);
+        }
+
+        String newContent = request.content();
+        feed.updateContent(newContent);
+
+        Feed saved = feedRepository.save(feed);
         return feedMapper.toDto(saved);
     }
 

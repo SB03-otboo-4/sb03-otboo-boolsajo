@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.then;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
@@ -162,6 +163,7 @@ public class FeedServiceTest {
                 newContent, 10L, 2, false
             );
 
+            given(userRepository.findById(authorId)).willReturn(Optional.of(author));
             given(feedRepository.findById(feedId)).willReturn(Optional.of(existing));
             given(feedRepository.save(any(Feed.class))).willAnswer(inv -> inv.getArgument(0));
             given(feedMapper.toDto(any(Feed.class))).willReturn(expected);
@@ -171,6 +173,7 @@ public class FeedServiceTest {
 
             // Then
             assertThat(result).isSameAs(expected);
+            then(userRepository).should().findById(authorId);
             then(feedRepository).should().findById(feedId);
             then(feedRepository).should().save(any(Feed.class));
             then(feedMapper).should().toDto(any(Feed.class));
@@ -185,6 +188,9 @@ public class FeedServiceTest {
             UUID authorId = UUID.randomUUID();
             FeedUpdateRequest request = new FeedUpdateRequest("수정 내용");
 
+            User author = UserFixture.create(authorId, "홍길동", "profile.png");
+
+            given(userRepository.findById(authorId)).willReturn(Optional.of(author));
             given(feedRepository.findById(feedId)).willReturn(Optional.empty());
 
             // When / Then
@@ -209,6 +215,7 @@ public class FeedServiceTest {
 
             FeedUpdateRequest request = new FeedUpdateRequest("수정 내용");
 
+            given(userRepository.findById(authorId)).willReturn(Optional.of(otherAuthor));
             given(feedRepository.findById(feedId)).willReturn(Optional.of(existing));
 
             // When & Then

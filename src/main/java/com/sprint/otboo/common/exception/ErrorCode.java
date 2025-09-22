@@ -21,6 +21,7 @@ public enum ErrorCode {
 
     // 403 FORBIDDEN
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
+    FEED_DENIED(HttpStatus.FORBIDDEN, "피드에 대한 권한이 없습니다."),
 
     // 404 NOT FOUND
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
