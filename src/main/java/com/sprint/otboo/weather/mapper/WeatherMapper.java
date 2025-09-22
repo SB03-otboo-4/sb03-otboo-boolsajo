@@ -1,17 +1,17 @@
 package com.sprint.otboo.weather.mapper;
 
-import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
-import com.sprint.otboo.weather.entity.WeatherLocation;
-import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.dto.data.PrecipitationDto;
 import com.sprint.otboo.weather.dto.data.TemperatureDto;
+import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
+import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.Weather;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import com.sprint.otboo.weather.entity.WeatherLocation;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 
 @Mapper(componentModel = "spring")

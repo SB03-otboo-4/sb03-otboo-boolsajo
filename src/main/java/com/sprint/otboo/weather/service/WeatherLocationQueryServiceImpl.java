@@ -21,6 +21,7 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
 
     private final WeatherLocationRepository repository;
     private final LocationNameResolver locationNameResolver;
+    private final WeatherMapper mapper;
 
     @Override
     @Transactional // 저장 로직이 있으므로 readOnly=false (기본값)로 명시
@@ -34,8 +35,7 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
         // 2) (lat, lon) 기준 선조회 → 있으면 즉시 반환
         Optional<WeatherLocation> byLatLon = repository.findFirstByLatitudeAndLongitude(normalizedLat, normalizedLon);
         if (byLatLon.isPresent()) {
-            WeatherLocation found = byLatLon.get();
-            return WeatherMapper.toLocationResponse(found);
+            return mapper.toLocationResponse(byLatLon.get());
         }
 
         // 3) 격자 변환 (KMA 좌표계)
@@ -44,8 +44,7 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
         // 4) (x, y) 기준 선조회 → 있으면 재사용
         Optional<WeatherLocation> byXY = repository.findFirstByXAndY(xy.x(), xy.y());
         if (byXY.isPresent()) {
-            WeatherLocation reused = byXY.get();
-            return WeatherMapper.toLocationResponse(reused);
+            return mapper.toLocationResponse(byXY.get());
         }
 
         // 5) 카카오 지역명 조회 (장애/오류 시 빈 리스트 폴백)
@@ -57,7 +56,7 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
         }
 
         // 6) 신규 엔티티 생성 및 저장
-        WeatherLocation weatherLocation = new WeatherLocation();
+        WeatherLocation weatherLocation = WeatherLocation.builder().build();
         weatherLocation.setLatitude(normalizedLat);
         weatherLocation.setLongitude(normalizedLon);
         weatherLocation.setX(xy.x());
@@ -68,7 +67,7 @@ public class WeatherLocationQueryServiceImpl implements WeatherLocationQueryServ
         WeatherLocation saved = repository.save(weatherLocation);
 
         // 7) DTO 매핑 후 반환
-        return WeatherMapper.toLocationResponse(saved);
+        return mapper.toLocationResponse(saved);
     }
 
     private void validate(double latitude, double longitude) {
