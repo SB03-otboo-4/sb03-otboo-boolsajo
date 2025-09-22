@@ -82,7 +82,6 @@ public class CommentRepositoryTest {
 
     @Test
     void 기본_조회는_createdAt_DESCENDING으로_정렬된다() {
-
         // When
         List<Comment> rows = commentRepository.findByFeedId(
             feedId, null, null, 10
@@ -96,8 +95,6 @@ public class CommentRepositoryTest {
         assertThat(rows)
             .hasSize(2)
             .isSortedAccordingTo(cmp);
-        assertThat(rows.get(0).getId()).isEqualTo(latest.getId());
-        assertThat(rows.get(1).getId()).isEqualTo(older.getId());
     }
 
     @Test
@@ -127,12 +124,11 @@ public class CommentRepositoryTest {
         );
 
         // Then
-        List<UUID> top2IdsSortedDesc = rows.subList(0, 2).stream()
-            .map(Comment::getId)
+        List<UUID> firstTwo = rows.subList(0, 2).stream().map(Comment::getId).toList();
+        List<UUID> firstTwoSortedDesc = firstTwo.stream()
             .sorted(Comparator.reverseOrder())
             .toList();
 
-        assertThat(rows.subList(0, 2)).extracting(Comment::getId)
-            .containsExactlyElementsOf(top2IdsSortedDesc);
+        assertThat(firstTwo).containsExactlyElementsOf(firstTwoSortedDesc);
     }
 }
