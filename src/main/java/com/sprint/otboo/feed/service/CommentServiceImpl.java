@@ -57,6 +57,9 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(readOnly = true)
     public CursorPageResponse<CommentDto> getComments(UUID feedId, String cursor, UUID idAfter,
         int limit) {
+        feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+
         List<Comment> rows = commentRepository.findByFeedId(
             feedId, cursor, idAfter, limit
         );
@@ -69,12 +72,11 @@ public class CommentServiceImpl implements CommentService {
         String nextIdAfter = null;
         if (!rows.isEmpty()) {
             Comment last = rows.get(rows.size() - 1);
-            nextCursor = last.getCreatedAt().toEpochMilli() + ":" + last.getId();
+            nextCursor = last.getCreatedAt().toString();
             nextIdAfter = last.getId().toString();
         }
 
         boolean hasNext = rows.size() == limit;
-
         String sortBy = "createdAt";
         String sortDirection = "DESCENDING";
 

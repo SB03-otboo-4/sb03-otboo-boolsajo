@@ -22,9 +22,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -87,7 +89,6 @@ class CommentControllerTest {
         }
 
         @Test
-        @DisplayName("존재하지_않는_피드에_댓글을_등록하면_404를_반환한다")
         void 존재하지_않는_피드에_댓글을_등록하면_404를_반환한다() throws Exception {
             // Given
             UUID feedId = UUID.randomUUID();
@@ -110,7 +111,6 @@ class CommentControllerTest {
         }
 
         @Test
-        @DisplayName("존재하지_않는_작성자로_댓글을_등록하면_404를_반환한다")
         void 존재하지_않는_작성자로_댓글을_등록하면_404를_반환한다() throws Exception {
             // Given
             UUID feedId = UUID.randomUUID();
@@ -133,9 +133,8 @@ class CommentControllerTest {
         }
 
         @Test
-        @DisplayName("내용이_비어있으면_400을_반환한다")
         void 내용이_비어있으면_400을_반환한다() throws Exception {
-            // Given: 공백/빈 문자열
+            // Given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
             CommentCreateRequest badRequest = new CommentCreateRequest(feedId, authorId, "   ");
@@ -158,7 +157,7 @@ class CommentControllerTest {
     class CommentReadTests {
 
         @Test
-        void 댓글을_조회하면_200과_DTO페이지가_반환된다() throws Exception {
+        void 댓글을_조회하면_200과_DTO가_반환된다() throws Exception {
             // Given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
@@ -200,6 +199,7 @@ class CommentControllerTest {
                         .with(csrf())
                         .with(user("tester").roles("USER"))
                         .param("limit", "2")
+                        .contentType(MediaType.APPLICATION_JSON)
                 )
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -221,6 +221,7 @@ class CommentControllerTest {
                         "/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
                         .with(user("tester").roles("USER"))
+                        .accept(MediaType.APPLICATION_JSON)
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
@@ -231,16 +232,17 @@ class CommentControllerTest {
             // Given
             UUID feedId = UUID.randomUUID();
 
-            given(commentService.getComments(any(UUID.class), any(String.class), any(UUID.class),
-                anyInt()))
-                .willThrow(new FeedNotFoundException());
-
+            given(commentService.getComments(any(UUID.class), nullable(String.class),
+                nullable(UUID.class),
+                anyInt()
+            )).willThrow(new FeedNotFoundException());
             // When & Then
             mockMvc.perform(
                     get(
                         "/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
                         .with(user("tester").roles("USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
                         .param("limit", "10")
                 )
                 .andExpect(status().isNotFound())
