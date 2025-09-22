@@ -35,7 +35,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("CommentService 테스트")
 public class CommentServiceTest {
 
-
     @Mock
     CommentRepository commentRepository;
     @Mock

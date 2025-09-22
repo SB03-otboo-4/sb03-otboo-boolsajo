@@ -66,6 +66,4 @@ public class WeatherFixture {
             .type(precipType)
             .build();
     }
-
-
 }
