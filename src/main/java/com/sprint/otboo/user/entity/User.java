@@ -59,4 +59,12 @@ public class User extends BaseUpdatableEntity {
     public void updateRole(Role role) {
         this.role = role;
     }
+
+    public void updateUsername(String username) {
+        this.username = username;
+    }
+
+    public void updateProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
 }
