@@ -37,7 +37,6 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * </ul>
  */
 @Slf4j
-@ControllerAdvice
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

@@ -13,6 +13,10 @@ public enum ErrorCode {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값 검증에 실패했습니다."),
     REQUIRED_COOKIE_MISSING(HttpStatus.BAD_REQUEST, "필수 쿠키가 요청에 포함되지 않았습니다."),
 
+    INVALID_PAGING_LIMIT(HttpStatus.BAD_REQUEST, "limit 값이 올바르지 않습니다."),
+    INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 컬럼입니다."),
+    INVALID_SORT_DIRECTION(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 방향입니다."),
+
     // 401 UNAUTHORIZED
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."),
     AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "인증에 실패했습니다."),
