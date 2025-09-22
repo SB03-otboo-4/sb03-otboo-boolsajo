@@ -14,18 +14,23 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/weathers")
 public class WeatherController {
 
     private final WeatherLocationQueryService service;
 
+    @GetMapping("/location")
     public WeatherLocationResponse getWeatherLocation(
+        @RequestParam("longitude")
         @DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
         @DecimalMax(value = "180.0",  message = "경도는 180 이하이어야 합니다.")
         double longitude,
 
+        @RequestParam("latitude")
         @DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
         @DecimalMax(value = "90.0",  message = "위도는 90 이하이어야 합니다.")
         double latitude
+
     ) {
         // 서비스는 (lat, lon) 순서
         return service.getWeatherLocation(latitude, longitude);

@@ -5,14 +5,15 @@ import com.sprint.otboo.common.exception.weather.WeatherProviderException;
 import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeResponse;
 import java.net.ConnectException;
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
-import org.springframework.beans.factory.annotation.Qualifier;
+import java.util.function.Predicate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 import reactor.netty.channel.AbortedException;
 import reactor.netty.http.client.PrematureCloseException;
@@ -23,7 +24,7 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
 
     private final WebClient kakao;
 
-    public KakaoLocalClientImpl(@Qualifier("kakaoWebClient") WebClient kakao) {
+    public KakaoLocalClientImpl(WebClient kakao) {
         this.kakao = kakao;
     }
 
@@ -34,36 +35,78 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
             .queryParam("y", latitude)
             .toUriString();
 
+        // 429만 즉시 매핑(재시도 X)
+        Predicate<HttpStatusCode> is429 =
+            status -> status != null && status.value() == HttpStatus.TOO_MANY_REQUESTS.value();
+
         return kakao.get()
             .uri(uri)
             .retrieve()
-            // 429, 502, 504 → 도메인 예외 매핑
-            .onStatus(s -> s.value() == 429,
-                rsp -> Mono.error(new WeatherProviderException(ErrorCode.WEATHER_RATE_LIMIT)))
-            .onStatus(s -> s.value() == 502,
-                rsp -> Mono.error(new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR)))
-            .onStatus(s -> s.value() == 504,
-                rsp -> Mono.error(new WeatherProviderException(ErrorCode.WEATHER_TIMEOUT)))
-            // 그 외 4xx/5xx는 기본 예외
-            .onStatus(HttpStatusCode::is4xxClientError, rsp -> rsp.createException())
-            .onStatus(HttpStatusCode::is5xxServerError, rsp -> rsp.createException())
-            .bodyToMono(KakaoCoord2RegioncodeResponse.class)
-            .timeout(Duration.ofSeconds(3))
-            // 네트워크성 오류만 재시도 (도메인 예외/429/502/504는 재시도 X)
-            .retryWhen(
-                Retry.backoff(2, Duration.ofMillis(200))
-                    .filter(ex ->
-                        ex instanceof TimeoutException
-                            || ex instanceof ConnectException
-                            || ex instanceof AbortedException
-                            || ex instanceof PrematureCloseException
-                            || ex instanceof WebClientRequestException
-                            || (ex instanceof WebClientResponseException we
-                            && we.getStatusCode().is5xxServerError()
-                            && we.getStatusCode().value() != 502
-                            && we.getStatusCode().value() != 504)
-                    )
+            // 429는 즉시 RATE_LIMIT, 504는 즉시 TIMEOUT (재시도 X)
+            .onStatus(
+                s -> s != null && s.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
+                r -> Mono.error(new WeatherProviderException(ErrorCode.WEATHER_RATE_LIMIT))
             )
+            .onStatus(
+                s -> s != null && s.value() == HttpStatus.GATEWAY_TIMEOUT.value(),
+                r -> Mono.error(new WeatherProviderException(ErrorCode.WEATHER_TIMEOUT))
+            )
+            .bodyToMono(KakaoCoord2RegioncodeResponse.class)
+
+            .retryWhen(
+                Retry.fixedDelay(2, Duration.ofMillis(50))
+                    .filter(t -> {
+                        Throwable root = Exceptions.unwrap(t); // 언랩해서 판정
+                        return (root instanceof WebClientRequestException)
+                            || (root instanceof AbortedException)
+                            || (root instanceof PrematureCloseException)
+                            || (root != null && root.getCause() instanceof ConnectException)
+                            || (root instanceof WebClientResponseException we
+                            && we.getStatusCode().value() == 502); // 502만 재시도 대상으로
+                    })
+            )
+
+            // 최종 안전망: 상태코드→도메인 예외 매핑
+            .onErrorMap(t -> {
+                if (t instanceof WeatherProviderException) return t;
+
+                // 재시도 소진: root 기준으로 상태코드 매핑
+                if (Exceptions.isRetryExhausted(t)) {
+                    Throwable root = Exceptions.unwrap(t);
+                    if (root instanceof WebClientResponseException wex) {
+                        int code = wex.getStatusCode().value();
+                        if (code == 429) return new WeatherProviderException(ErrorCode.WEATHER_RATE_LIMIT);
+                        if (code == 502) return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                        if (code == 504) return new WeatherProviderException(ErrorCode.WEATHER_TIMEOUT);
+                        return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                    }
+                    if (root instanceof WebClientRequestException
+                        || root instanceof AbortedException
+                        || root instanceof PrematureCloseException
+                        || (root != null && root.getCause() instanceof ConnectException)) {
+                        return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                    }
+                    return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                }
+
+                // 재시도 소진이 아닌 즉시 발생 HTTP 오류
+                if (t instanceof WebClientResponseException wex) {
+                    int code = wex.getStatusCode().value();
+                    if (code == 429) return new WeatherProviderException(ErrorCode.WEATHER_RATE_LIMIT);
+                    if (code == 502) return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                    if (code == 504) return new WeatherProviderException(ErrorCode.WEATHER_TIMEOUT);
+                    return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                }
+
+                // 일반 네트워크/전송 계열
+                if (t instanceof WebClientRequestException
+                    || t instanceof AbortedException
+                    || t instanceof PrematureCloseException
+                    || (t != null && t.getCause() instanceof ConnectException)) {
+                    return new WeatherProviderException(ErrorCode.WEATHER_PROVIDER_ERROR);
+                }
+                return t;
+            })
             .block();
     }
 }

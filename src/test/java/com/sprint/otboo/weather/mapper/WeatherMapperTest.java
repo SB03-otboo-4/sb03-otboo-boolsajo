@@ -49,4 +49,20 @@ class WeatherMapperTest {
         WeatherLocationResponse dto = WeatherMapper.toLocationResponse(wl);
         assertThat(dto.locationNames()).containsExactly("서울특별시","중구","태평로1가");
     }
+
+    @Test
+    void 구분자만_있는_입력은_빈_리스트() {
+        assertThat(WeatherMapper.splitLocationNames(" /  / ")).isEmpty();
+    }
+
+    @Test
+    void 탭과_개행_혼합도_정상_분리() {
+        assertThat(WeatherMapper.splitLocationNames("\t서울 / 중구\n태평로1가"))
+            .containsExactly("서울","중구","태평로1가");
+    }
+
+    @Test
+    void toDouble_비null_경로() {
+        assertThat(WeatherMapper.toDouble(new BigDecimal("12.3456"))).isEqualTo(12.3456);
+    }
 }

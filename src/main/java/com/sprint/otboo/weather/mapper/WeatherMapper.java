@@ -26,7 +26,7 @@ public class WeatherMapper {
         );
     }
 
-    private static double toDouble(BigDecimal value) {
+    static double toDouble(BigDecimal value) {
         if (value == null) {
             throw new IllegalStateException("위도/경도는 Null이 될 수 없습니다.");
         }
