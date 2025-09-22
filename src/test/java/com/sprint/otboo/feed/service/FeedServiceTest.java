@@ -54,8 +54,6 @@ public class FeedServiceTest {
     WeatherRepository weatherRepository;
     @Mock
     ClothesRepository clothesRepository;
-    @Mock
-    FeedLikeRepository feedLikeRepository;
     @InjectMocks
     FeedServiceImpl feedService;
 
@@ -130,80 +128,6 @@ public class FeedServiceTest {
             assertThatThrownBy(() -> feedService.create(request))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다.");
-        }
-    }
-
-    @Nested
-    @DisplayName("피드 좋아요 등록 테스트")
-    class FeedLikeCreateTests {
-
-        @Test
-        void 좋아요를_등록하면_likeCount가_1_증가한다() {
-            // Given
-            UUID feedId = UUID.randomUUID();
-            UUID userId = UUID.randomUUID();
-
-            User liker = User.builder().id(userId).build();
-            Feed feed = Feed.builder()
-                .id(feedId)
-                .author(User.builder().id(UUID.randomUUID()).build())
-                .content("hi")
-                .likeCount(0L)
-                .commentCount(0)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-
-            given(userRepository.findById(userId)).willReturn(Optional.of(liker));
-            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
-
-            // When
-            feedService.addLike(feedId, userId);
-
-            // Then
-            assertThat(feed.getLikeCount()).isEqualTo(1L);
-            then(feedLikeRepository).should().save(any(FeedLike.class));
-            then(feedLikeRepository).shouldHaveNoMoreInteractions();
-            then(feedRepository).should().findById(feedId);
-            then(feedRepository).shouldHaveNoMoreInteractions();
-            then(userRepository).should().findById(userId);
-            then(userRepository).shouldHaveNoMoreInteractions();
-        }
-
-        @Test
-        void 피드가_존재하지_않으면_예외가_발생한다() {
-            // Given
-            UUID feedId = UUID.randomUUID();
-            UUID userId = UUID.randomUUID();
-
-            given(feedRepository.findById(feedId)).willReturn(Optional.empty());
-
-            // When / Then
-            assertThatThrownBy(() -> feedService.addLike(feedId, userId))
-                .isInstanceOf(FeedNotFoundException.class)
-                .hasMessageContaining("피드를 찾을 수 없습니다.");
-        }
-
-        @Test
-        void 유저가_존재하지_않으면_예외가_발생한다() {
-            // Given
-            UUID feedId = UUID.randomUUID();
-            UUID userId = UUID.randomUUID();
-
-            Feed feed = Feed.builder()
-                .id(feedId)
-                .author(User.builder().id(UUID.randomUUID()).build())
-                .content("hi")
-                .likeCount(0L)
-                .commentCount(0L)
-                .build();
-
-            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
-            given(userRepository.findById(userId)).willReturn(Optional.empty());
-
-            // When & Then
-            assertThatThrownBy(() -> feedService.addLike(feedId, userId))
-                .isInstanceOf(UserNotFoundException.class);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.sprint.otboo.fixture;
 
 import com.sprint.otboo.weather.entity.WeatherLocation;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 public final class WeatherLocationFixture {
@@ -17,8 +18,8 @@ public final class WeatherLocationFixture {
     public static WeatherLocation createLocationWithDefault() {
         return WeatherLocation.builder()
             .locationNames(DEFAULT_LOCATION_NAMES)
-            .latitude(DEFAULT_LATITUDE)
-            .longitude(DEFAULT_LONGITUDE)
+            .latitude(BigDecimal.valueOf(DEFAULT_LATITUDE))
+            .longitude(BigDecimal.valueOf(DEFAULT_LONGITUDE))
             .x(DEFAULT_X)
             .y(DEFAULT_Y)
             .createdAt(Instant.now())
@@ -29,8 +30,8 @@ public final class WeatherLocationFixture {
         int y) {
         return WeatherLocation.builder()
             .locationNames(locationNames)
-            .latitude(lat)
-            .longitude(lon)
+            .latitude(BigDecimal.valueOf(lat))
+            .longitude(BigDecimal.valueOf(lon))
             .x(x)
             .y(y)
             .createdAt(Instant.now())

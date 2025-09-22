@@ -4,6 +4,7 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -11,6 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 @Getter
+@Builder
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 

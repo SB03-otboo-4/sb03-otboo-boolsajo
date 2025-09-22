@@ -29,3 +29,8 @@ logging:
     org.hibernate.SQL: info
     org.hibernate.type.descriptor.sql.BasicBinder: trace
     root: info
+
+kakao:
+  api:
+    base-url: http://localhost
+    rest-api-key: test-key
