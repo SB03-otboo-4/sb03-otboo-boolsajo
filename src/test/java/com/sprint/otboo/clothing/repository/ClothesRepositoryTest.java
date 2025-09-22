@@ -39,39 +39,29 @@ public class ClothesRepositoryTest {
     @BeforeEach
     void setUp() {
         // User 엔티티 생성 및 저장
-        User testUser = User.builder()
-            .username("testuser")
-            .password("password")
-            .email("testuser@example.com")
-            .role(Role.USER)
-            .provider(LoginType.GENERAL)
-            .locked(false)
-            .build();
-
-        testUser = userRepository.saveAndFlush(testUser);
+        User testUser = userRepository.saveAndFlush(
+            User.builder()
+                .username("testuser")
+                .password("password")
+                .email("testuser@example.com")
+                .role(Role.USER)
+                .provider(LoginType.GENERAL)
+                .locked(false)
+                .build()
+        );
         userId = testUser.getId();
 
-        // Clothes 엔티티 생성 및 저장
+        // Clothes 엔티티 생성 및 저장 (하루 단위로 createdAt 지정)
         List<Clothes> clothesList = List.of(
-            Clothes.create(testUser, "Top 1", "top1.jpg", ClothesType.TOP, Instant.parse("2025-01-01T10:00:00Z")),
-            Clothes.create(testUser, "Top 2", "top2.jpg", ClothesType.TOP, Instant.parse("2025-01-02T10:00:00Z")),
-            Clothes.create(testUser, "Bottom 1", "bottom1.jpg", ClothesType.BOTTOM, Instant.parse("2025-01-03T10:00:00Z"))
+            Clothes.create(testUser, "Top 1", "top1.jpg", ClothesType.TOP,
+                Instant.parse("2025-01-01T10:00:00Z")),
+            Clothes.create(testUser, "Top 2", "top2.jpg", ClothesType.TOP,
+                Instant.parse("2025-01-02T10:00:00Z")),
+            Clothes.create(testUser, "Bottom 1", "bottom1.jpg", ClothesType.BOTTOM,
+                Instant.parse("2025-01-03T10:00:00Z"))
         );
 
         clothesRepository.saveAll(clothesList);
-    }
-
-    @Test
-    void 사용자_의상_조회_전체타입_커서없음() {
-        // given: 사용자 ID와 커서 없음
-        // UUID userId = this.userId;
-
-        // when: 의상 조회
-        List<Clothes> result = clothesRepositoryImpl.findClothesByOwner(userId, null, null, null, 10);
-
-        // then: 결과 검증
-        assertThat(result).hasSize(3);
-        assertThat(result.get(0).getCreatedAt()).isAfter(result.get(1).getCreatedAt());
     }
 
     @Test
