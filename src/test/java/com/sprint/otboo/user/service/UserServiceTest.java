@@ -794,8 +794,8 @@ public class UserServiceTest {
         assertThat(profile.getLongitude()).isEqualTo(new BigDecimal("126.6849254"));
         assertThat(profile.getX()).isEqualTo(55);
         assertThat(profile.getY()).isEqualTo(126);
-        assertThat(profile.getLocationNames()).isEqualTo("인천광역시","서구","가정2동");
-        assertThat(profile.getTemperatureSensitivity()).isEqualTo(3);
+        assertThat(profile.getLocationNames()).isEqualTo(String.join(",", request.locationNames()));
+        assertThat(profile.getTemperatureSensitivity()).isEqualTo(5);
     }
 
     @Test
