@@ -76,6 +76,7 @@ public class FeedServiceImpl implements FeedService {
     }
 
     @Override
+    @Transactional
     public FeedDto update(UUID authorId, UUID feedId, FeedUpdateRequest request) {
         log.info("[FeedServiceImpl] 피드 수정 시작: authorId={}, feedId={}, newContent={}", authorId,
             feedId, request.content());
