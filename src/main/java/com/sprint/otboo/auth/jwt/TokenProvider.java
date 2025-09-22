@@ -40,7 +40,7 @@ public class TokenProvider {
     public TokenProvider(
         @Value("${jwt.access-token.secret}") String accessTokenSecret,
         @Value("${jwt.access-token.expiration}") long accessTokenExpiration,
-        @Value("${jwt.refresh-token.secret") String refreshTokenSecret,
+        @Value("${jwt.refresh-token.secret}") String refreshTokenSecret,
         @Value("${jwt.refresh-token.expiration}") long refreshTokenExpiration
     ) throws JOSEException {
         this.accessTokenExpiration = accessTokenExpiration;

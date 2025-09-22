@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nimbusds.jose.JOSEException;
-import com.sprint.otboo.auth.dto.JwtDto;
+import com.sprint.otboo.auth.dto.AuthResultDto;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.TokenProvider;
@@ -61,7 +61,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void 로그인_성공_JwtDto를_반환한다() throws Exception {
+    void 로그인_성공__AuthResultDto를_반환한다() throws Exception {
         // given
         SignInRequest request = new SignInRequest(TEST_EMAIL, TEST_PASSWORD);
         CustomUserDetails userDetails = createTestUserDetails(false);
@@ -70,18 +70,21 @@ public class AuthServiceTest {
         given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
         given(passwordEncoder.matches(TEST_PASSWORD, ENCODED_PASSWORD)).willReturn(true);
         given(tokenProvider.createAccessToken(userDto)).willReturn("access.jwt.token");
+        given(tokenProvider.createRefreshToken(userDto)).willReturn("refresh.jwt.token");
 
         // when
-        JwtDto result = authService.signIn(request);
+        AuthResultDto result = authService.signIn(request);
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.accessToken()).isEqualTo("access.jwt.token");
+        assertThat(result.refreshToken()).isEqualTo("refresh.jwt.token");
         assertThat(result.userDto()).isEqualTo(userDto);
 
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(TEST_PASSWORD, ENCODED_PASSWORD);
         verify(tokenProvider).createAccessToken(userDto);
+        verify(tokenProvider).createRefreshToken(userDto);
     }
 
     @Test
@@ -173,11 +176,12 @@ public class AuthServiceTest {
         given(tokenProvider.createRefreshToken(userDto)).willReturn(newRefreshToken);
 
         // when
-        JwtDto result = authService.reissueToken(refreshToken);
+        AuthResultDto result = authService.reissueToken(refreshToken);
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.accessToken()).isEqualTo(newAccessToken);
+        assertThat(result.refreshToken()).isEqualTo(newRefreshToken);
         assertThat(result.userDto()).isEqualTo(userDto);
 
         verify(tokenProvider).validateRefreshToken(refreshToken);

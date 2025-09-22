@@ -33,3 +33,6 @@ jwt:
   access-token:
     secret: ${JWT_ACCESS_SECRET:fA7qL8pX9vE3+gH1jZ5rK2cW0uB4dF6yG8iN/oP3tS4=}
     expiration: ${JWT_ACCESS_EXPIRATION:600000}
+  refresh-token:
+    secret: ${JWT_REFRESH_SECRET:zK9bC2dR5uH8xL1mQ4vA7wE3gF6jT0fV/oI2sY5pX9c=}
+    expiration: ${JWT_REFRESH_EXPIRATION:604800000}
