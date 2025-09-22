@@ -3,12 +3,15 @@ package com.sprint.otboo.user.service.impl;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.storage.FileStorageService;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
@@ -27,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +44,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final UserQueryRepository userQueryRepository;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
@@ -156,6 +162,51 @@ public class UserServiceImpl implements UserService {
             sortBy.toParam(),
             sd.toParam()
         );
+    }
+
+    @Override
+    @Transactional
+    public ProfileDto updateUserProfile(UUID userId, ProfileUpdateRequest request, MultipartFile image) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        UserProfile profile = userProfileRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_PROFILE_NOT_FOUND));
+
+        user.updateUsername(request.name());
+
+        if (image != null && !image.isEmpty()) {
+            if (StringUtils.hasText(user.getProfileImageUrl())) {
+                fileStorageService.delete(user.getProfileImageUrl());
+            }
+            String imageUrl = fileStorageService.upload(image);
+            user.updateProfileImageUrl(imageUrl);
+        }
+
+        if (StringUtils.hasText(request.gender())) {
+            profile.updateGender(Gender.valueOf(request.gender()));
+        } else {
+            profile.updateGender(null);
+        }
+
+        profile.updateBirthDate(request.birthDate());
+
+        if (request.latitude() != null || request.longitude() != null || request.x() != null || request.y() != null
+            || request.locationNames() != null) {
+            profile.updateLocation(
+                request.latitude(),
+                request.longitude(),
+                request.x(),
+                request.y(),
+                request.locationNames() == null ? null : String.join(",", request.locationNames())
+            );
+        }
+
+        if (request.temperatureSensitivity() != null) {
+            profile.updateTemperatureSensitivity(request.temperatureSensitivity());
+        }
+
+        return userMapper.toProfileDto(user, profile);
     }
 
     private void validateDuplicateEmail(String email) {
