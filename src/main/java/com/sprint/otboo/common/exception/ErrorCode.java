@@ -57,7 +57,8 @@ public enum ErrorCode {
     WEATHER_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "외부 날씨/위치 제공자 오류가 발생했습니다."),
 
     // 504 Gateway Timeout
-    WEATHER_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "외부 제공자 응답 지연이 발생했습니다.");
+    WEATHER_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "외부 제공자 응답 지연이 발생했습니다."),
+    
     TOKEN_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "JWT 토큰 생성에 실패했습니다.");
 
 
