@@ -15,4 +15,6 @@ public interface ClothesRepository extends JpaRepository<Clothes, UUID>, Clothes
 
     List<Clothes> findAllByIdInAndUser_Id(Collection<UUID> ids, UUID userId);
 
+    List<Clothes> findByUser_Id(UUID userId);
+
 }
