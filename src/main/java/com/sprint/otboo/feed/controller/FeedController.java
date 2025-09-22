@@ -39,6 +39,7 @@ public class FeedController implements FeedApi {
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
+    @Override
     @PatchMapping("/{feedId}")
     public ResponseEntity<FeedDto> update(
         @PathVariable UUID feedId,
@@ -46,7 +47,11 @@ public class FeedController implements FeedApi {
         @Valid @RequestBody FeedUpdateRequest request
     ) {
         UUID authorId = principal.getUserId();
+        log.info("[FeedController] 피드 수정 요청: feedId={}, authorId={}", feedId, authorId);
+
         FeedDto dto = feedService.update(authorId, feedId, request);
+        log.info("[FeedController] 피드 수정 완료: feedId={}", dto.id());
+
         return ResponseEntity.status(HttpStatus.OK).body(dto);
     }
 }

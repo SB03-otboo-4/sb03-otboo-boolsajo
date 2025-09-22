@@ -77,6 +77,9 @@ public class FeedServiceImpl implements FeedService {
 
     @Override
     public FeedDto update(UUID authorId, UUID feedId, FeedUpdateRequest request) {
+        log.info("[FeedServiceImpl] 피드 수정 시작: authorId={}, feedId={}, newContent={}", authorId,
+            feedId, request.content());
+
         userRepository.findById(authorId)
             .orElseThrow(() -> UserNotFoundException.withId(authorId));
 
@@ -91,6 +94,8 @@ public class FeedServiceImpl implements FeedService {
         feed.updateContent(newContent);
 
         Feed saved = feedRepository.save(feed);
+        log.info("[FeedServiceImpl] 피드 수정 완료: newContent={}", saved.getContent());
+
         return feedMapper.toDto(saved);
     }
 

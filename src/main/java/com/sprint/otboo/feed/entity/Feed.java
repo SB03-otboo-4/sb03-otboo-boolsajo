@@ -15,6 +15,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -65,7 +66,7 @@ public class Feed extends BaseUpdatableEntity {
     public void updateContent(String content) {
         String newContent = content == null ? null : content.trim();
 
-        if (java.util.Objects.equals(this.content, newContent)) {
+        if (Objects.equals(this.content, newContent)) {
             return;
         }
         this.content = newContent;
