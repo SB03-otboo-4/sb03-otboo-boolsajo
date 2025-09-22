@@ -67,4 +67,8 @@ public class Feed extends BaseUpdatableEntity {
         FeedClothes link = FeedClothes.of(this, clothes);
         this.feedClothes.add(link);
     }
+
+    public void increaseLikeCount() {
+        this.likeCount = this.likeCount + 1;
+    }
 }

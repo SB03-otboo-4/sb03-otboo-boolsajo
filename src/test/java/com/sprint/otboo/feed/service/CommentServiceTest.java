@@ -14,9 +14,13 @@ import com.sprint.otboo.feed.mapper.CommentMapper;
 import com.sprint.otboo.feed.repository.CommentRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.feed.dto.data.CommentDto;
+import com.sprint.otboo.fixture.CommentFixture;
+import com.sprint.otboo.fixture.UserFixture;
+import com.sprint.otboo.fixture.FeedFixture;
 import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -53,24 +57,14 @@ public class CommentServiceTest {
             // Given
             UUID authorId = UUID.randomUUID();
             UUID feedId = UUID.randomUUID();
+            UUID commentId = UUID.randomUUID();
             String content = "첫 댓글";
 
-            User author = User.builder()
-                .id(authorId)
-                .username("홍길동")
-                .profileImageUrl("profile.png")
-                .build();
+            User author = UserFixture.create(authorId, "홍길동", "profile.png");
 
-            Feed feed = Feed.builder()
-                .id(feedId)
-                .build();
+            Feed feed = FeedFixture.createWithId(feedId);
 
-            Comment saved = Comment.builder()
-                .id(UUID.randomUUID())
-                .author(author)
-                .feed(feed)
-                .content(content)
-                .build();
+            Comment saved = CommentFixture.create(commentId, author, feed, "댓글", Instant.now());
 
             CommentDto expected = new CommentDto(
                 saved.getId(),
