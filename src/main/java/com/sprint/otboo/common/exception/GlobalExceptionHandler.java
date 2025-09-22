@@ -12,6 +12,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -171,6 +172,26 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(body);
+    }
+
+    @ExceptionHandler(MissingRequestCookieException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestCookieException(MissingRequestCookieException ex) {
+        log.warn("필수 쿠키 누락: {}", ex.getMessage());
+
+        ErrorCode errorCode = ErrorCode.REQUIRED_COOKIE_MISSING;
+
+        String message = String.format("필수 쿠키 '%s'가 요청에 포함되지 않았습니다.", ex.getCookieName());
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            errorCode.name(),
+            message,
+            new HashMap<>(),
+            ex.getClass().getSimpleName(),
+            errorCode.getStatus().value()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     /**

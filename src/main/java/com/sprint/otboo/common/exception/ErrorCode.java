@@ -11,6 +11,7 @@ public enum ErrorCode {
     SAME_PASSWORD(HttpStatus.BAD_REQUEST,"새로운 비밀번호가 기존 비밀번호와 동일합니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않은 메서드입니다."),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값 검증에 실패했습니다."),
+    REQUIRED_COOKIE_MISSING(HttpStatus.BAD_REQUEST, "필수 쿠키가 요청에 포함되지 않았습니다."),
 
     // 401 UNAUTHORIZED
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."),
