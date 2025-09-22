@@ -1,5 +1,8 @@
 package com.sprint.otboo.auth.service;
 
-public class AuthService {
+import com.sprint.otboo.auth.dto.JwtDto;
+import com.sprint.otboo.auth.dto.SignInRequest;
 
+public interface AuthService {
+    JwtDto signIn(SignInRequest request);
 }

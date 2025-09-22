@@ -23,3 +23,4 @@ public class WeatherException extends CustomException {
         return getMessage();
     }
 }
+

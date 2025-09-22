@@ -48,7 +48,7 @@ public class WeatherLocation {
 
     @Column(name = "location_names", nullable = false, length = 255)
     private String locationNames;
-
+    
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

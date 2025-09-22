@@ -37,3 +37,6 @@ src/main/generated
 
 ### VS Code ###
 .vscode/
+
+### Configuration Files ###
+src/main/resources/application-dev.yaml
