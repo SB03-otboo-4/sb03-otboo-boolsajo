@@ -13,6 +13,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
+import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
