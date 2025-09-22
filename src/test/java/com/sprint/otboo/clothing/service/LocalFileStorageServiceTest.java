@@ -9,8 +9,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.sprint.otboo.clothing.exception.FileStorageException;
-import com.sprint.otboo.clothing.storage.LocalFileStorageService;
+import com.sprint.otboo.common.storage.LocalFileStorageService;
+import com.sprint.otboo.common.storage.StorageException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -125,8 +125,8 @@ public class LocalFileStorageServiceTest {
 
         // when & then
         assertThatThrownBy(() -> fileStorageService.upload(file))
-            .isInstanceOf(FileStorageException.class)
-            .hasMessageContaining("파일 업로드 실패");
+            .isInstanceOf(StorageException.class)
+            .hasMessageContaining("파일 업로드에 실패했습니다.");
     }
 
 }

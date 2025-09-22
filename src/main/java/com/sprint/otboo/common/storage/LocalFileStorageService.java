@@ -3,6 +3,7 @@ package com.sprint.otboo.common.storage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,10 +55,12 @@ public class LocalFileStorageService implements FileStorageService{
     }
 
     /**
-     * 업로드 디렉터리가 존재하지 않으면 생성
+     * 업로드 디렉터리가 존재하지 않으면 생성 - 절대 경로로 고정
      * */
     private Path ensureUploadDirExists() throws IOException {
-        Path dir = Path.of(uploadDir);
+        Path dir = Paths.get(uploadDir)
+            .toAbsolutePath()
+            .normalize();
         if (!Files.exists(dir)) {
             Files.createDirectories(dir);
         }
