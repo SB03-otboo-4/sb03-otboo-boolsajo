@@ -30,6 +30,21 @@ public class WeatherFixture {
             .createdAt(now)
             .build();
     }
+  
+    public static Weather createWeatherWithDefault(WeatherLocation location, SkyStatus skyStatus,
+        PrecipitationType type, Instant base) {
+        return Weather.builder()
+            .location(location)
+            .forecastAt(base)
+            .forecastedAt(base)
+            .skyStatus(skyStatus)
+            .asWord(DEFAULT_AS_WORD)
+            .type(type)
+            .currentC(DEFAULT_CURRENT_C)
+            .probability(DEFAULT_PROB)
+            .createdAt(base)
+            .build();
+    }
 
     public static Weather create(UUID id) {
         return Weather.builder()

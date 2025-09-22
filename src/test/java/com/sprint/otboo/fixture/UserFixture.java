@@ -21,6 +21,16 @@ public class UserFixture {
             .build();
     }
 
+    public static User createUserWithEmail(String email) {
+        return User.builder()
+            .email(email)
+            .username(DEFAULT_NAME)
+            .role(Role.USER)
+            .profileImageUrl("profile.png")
+            .createdAt(Instant.now())
+            .build();
+    }
+
     public static User create(UUID id, String username, String profileImageUrl) {
         return User.builder()
             .id(id)

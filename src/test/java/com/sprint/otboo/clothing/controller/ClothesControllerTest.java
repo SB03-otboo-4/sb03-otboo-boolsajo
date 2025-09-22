@@ -167,8 +167,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].name").value("재킷"))
-            .andExpect(jsonPath("$.content[1].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].name").value("재킷"))
+            .andExpect(jsonPath("$.data[1].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(2))
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
@@ -208,8 +208,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].type").value("TOP"))
-            .andExpect(jsonPath("$.content[0].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].type").value("TOP"))
+            .andExpect(jsonPath("$.data[0].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(1));
     }
@@ -254,8 +254,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].name").value("재킷"))
-            .andExpect(jsonPath("$.content[1].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].name").value("재킷"))
+            .andExpect(jsonPath("$.data[1].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(2))
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
@@ -295,8 +295,8 @@ public class ClothesControllerTest {
         // then: 응답 검증
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.content[0].type").value("TOP"))
-            .andExpect(jsonPath("$.content[0].name").value("티셔츠"))
+            .andExpect(jsonPath("$.data[0].type").value("TOP"))
+            .andExpect(jsonPath("$.data[0].name").value("티셔츠"))
             .andExpect(jsonPath("$.hasNext").value(false))
             .andExpect(jsonPath("$.totalCount").value(1));
     }
