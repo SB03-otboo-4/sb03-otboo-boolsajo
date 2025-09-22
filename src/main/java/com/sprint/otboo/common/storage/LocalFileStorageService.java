@@ -5,10 +5,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+@ConditionalOnProperty(name = "storage.local.enabled", havingValue = "true", matchIfMissing = true)
 public class LocalFileStorageService implements FileStorageService{
 
     private final String uploadDir;
@@ -42,15 +44,21 @@ public class LocalFileStorageService implements FileStorageService{
     /**
      * URL에 해당하는 파일을 삭제
      * */
+    @Override
     public void delete(String url) {
         if (url == null  || url.isBlank()) {
             return;
         }
 
+        if (!url.startsWith(baseUrl)) {
+            return;
+        }
+
         try {
-            Files.deleteIfExists(extractPathFromUrl(url));
+            Path filePath = extractPathFromUrl(url);
+            Files.deleteIfExists(filePath);
         } catch (IOException e) {
-            throw new StorageException("파일 삭제에 실패했습니다 : " + url, e);
+            throw new StorageException("파일 삭제에 실패했습니다: " + url, e);
         }
     }
 
