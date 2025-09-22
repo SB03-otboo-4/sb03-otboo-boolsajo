@@ -10,6 +10,7 @@ import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -24,6 +25,7 @@ import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
@@ -43,6 +45,7 @@ import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -174,6 +177,26 @@ public class UserControllerTest {
             role,
             LoginType.GENERAL,
             locked
+        );
+    }
+
+    private MockMultipartFile createProfileUpdatePart() throws Exception {
+        ProfileUpdateRequest request = new ProfileUpdateRequest(
+            "updatedName",
+            "FEMALE",
+            LocalDate.of(1998,9,21),
+            new BigDecimal("37.5253652"),
+            new BigDecimal("126.6849254"),
+            55,
+            126,
+            List.of("인천광역시","서구","가정2동"),
+            5
+        );
+        return new MockMultipartFile(
+            "request",
+            "request.json",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(request)
         );
     }
 
@@ -738,5 +761,60 @@ public class UserControllerTest {
             .andExpect(res -> assertThat(res.getResolvedException())
                 .isInstanceOf(ConstraintViolationException.class));
         verifyNoInteractions(userService);
+    }
+
+    @Test
+    @WithMockUser
+    void 프로필_업데이트_성공() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        ProfileDto profileDto = createCompleteProfileDto(userId);
+        given(userService.updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class),any()))
+            .willReturn(profileDto);
+
+        MockMultipartFile requestPart = createProfileUpdatePart();
+        MockMultipartFile imagePart = new MockMultipartFile(
+            "image", "profile.png", "image/png", "fake".getBytes()
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+            multipart("/api/users/{userId}/profiles",userId)
+                .file(requestPart)
+                .file(imagePart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isOk())
+            .andExpect(jsonPath("$.userId").value(profileDto.userId().toString()))
+            .andExpect(jsonPath("$.name").value(profileDto.name()))
+            .andExpect(jsonPath("$.temperatureSensitivity").value(profileDto.temperatureSensitivity()));
+        then(userService).should().updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class), any());
+    }
+
+    @Test
+    @WithMockUser
+    void 프로필_업데이트_실패_서비스_예외_전파() throws Exception {
+       // given
+       UUID userId = UUID.randomUUID();
+       CustomException exception = new CustomException(ErrorCode.USER_NOT_FOUND);
+       given(userService.updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class), any()))
+           .willThrow(exception);
+
+       MockMultipartFile requestPart = createProfileUpdatePart();
+
+       // when
+        ResultActions result = mockMvc.perform(
+            multipart("/api/users/{userId}/profiles",userId)
+                .file(requestPart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+        );
+
+        // then
+        result.andExpect(status().isNotFound());
+        then(userService).should().updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class), any());
     }
 }
