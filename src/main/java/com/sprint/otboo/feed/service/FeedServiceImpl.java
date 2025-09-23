@@ -14,7 +14,6 @@ import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.entity.Feed;
-import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
@@ -27,7 +26,6 @@ import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -170,23 +168,6 @@ public class FeedServiceImpl implements FeedService {
             sortBy,
             sortDirection
         );
-    }
-
-
-    @Transactional
-    @Override
-    public void addLike(UUID feedId, UUID userId) {
-        Feed feed = feedRepository.findById(feedId)
-            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> UserNotFoundException.withId(userId));
-
-        try {
-            feedLikeRepository.save(FeedLike.builder().feed(feed).user(user).build());
-            feed.increaseLikeCount();
-        } catch (DataIntegrityViolationException e) {
-            log.debug("[FeedServiceImpl] feedLike가 이미 존재함: feedId={}, userId={}", feedId, userId);
-        }
     }
 
     private void validatePaging(int limit, String sortBy, String sortDirection) {
