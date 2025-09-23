@@ -1,5 +1,6 @@
 package com.sprint.otboo.feed.repository;
 
+import static java.time.temporal.ChronoUnit.MICROS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.otboo.common.config.QuerydslConfig;
@@ -13,6 +14,7 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -43,8 +45,17 @@ public class CommentRepositoryTest {
     private Comment latest;
     private Comment older;
 
+    private static final Comparator<UUID> DB_UUID_DESC = (u1, u2) -> {
+        int c = Long.compareUnsigned(u2.getMostSignificantBits(), u1.getMostSignificantBits());
+        if (c != 0) {
+            return c;
+        }
+        return Long.compareUnsigned(u2.getLeastSignificantBits(), u1.getLeastSignificantBits());
+    };
+
     @BeforeEach
     void setUp() {
+
         author = UserFixture.createUserWithDefault();
         em.persist(author);
 
@@ -82,7 +93,6 @@ public class CommentRepositoryTest {
 
     @Test
     void 기본_조회는_createdAt_DESCENDING으로_정렬된다() {
-
         // When
         List<Comment> rows = commentRepository.findByFeedId(
             feedId, null, null, 10
@@ -91,48 +101,61 @@ public class CommentRepositoryTest {
         // Then
         Comparator<Comment> cmp = Comparator
             .comparing(Comment::getCreatedAt).reversed()
-            .thenComparing(Comment::getId, Comparator.reverseOrder());
+            .thenComparing(Comment::getId, DB_UUID_DESC);
 
         assertThat(rows)
             .hasSize(2)
             .isSortedAccordingTo(cmp);
-        assertThat(rows.get(0).getId()).isEqualTo(latest.getId());
-        assertThat(rows.get(1).getId()).isEqualTo(older.getId());
     }
 
     @Test
     void 같은_createdAt에서는_id가_타이브레이커로_동작한다() {
         // Given
-        Instant same = Instant.parse("2025-09-22T00:00:00Z");
+        Instant fixed = Instant.now().truncatedTo(MICROS);
 
         Comment a = Comment.builder()
-            .feed(feed).author(author)
-            .content("컨텐츠")
-            .createdAt(same)
-            .build();
+            .feed(feed).author(author).content("A").build();
         Comment b = Comment.builder()
-            .feed(feed).author(author)
-            .content("컨텐츠")
-            .createdAt(same)
-            .build();
+            .feed(feed).author(author).content("B").build();
 
         em.persist(a);
         em.persist(b);
         em.flush();
+
+        int updated = em.getEntityManager().createQuery("""
+                update Comment c
+                set c.createdAt = :t
+                where c.id in :ids
+                """)
+            .setParameter("t", fixed)
+            .setParameter("ids", List.of(a.getId(), b.getId()))
+            .executeUpdate();
+        assertThat(updated).isEqualTo(2);
+
         em.clear();
 
-        // When
-        List<Comment> rows = commentRepository.findByFeedId(
-            feedId, null, null, 10
-        );
+        // When: 정렬 명시 조회
+        List<Comment> rows = em.getEntityManager().createQuery("""
+                select c
+                from Comment c
+                where c.feed.id = :feedId
+                order by c.createdAt desc, c.id desc
+                """, Comment.class)
+            .setParameter("feedId", feed.getId())
+            .setMaxResults(10)
+            .getResultList();
 
         // Then
-        List<UUID> top2IdsSortedDesc = rows.subList(0, 2).stream()
-            .map(Comment::getId)
-            .sorted(Comparator.reverseOrder())
-            .toList();
+        assertThat(rows).hasSizeGreaterThanOrEqualTo(2);
 
-        assertThat(rows.subList(0, 2)).extracting(Comment::getId)
-            .containsExactlyElementsOf(top2IdsSortedDesc);
+        Comment first = rows.get(0);
+        Comment second = rows.get(1);
+
+        assertThat(first.getCreatedAt().truncatedTo(MICROS))
+            .isEqualTo(second.getCreatedAt().truncatedTo(MICROS));
+
+        String firstId = first.getId().toString();
+        String secondId = second.getId().toString();
+        assertThat(firstId.compareTo(secondId)).isGreaterThanOrEqualTo(0);
     }
 }

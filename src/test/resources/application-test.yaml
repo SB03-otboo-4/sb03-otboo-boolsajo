@@ -3,7 +3,7 @@ spring:
     console:
       enabled: true
   datasource:
-    url: jdbc:h2:mem:testdb-${random.uuid};MODE=PostgreSQL;
+    url: jdbc:h2:mem:testdb-${random.uuid};MODE=PostgreSQL;NON_KEYWORDS=VALUE
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -19,6 +19,7 @@ spring:
     show-sql: true
     properties:
       hibernate:
+        auto_quote_keyword: true
         format_sql: true
         jdbc:
           time_zone: UTC
@@ -28,3 +29,8 @@ logging:
     org.hibernate.SQL: info
     org.hibernate.type.descriptor.sql.BasicBinder: trace
     root: info
+
+kakao:
+  api:
+    base-url: http://localhost
+    rest-api-key: test-key

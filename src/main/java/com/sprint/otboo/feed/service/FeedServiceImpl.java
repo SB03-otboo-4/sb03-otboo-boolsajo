@@ -2,23 +2,32 @@ package com.sprint.otboo.feed.service;
 
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
+import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.clothing.UserClothesNotFoundException;
-import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
+import com.sprint.otboo.common.exception.paging.InvalidPagingParamException;
+import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.mapper.FeedMapper;
+import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.weather.entity.PrecipitationType;
+import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +44,12 @@ public class FeedServiceImpl implements FeedService {
     private final UserRepository userRepository;
     private final WeatherRepository weatherRepository;
     private final ClothesRepository clothesRepository;
+    private final FeedLikeRepository feedLikeRepository;
     private final FeedMapper feedMapper;
+
+    private static final int MAX_LIMIT = 15;
+    private static final Set<String> ALLOWED_SORT_BY = Set.of("createdAt", "likeCount");
+    private static final Set<String> ALLOWED_SORT_DIR = Set.of("ASCENDING", "DESCENDING");
 
     @Override
     @Transactional
@@ -99,6 +113,94 @@ public class FeedServiceImpl implements FeedService {
         return feedMapper.toDto(saved);
     }
 
+    public CursorPageResponse<FeedDto> getFeeds(
+        String cursor,
+        UUID idAfter,
+        int limit,
+        String sortBy,
+        String sortDirection,
+        String keywordLike,
+        SkyStatus skyStatus,
+        PrecipitationType precipitationType,
+        UUID authorId
+    ) {
+
+        log.info(
+            "[FeedService] getFeeds in: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, keyword={}, skyStatus={}, precipitationType={}, authorId={}",
+            cursor, idAfter, limit, sortBy, sortDirection,
+            keywordLike,
+            skyStatus, precipitationType, authorId
+        );
+        validatePaging(limit, sortBy, sortDirection);
+
+        List<Feed> rows = feedRepository.searchByKeyword(
+            cursor,
+            idAfter,
+            limit,
+            sortBy,
+            sortDirection,
+            keywordLike,
+            skyStatus,
+            precipitationType,
+            authorId
+        );
+        boolean hasNext = rows.size() > limit;
+        if (hasNext) {
+            rows = rows.subList(0, limit);
+        }
+
+        List<FeedDto> feedDtos = rows.stream().map(feedMapper::toDto).toList();
+
+        PageCursor pageCursor = buildNextCursor(rows, hasNext, sortBy);
+        log.info("[FeedService] nextCursor built: cursor={}, idAfter={}",
+            pageCursor.cursor(), pageCursor.idAfter()
+        );
+
+        long total = feedRepository.countByFilters(keywordLike, skyStatus, precipitationType,
+            authorId);
+
+        log.debug("[FeedService] total count: {}", total);
+
+        return new CursorPageResponse<>(
+            feedDtos,
+            pageCursor.cursor(),
+            pageCursor.idAfter(),
+            hasNext,
+            total,
+            sortBy,
+            sortDirection
+        );
+    }
+
+
+    @Transactional
+    @Override
+    public void addLike(UUID feedId, UUID userId) {
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> UserNotFoundException.withId(userId));
+
+        try {
+            feedLikeRepository.save(FeedLike.builder().feed(feed).user(user).build());
+            feed.increaseLikeCount();
+        } catch (DataIntegrityViolationException e) {
+            log.debug("[FeedServiceImpl] feedLike가 이미 존재함: feedId={}, userId={}", feedId, userId);
+        }
+    }
+
+    private void validatePaging(int limit, String sortBy, String sortDirection) {
+        if (limit <= 0 || limit > MAX_LIMIT) {
+            throw new InvalidPagingParamException(ErrorCode.INVALID_PAGING_LIMIT);
+        }
+        if (sortBy == null || !ALLOWED_SORT_BY.contains(sortBy)) {
+            throw new InvalidPagingParamException(ErrorCode.INVALID_SORT_BY);
+        }
+        if (sortDirection == null || !ALLOWED_SORT_DIR.contains(sortDirection)) {
+            throw new InvalidPagingParamException(ErrorCode.INVALID_SORT_DIRECTION);
+        }
+    }
+
     private Set<UUID> distinctIdSet(List<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return Collections.emptySet();
@@ -125,6 +227,37 @@ public class FeedServiceImpl implements FeedService {
         for (Clothes c : clothesList) {
             saved.addClothes(c);
             log.debug("[FeedServiceImpl] FeedClothes 엔티티 추가 완료: feedId={}", saved.getId());
+        }
+    }
+
+    private PageCursor buildNextCursor(List<Feed> rows, boolean hasNext, String sortBy) {
+        if (!hasNext || rows.isEmpty()) {
+            return PageCursor.empty();
+        }
+
+        Feed last = rows.get(rows.size() - 1);
+
+        String key;
+        if ("likeCount".equalsIgnoreCase(sortBy)) {
+            Long lc = last.getLikeCount();
+            key = String.valueOf(lc);
+        } else {
+            Instant at = last.getCreatedAt();
+            key = (at == null ? "0" : at.toString());
+        }
+
+        String nextCursor = key;
+        String nextIdAfter = last.getId().toString();
+
+        log.info("[FeedService] paging lastId={}, nextCursor={}", last.getId(), nextCursor);
+
+        return new PageCursor(nextCursor, nextIdAfter);
+    }
+
+    private record PageCursor(String cursor, String idAfter) {
+
+        static PageCursor empty() {
+            return new PageCursor(null, null);
         }
     }
 }

@@ -5,11 +5,22 @@ import com.sprint.otboo.common.exception.ErrorCode;
 
 public class WeatherException extends CustomException {
 
-    public WeatherException(ErrorCode errorCode) {
+    protected WeatherException(ErrorCode errorCode) {
         super(errorCode);
     }
 
-    public WeatherException(ErrorCode errorCode, Throwable cause) {
+    protected WeatherException(ErrorCode errorCode, Throwable cause) {
         super(errorCode, cause);
     }
+
+    @Override
+    public String getMessage() {
+        return getErrorCode().name() + " " + super.getMessage();
+    }
+
+    @Override
+    public String getLocalizedMessage() {
+        return getMessage();
+    }
 }
+

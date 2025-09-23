@@ -8,23 +8,28 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sprint.otboo.auth.CustomAuthenticationEntryPoint;
-import com.sprint.otboo.auth.dto.JwtDto;
+import com.sprint.otboo.auth.dto.AuthResultDto;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
+import com.sprint.otboo.auth.jwt.RefreshTokenCookieUtil;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.auth.service.AuthService;
 import com.sprint.otboo.common.config.SecurityConfig;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
+import com.sprint.otboo.common.exception.auth.InvalidTokenException;
+import com.sprint.otboo.common.exception.auth.TokenExpiredException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
@@ -44,7 +49,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(controllers = AuthController.class)
-@Import({SecurityConfig.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, GlobalExceptionHandler.class, RefreshTokenCookieUtil.class})
 @WithAnonymousUser
 @AutoConfigureMockMvc(addFilters = true)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -92,10 +97,16 @@ public class AuthControllerTest {
 
     @Test
     void 로그인_성공_CSRF_보호_미적용() throws Exception {
+        //given
+        UserDto userDto = new UserDto(UUID.randomUUID(), Instant.now(), "test@abc.com", "t1", Role.USER, LoginType.GENERAL, false);
+        AuthResultDto authResult = new AuthResultDto(userDto, "access.jwt.token", "refresh.jwt.token");
+        given(authService.signIn(any(SignInRequest.class))).willReturn(authResult);
+
         // when
         ResultActions resultActions = mockMvc.perform(multipart("/api/auth/sign-in")
             .param("username", "test@abc.com")
-            .param("password", "1234"));
+            .param("password", "1234")
+            .accept(MediaType.APPLICATION_JSON));
 
         // then
         resultActions.andExpect(status().isOk());
@@ -116,9 +127,9 @@ public class AuthControllerTest {
             false
         );
 
-        JwtDto jwt = new JwtDto(userDto, "access.jwt.token");
+        AuthResultDto authResult = new AuthResultDto(userDto, "access.jwt.token", "refresh.jwt.token");
 
-        given(authService.signIn(any(SignInRequest.class))).willReturn(jwt);
+        given(authService.signIn(any(SignInRequest.class))).willReturn(authResult);
 
         // when
         ResultActions resultActions = mockMvc.perform(multipart("/api/auth/sign-in")
@@ -134,6 +145,10 @@ public class AuthControllerTest {
             .andExpect(jsonPath("$.userDto.email").value("test@abc.com"))
             .andExpect(jsonPath("$.userDto.name").value("t1"))
             .andExpect(jsonPath("$.userDto.role").value("USER"));
+
+        resultActions.andExpect(cookie().exists("REFRESH_TOKEN"))
+            .andExpect(cookie().httpOnly("REFRESH_TOKEN", true))
+            .andExpect(cookie().value("REFRESH_TOKEN", "refresh.jwt.token"));
     }
 
     @Test
@@ -182,6 +197,78 @@ public class AuthControllerTest {
 
         // then
         resultActions.andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
+    void 토큰재발급_성공() throws Exception {
+        // given
+        String refreshToken = "valid.refresh.jwt.token";
+        UUID userId = UUID.randomUUID();
+        UserDto newUserDto = new UserDto(userId, Instant.now(), "test@abc.com", "t1", Role.USER, LoginType.GENERAL, false);
+        AuthResultDto authResult = new AuthResultDto(newUserDto, "new.access.jwt.token", "new.refresh.token");
+
+        given(authService.reissueToken(refreshToken)).willReturn(authResult);
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/refresh")
+            .with(csrf())
+            .cookie(new Cookie("REFRESH_TOKEN", refreshToken))
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken").value("new.access.jwt.token"))
+            .andExpect(jsonPath("$.userDto.id").value(userId.toString()));
+
+        resultActions.andExpect(cookie().exists("REFRESH_TOKEN"))
+            .andExpect(cookie().httpOnly("REFRESH_TOKEN", true))
+            .andExpect(cookie().path("REFRESH_TOKEN", "/api/auth/refresh"));
+    }
+
+    @Test
+    void 토큰재발급_실패_유효하지않은_토큰() throws Exception {
+        // given
+        String invalidRefreshToken = "invalid.refresh.jwt.token";
+
+        given(authService.reissueToken(invalidRefreshToken)).willThrow(new InvalidTokenException());
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/refresh")
+            .with(csrf())
+            .cookie(new Cookie("REFRESH_TOKEN", invalidRefreshToken))
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 토큰재발급_실패_쿠키가_없는_경우() throws Exception {
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/refresh")
+            .with(csrf())
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 토큰재발급_실패_만료된_토큰() throws Exception {
+        // given
+        String expiredRefreshToken = "expired.refresh.jwt.token";
+
+        given(authService.reissueToken(expiredRefreshToken))
+            .willThrow(new TokenExpiredException());
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/refresh")
+            .with(csrf())
+            .cookie(new Cookie("REFRESH_TOKEN", expiredRefreshToken))
+            .accept(MediaType.APPLICATION_JSON));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
     }
 
 }

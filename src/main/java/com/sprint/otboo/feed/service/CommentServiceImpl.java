@@ -33,7 +33,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public CommentDto create(UUID authorId, UUID feedId, String content) {
-        log.debug("[CommentServiceImpl] 댓글 생성 시작: authorId={}, feedId={}, content={}",
+        log.debug("[CommentServiceImpl] 댓글 생성 시작: authorId={}, feedId={}, data={}",
             authorId, feedId, content);
         User author = userRepository.findById(authorId)
             .orElseThrow(() -> UserNotFoundException.withId(authorId));
