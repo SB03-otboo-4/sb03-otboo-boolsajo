@@ -21,10 +21,13 @@ import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.repository.query.UserQueryRepository;
 import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.UserService;
+import com.sprint.otboo.user.service.support.AsyncProfileImageUploader;
+import com.sprint.otboo.user.service.support.ProfileImageUploadTask;
 import com.sprint.otboo.user.service.support.UserListEnums.SortBy;
 import com.sprint.otboo.user.service.support.UserListEnums.SortDirection;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.service.WeatherLocationQueryService;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -49,6 +52,7 @@ public class UserServiceImpl implements UserService {
     private final UserQueryRepository userQueryRepository;
     private final FileStorageService fileStorageService;
     private final WeatherLocationQueryService weatherLocationQueryService;
+    private final AsyncProfileImageUploader asyncProfileImageUploader;
 
     public UserServiceImpl(
         UserRepository userRepository,
@@ -57,7 +61,8 @@ public class UserServiceImpl implements UserService {
         UserMapper userMapper,
         UserQueryRepository userQueryRepository,
         @Qualifier("profileImageStorageService") FileStorageService fileStorageService,
-        WeatherLocationQueryService weatherLocationQueryService
+        WeatherLocationQueryService weatherLocationQueryService,
+        AsyncProfileImageUploader asyncProfileImageUploader
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
@@ -66,6 +71,7 @@ public class UserServiceImpl implements UserService {
         this.userQueryRepository = userQueryRepository;
         this.fileStorageService = fileStorageService;
         this.weatherLocationQueryService = weatherLocationQueryService;
+        this.asyncProfileImageUploader = asyncProfileImageUploader;
     }
 
     @Override
@@ -235,6 +241,21 @@ public class UserServiceImpl implements UserService {
 
         if (request.temperatureSensitivity() != null) {
             profile.updateTemperatureSensitivity(request.temperatureSensitivity());
+        }
+
+        if (image != null && !image.isEmpty()) {
+            try {
+                ProfileImageUploadTask task = new ProfileImageUploadTask(
+                    userId,
+                    image.getOriginalFilename(),
+                    image.getContentType(),
+                    image.getBytes()
+                );
+                asyncProfileImageUploader.upload(task);
+            } catch (IOException ex) {
+                log.error("[UserServiceImpl] 이미지 데이터를 읽는 중 오류 userId={}", userId, ex);
+                throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED, ex);
+            }
         }
 
         return userMapper.toProfileDto(user, profile);

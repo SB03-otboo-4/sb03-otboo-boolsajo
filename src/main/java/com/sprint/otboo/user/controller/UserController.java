@@ -2,6 +2,9 @@ package com.sprint.otboo.user.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.storage.InMemoryMultipartFile;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
@@ -13,6 +16,7 @@ import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import java.io.IOException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -142,7 +146,20 @@ public class UserController {
     ) {
         verifyProfileOwnerOrAdmin(userId, currentUser);
 
-        ProfileDto profileDto = userService.updateUserProfile(userId, request, image);
+        MultipartFile imageCopy = null;
+        if (image != null && !image.isEmpty()) {
+            try {
+                imageCopy = new InMemoryMultipartFile(
+                    image.getOriginalFilename(),
+                    image.getContentType(),
+                    image.getBytes()
+                );
+            } catch (IOException ex) {
+                throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED, ex);
+            }
+        }
+
+        ProfileDto profileDto = userService.updateUserProfile(userId, request, imageCopy);
         return ResponseEntity.ok(profileDto);
     }
 
