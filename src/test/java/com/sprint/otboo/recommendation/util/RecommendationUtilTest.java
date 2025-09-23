@@ -438,6 +438,188 @@ public class RecommendationUtilTest {
     }
 
     @Test
+    void OUTER_규칙_테스트_일교차_풍속_구름많음() {
+        // given: OUTER 의상과 날씨
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null, null, "MEDIUM")
+            ))
+            .build();
+
+        List<Clothes> userClothes = List.of(outer);
+
+        Weather weather = Weather.builder()
+            .maxC(15.0)
+            .minC(10.0)    // 일교차 5
+            .speedMs(3.5)  // 풍속 >= 3
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 알고리즘 실행
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 외투가 추천 목록에 포함되어야 함 (OUTER 규칙)
+        assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void 외투_추천_가을_HIGH_MEDIUM() {
+        // given: FALL HIGH 체감온도용 OUTER 의상
+        Clothes outer = Clothes.builder()
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "MEDIUM"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "FALL")
+            ))
+            .build();
+
+        List<Clothes> userClothes = List.of(outer);
+
+        Weather weather = Weather.builder()
+            .maxC(18.0)  // FALL HIGH 체감온도 범위
+            .minC(16.0)
+            .speedMs(1.0) // 강제 추천 조건 아님
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        // when: 체감 온도 계산 및 추천
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 1.0, 0
+        );
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 기본 추천 규칙 통과 확인
+        assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void 외투_추천_스프링_HIGH_MEDIUM_기본추천() {
+        // given: OUTER 의상
+        Clothes outer = Clothes.builder()
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "MEDIUM"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "SPRING")
+            ))
+            .build();
+
+        List<Clothes> userClothes = List.of(outer);
+
+        Weather weather = Weather.builder()
+            .maxC(20.0)  // SPRING HIGH
+            .minC(18.0)
+            .speedMs(1.0) // 강제 추천 조건 X
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        // when
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 1.0, 0
+        );
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 기본 추천 규칙 통과 확인
+        assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void HAT_규칙_테스트_봄_HIGH_맑은날() {
+        // given: HAT 의상과 봄 HIGH 날씨 정보
+        Clothes hat = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.HAT)
+            .build();
+
+        List<Clothes> userClothes = List.of(hat);
+
+        Weather weather = Weather.builder()
+            .maxC(20.0)
+            .minC(15.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = 19.0; // 봄 HIGH 구간
+
+        // when: 추천 알고리즘 실행
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: HAT 규칙에 따라 추천되어야 함
+        assertThat(recommended).contains(hat);
+    }
+
+    @Test
+    void SCARF_규칙_테스트_겨울_LOW_눈오는날() {
+        // given: SCARF 의상과 겨울 LOW 날씨 정보
+        Clothes scarf = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.SCARF)
+            .attributes(List.of(
+                ClothesAttribute.create(null, null, "HEAVY")
+            ))
+            .build();
+
+        List<Clothes> userClothes = List.of(scarf);
+
+        Weather weather = Weather.builder()
+            .maxC(-1.0)
+            .minC(-5.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.SNOW)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 알고리즘 실행
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: SCARF 규칙에 따라 추천되어야 함
+        assertThat(recommended).contains(scarf);
+    }
+
+    @Test
+    void OUTER_HAT_SCARF_통합_추천_테스트() {
+        // given: OUTER, HAT, SCARF 의상과 겨울 날씨 정보
+        Clothes outer = Clothes.builder().id(UUID.randomUUID()).type(ClothesType.OUTER).build();
+        Clothes hat = Clothes.builder().id(UUID.randomUUID()).type(ClothesType.HAT).build();
+        Clothes scarf = Clothes.builder().id(UUID.randomUUID()).type(ClothesType.SCARF).build();
+
+        List<Clothes> userClothes = List.of(outer, hat, scarf);
+
+        // 날씨: 겨울 LOW, 눈 + 구름
+        Weather weather = Weather.builder()
+            .maxC(-1.0)
+            .minC(-4.0)
+            .speedMs(3.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.SNOW)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 알고리즘 실행
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+
+        // then: 모든 타입이 규칙에 따라 추천되어야 함
+        assertThat(recommended).containsExactlyInAnyOrder(outer, hat, scarf);
+    }
+
+    @Test
     void 모든타입_추천_및_제외_통합_첫번째선택() {
         // given: 의상 타입별 테스트용 의상 생성
         Clothes topSpring = Clothes.builder()

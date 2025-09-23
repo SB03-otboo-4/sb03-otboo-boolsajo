@@ -43,4 +43,15 @@ public class ClothesAttributeDef extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "definition", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ClothesAttribute> attributes = new ArrayList<>();
+
+    /**
+     * 의상 속성 정의 정보 업데이트
+     *
+     * @param name 새로운 속성 이름
+     * @param selectValues 새로운 선택값 문자열
+     */
+    public void update(String name, String selectValues) {
+        this.name = name;
+        this.selectValues = selectValues;
+    }
 }
