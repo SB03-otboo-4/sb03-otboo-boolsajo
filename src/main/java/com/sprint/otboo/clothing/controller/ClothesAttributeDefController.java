@@ -4,23 +4,27 @@ import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 의상 속성 정의 API 컨트롤러
  *
- * <p>ADMIN 권한만 접근 가능하며, 의상 속성 정의 생성/수정/삭제 기능 제공.
+ * <p>ADMIN 권한만 접근 가능하며, 의상 속성 정의 생성/수정/삭제 기능 제공,
+ * 속성 조회는 공용 기능
  */
 @Slf4j
 @RestController
@@ -67,5 +71,29 @@ public class ClothesAttributeDefController {
         log.info("의상 속성 정의 수정 완료 - id: {}, updated name: {}, updated values: {}",
             updatedDto.id(), updatedDto.name(), updatedDto.selectableValues());
         return ResponseEntity.ok(updatedDto);
+    }
+
+    /**
+     * 의상 속성 정의 목록 조회
+     *
+     * @param sortBy 정렬 기준 ("name" 또는 "createdAt")
+     * @param sortDirection 정렬 방향 ("ASCENDING" 또는 "DESCENDING")
+     * @param keywordLike 이름 검색 키워드 (옵션)
+     * @return 의상 속성 정의 DTO 리스트
+     */
+    @GetMapping
+    public ResponseEntity<List<ClothesAttributeDefDto>> listAttributeDefs(
+        @RequestParam String sortBy,
+        @RequestParam String sortDirection,
+        @RequestParam(required = false) String keywordLike
+    ) {
+        // 요청 파라미터 로깅
+        log.info("의상 속성 정의 목록 조회 요청 - sortBy: {}, sortDirection: {}, keywordLike: {}",
+            sortBy, sortDirection, keywordLike);
+
+        List<ClothesAttributeDefDto> result = clothesAttributeDefService.listAttributeDefs(sortBy, sortDirection, keywordLike);
+        log.info("조회 완료 - 결과 개수: {}", result.size());
+
+        return ResponseEntity.ok(result);
     }
 }
