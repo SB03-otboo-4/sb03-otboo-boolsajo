@@ -88,7 +88,7 @@ public class AuthServiceImpl implements AuthService{
     }
 
     @Override
-    public void signOut(String refreshToken) {
-
+    public void signOut(String refreshToken) throws ParseException {
+        tokenProvider.validateRefreshToken(refreshToken);
     }
 }

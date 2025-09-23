@@ -68,8 +68,11 @@ public class AuthController {
     }
 
     @PostMapping("/sign-out")
-    public ResponseEntity<Void> SignOut(@CookieValue("REFRESH_TOKEN") String refreshToken, HttpServletResponse response) {
+    public ResponseEntity<Void> SignOut(@CookieValue("REFRESH_TOKEN") String refreshToken, HttpServletResponse response)
+        throws ParseException {
         authService.signOut(refreshToken);
+
+        response.addCookie(cookieUtil.createExpiredCookie());
 
         return ResponseEntity
             .status(HttpStatus.NO_CONTENT)

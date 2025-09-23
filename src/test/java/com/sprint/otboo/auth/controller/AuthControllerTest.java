@@ -223,7 +223,7 @@ public class AuthControllerTest {
 
         resultActions.andExpect(cookie().exists("REFRESH_TOKEN"))
             .andExpect(cookie().httpOnly("REFRESH_TOKEN", true))
-            .andExpect(cookie().path("REFRESH_TOKEN", "/api/auth/refresh"));
+            .andExpect(cookie().path("REFRESH_TOKEN", "/"));
     }
 
     @Test
