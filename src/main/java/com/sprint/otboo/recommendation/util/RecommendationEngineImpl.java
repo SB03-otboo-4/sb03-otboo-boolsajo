@@ -188,7 +188,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
             case OUTER -> matchesOuterRule(season, category, weather);
             case HAT -> matchesHatRule(season, category, weather);
             case SCARF -> matchesScarfRule(season, category, weather);
-            default -> true; // TOP, BOTTOM, UNDERWEAR, ACCESSORY, SHOES, SOCKS, ETC 등 기본 추천
+            default -> true; // TOP, BOTTOM, DRESS, UNDERWEAR, ACCESSORY, SHOES, SOCKS, ETC 등 기본 추천
         };
     }
 
