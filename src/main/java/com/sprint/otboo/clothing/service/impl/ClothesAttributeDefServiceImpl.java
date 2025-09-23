@@ -5,13 +5,19 @@ import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
+import com.sprint.otboo.clothing.mapper.ClothesAttributeDefMapper;
 import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefService {
 
     private final ClothesAttributeDefRepository clothesAttributeDefRepository;
+    private final ClothesAttributeDefMapper clothesAttributeDefMapper;
     private final ClothesMapper clothesMapper;
 
     /**
@@ -103,6 +110,34 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         log.info("의상 속성 정의 저장 완료 - id: {}", id);
 
         return clothesMapper.toClothesAttributeDefDto(updated);
+    }
+
+    @Override
+    public List<ClothesAttributeDefDto> listAttributeDefs(String sortBy, String sortDirection, String keywordLike
+    ) {
+        // 정렬 기준
+        Direction direction = "DESCENDING".equalsIgnoreCase(sortDirection)
+            ? Direction.DESC
+            : Direction.ASC;
+
+        // 정렬 속성
+        String sortProperty = switch (sortBy != null ? sortBy : "name") {
+            case "createdAt" -> "createdAt";
+            case "name" -> "name";
+            default -> throw new CustomException(ErrorCode.INVALID_SORT_BY);
+        };
+
+        Sort sort = Sort.by(direction, sortProperty);
+
+        // 키워드 필터 적용
+        List<ClothesAttributeDef> entities = (keywordLike == null || keywordLike.isBlank())
+            ? clothesAttributeDefRepository.findAll(sort)
+            : clothesAttributeDefRepository.findByNameContainingIgnoreCase(keywordLike, sort);
+
+        // DTO 변환
+        return entities.stream()
+            .map(clothesAttributeDefMapper::toDto)
+            .collect(Collectors.toList());
     }
 
     /**
