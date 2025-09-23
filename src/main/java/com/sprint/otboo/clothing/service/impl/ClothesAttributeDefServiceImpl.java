@@ -5,27 +5,35 @@ import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
+import com.sprint.otboo.clothing.mapper.ClothesAttributeDefMapper;
 import com.sprint.otboo.clothing.mapper.ClothesMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 의상 속성 정의 서비스 구현체
  *
- * <p>ADMIN이 관리하는 의상 속성 정의(CLOTHES ATTRIBUTE DEF)를 생성, 검증, 저장하는 비즈니스 로직 수행
+ * <p>ADMIN이 관리하는 의상 속성 정의를 생성, 수정, 조회하는 비즈니스 로직 수행
  *
  * <ul>
- *   <li>요청 데이터 검증</li>
- *   <li>선택값 리스트를 문자열로 변환</li>
- *   <li>ClothesAttributeDef 엔티티 생성 및 저장</li>
- *   <li>DTO 변환 및 반환</li>
+ *   <li>요청 검증 및 선택값 문자열 변환</li>
+ *   <li>ClothesAttributeDef 엔티티 생성/수정/조회</li>
+ *   <li>DTO 변환 후 반환</li>
+ *   <li>정렬 기준과 키워드 필터를 적용한 목록 조회</li>
  * </ul>
+ *
+ * <p>예외: 잘못된 입력 시 ClothesValidationException, 허용되지 않는 정렬 기준 시 CustomException 발생
  */
 @Slf4j
 @Service
@@ -33,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefService {
 
     private final ClothesAttributeDefRepository clothesAttributeDefRepository;
+    private final ClothesAttributeDefMapper clothesAttributeDefMapper;
     private final ClothesMapper clothesMapper;
 
     /**
@@ -103,6 +112,56 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         log.info("의상 속성 정의 저장 완료 - id: {}", id);
 
         return clothesMapper.toClothesAttributeDefDto(updated);
+    }
+
+    /**
+     * 모든 의상 속성 정의 목록을 조회하고 DTO로 변환하여 반환합니다.
+     *
+     * <p>정렬 기준(sortBy)과 정렬 방향(sortDirection), 검색 키워드(keywordLike)를 동적으로 적용할 수 있습니다.
+     *
+     * <ul>
+     *   <li>sortBy : "name" 또는 "createdAt" (null이면 기본 "name")</li>
+     *   <li>sortDirection : "ASCENDING" 또는 "DESCENDING" (null이면 기본 ASC)</li>
+     *   <li>keywordLike : 이름에 포함된 키워드로 필터링 (null 또는 빈 문자열이면 전체 조회)</li>
+     * </ul>
+     *
+     * @param sortBy 정렬 기준 컬럼 ("name" 또는 "createdAt")
+     * @param sortDirection 정렬 방향 ("ASCENDING" 또는 "DESCENDING")
+     * @param keywordLike 이름 및 속성값 검색 키워드
+     * @return 의상 속성 정의 DTO 목록
+     * @throws CustomException sortBy 값이 허용되지 않는 경우 INVALID_SORT_BY 예외 발생
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public List<ClothesAttributeDefDto> listAttributeDefs(String sortBy, String sortDirection, String keywordLike
+    ) {
+        // 입력 파라미터 로깅
+        log.info("의상 속성 정의 조회 호출 - sortBy: {}, sortDirection: {}, keywordLike: {}", sortBy, sortDirection, keywordLike);
+
+        // 정렬 기준
+        Direction direction = "DESCENDING".equalsIgnoreCase(sortDirection)
+            ? Direction.DESC
+            : Direction.ASC;
+
+        // 정렬 속성
+        String sortProperty = switch (sortBy != null ? sortBy : "name") {
+            case "createdAt" -> "createdAt";
+            case "name" -> "name";
+            default -> throw new CustomException(ErrorCode.INVALID_SORT_BY);
+        };
+
+        Sort sort = Sort.by(direction, sortProperty);
+
+        // 키워드 필터 적용
+        List<ClothesAttributeDef> entities = (keywordLike == null || keywordLike.isBlank())
+            ? clothesAttributeDefRepository.findAll(sort)
+            : clothesAttributeDefRepository.findByNameOrSelectValuesContainingIgnoreCase(keywordLike, sort);
+        log.info("조회된 의상 속성 정의 개수: {}", entities.size());
+
+        // DTO 변환
+        return entities.stream()
+            .map(clothesAttributeDefMapper::toDto)
+            .collect(Collectors.toList());
     }
 
     /**

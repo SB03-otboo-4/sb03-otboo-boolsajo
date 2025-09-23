@@ -3,11 +3,16 @@ package com.sprint.otboo.clothing.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -174,5 +179,103 @@ public class ClothesAttributeDefServiceTest {
         );
 
         assertThat(thrown.getMessage()).isEqualTo("속성 값은 최소 1개 이상 필요합니다");
+    }
+
+    @Test
+    void 모든의상속성정의를_이름기준_오름차순으로_조회() {
+        // given: 의상 속성 정의 두 개 생성 및 저장
+        ClothesAttributeDef def1 = ClothesAttributeDef.builder()
+            .name("색상")
+            .selectValues("빨강,파랑,노랑")
+            .build();
+
+        ClothesAttributeDef def2 = ClothesAttributeDef.builder()
+            .name("사이즈")
+            .selectValues("S,M,L")
+            .build();
+
+        repository.saveAll(List.of(def1, def2));
+
+        // when: 이름 기준 오름차순으로 조회
+        List<ClothesAttributeDefDto> result =
+            clothesAttributeDefService.listAttributeDefs("name", "ASCENDING", null);
+
+        // then: 조회 결과 검증
+        assertThat(result).extracting(ClothesAttributeDefDto::name)
+            .containsExactly("사이즈", "색상");
+    }
+
+    @Test
+    void 의상속성정의_조회_키워드필터적용() {
+        // given: 의상 속성 정의 두 개 생성 및 저장
+        ClothesAttributeDef def1 = ClothesAttributeDef.builder()
+            .name("색상")
+            .selectValues("빨강,파랑")
+            .build();
+
+        ClothesAttributeDef def2 = ClothesAttributeDef.builder()
+            .name("사이즈")
+            .selectValues("S,M,L")
+            .build();
+
+        repository.saveAll(List.of(def1, def2));
+
+        // when: 이름 기준 오름차순으로 조회하며 키워드 "색" 적용
+        List<ClothesAttributeDefDto> result =
+            clothesAttributeDefService.listAttributeDefs("name", "ASCENDING", "색");
+
+        // then: 필터 결과 검증
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).name()).isEqualTo("색상");
+    }
+
+    @Test
+    void 의상속성정의_조회_허용되지않는_sortBy_예외() {
+        // when & then: 허용되지 않는 sortBy 입력 시 예외 발생 검증
+        CustomException thrown = assertThrows(
+            CustomException.class,
+            () -> clothesAttributeDefService.listAttributeDefs("invalidColumn", "ASCENDING", null)
+        );
+        assertThat(thrown.getErrorCode()).isEqualTo(ErrorCode.INVALID_SORT_BY);
+    }
+
+    @Test
+    void 의상속성정의_조회_허용되지않는_sortDirection_처리() {
+        // given: 의상 속성 정의 생성 및 저장
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .name("색상")
+            .selectValues("빨강,파랑")
+            .build();
+        repository.save(def);
+
+        // when: 잘못된 sortDirection 입력
+        List<ClothesAttributeDefDto> result =
+            clothesAttributeDefService.listAttributeDefs("name", "INVALID", null);
+
+        // then: 기본 ASC 정렬 적용 확인
+        assertThat(result).extracting(ClothesAttributeDefDto::name)
+            .containsExactly("색상");
+    }
+
+    @Test
+    void 의상속성정의_조회_null_sortBy_sortDirection_기본정렬() {
+        // given: 의상 속성 정의 두 개 생성 및 저장
+        ClothesAttributeDef def1 = ClothesAttributeDef.builder()
+            .name("색상")
+            .selectValues("빨강,파랑")
+            .build();
+        ClothesAttributeDef def2 = ClothesAttributeDef.builder()
+            .name("사이즈")
+            .selectValues("S,M,L")
+            .build();
+        repository.saveAll(List.of(def1, def2));
+
+        // when: sortBy, sortDirection 모두 null 입력
+        List<ClothesAttributeDefDto> result =
+            clothesAttributeDefService.listAttributeDefs(null, null, null);
+
+        // then: 기본 이름 기준 오름차순 정렬 확인
+        assertThat(result).extracting(ClothesAttributeDefDto::name)
+            .containsExactly("사이즈", "색상");
     }
 }

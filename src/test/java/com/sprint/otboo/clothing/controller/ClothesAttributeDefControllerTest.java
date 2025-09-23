@@ -2,7 +2,9 @@ package com.sprint.otboo.clothing.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -173,5 +175,88 @@ public class ClothesAttributeDefControllerTest {
 
         // then: 접근 거부 상태 코드 확인
         perform.andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상속성정의목록조회_성공_ADMIN권한() throws Exception {
+        // given: 조회할 DTO 준비 및 서비스 mocking
+        ClothesAttributeDefDto dto1 = new ClothesAttributeDefDto(
+            UUID.randomUUID(), "사이즈", List.of("S", "M", "L"), Instant.now()
+        );
+        ClothesAttributeDefDto dto2 = new ClothesAttributeDefDto(
+            UUID.randomUUID(), "색상", List.of("빨강", "파랑"), Instant.now()
+        );
+
+        given(service.listAttributeDefs("name", "ASCENDING", null))
+            .willReturn(List.of(dto1, dto2));
+
+        // when: API 호출
+        mockMvc.perform(get("/api/clothes/attribute-defs")
+                .param("sortBy", "name")
+                .param("sortDirection", "ASCENDING")
+                .accept(MediaType.APPLICATION_JSON))
+            // then: 결과 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("사이즈"))
+            .andExpect(jsonPath("$[1].name").value("색상"));
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상속성정의목록조회_성공_USER권한() throws Exception {
+        // given: 조회할 DTO 준비 및 서비스 mocking
+        ClothesAttributeDefDto dto1 = new ClothesAttributeDefDto(
+            UUID.randomUUID(), "사이즈", List.of("S", "M", "L"), Instant.now()
+        );
+        ClothesAttributeDefDto dto2 = new ClothesAttributeDefDto(
+            UUID.randomUUID(), "색상", List.of("빨강", "파랑"), Instant.now()
+        );
+
+        given(service.listAttributeDefs("name", "ASCENDING", null))
+            .willReturn(List.of(dto1, dto2));
+
+        // when: API 호출
+        mockMvc.perform(get("/api/clothes/attribute-defs")
+                .param("sortBy", "name")
+                .param("sortDirection", "ASCENDING")
+                .accept(MediaType.APPLICATION_JSON))
+            // then: 결과 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("사이즈"))
+            .andExpect(jsonPath("$[1].name").value("색상"));
+    }
+
+    @Test
+    void 의상속성정의목록조회_실패_권한없음() throws Exception {
+        // when: 인증 없이 API 호출
+        mockMvc.perform(get("/api/clothes/attribute-defs")
+                .param("sortBy", "name")
+                .param("sortDirection", "ASCENDING")
+                .accept(MediaType.APPLICATION_JSON))
+            // then: 401 Unauthorized 확인
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상속성정의목록조회_실패_sortBy필수누락() throws Exception {
+        // when: sortBy 없이 API 호출
+        mockMvc.perform(get("/api/clothes/attribute-defs")
+                .param("sortDirection", "ASCENDING")
+                .accept(MediaType.APPLICATION_JSON))
+            // then: 400 Bad Request 확인
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상속성정의목록조회_실패_sortDirection필수누락() throws Exception {
+        // when: sortDirection 없이 API 호출
+        mockMvc.perform(get("/api/clothes/attribute-defs")
+                .param("sortBy", "name")
+                .accept(MediaType.APPLICATION_JSON))
+            // then: 400 Bad Request 확인
+            .andExpect(status().isBadRequest());
     }
 }
