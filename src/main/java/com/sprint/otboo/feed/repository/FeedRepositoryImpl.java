@@ -40,14 +40,10 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         String key = sortBy;
 
         log.info(
-            "[FeedRepository] 피드 조회 시작: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, keyword{}, skyStatus={}, precipitationType={}, authorId={}",
+            "[FeedRepository] 피드 조회 시작: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, keyword={}, skyStatus={}, precipitationType={}, authorId={}",
             cursor, idAfter, limit, sortBy, sortDirection,
             keywordLike,
             skyStatusEqual, precipitationTypeEqual, authorIdEqual);
-
-        if ((cursor == null || cursor.isBlank()) && idAfter != null) {
-            cursor = null;
-        }
 
         if ("likeCount".equals(key)) {
             return searchByLikeCountCursor(cursor, idAfter, limit, desc,
@@ -145,6 +141,8 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         UUID authorIdEqual
     ) {
         BooleanBuilder where = new BooleanBuilder();
+        where.and(feed.deleted.isFalse());
+
         if (keywordLike != null && !keywordLike.trim().isEmpty()) {
             where.and(feed.content.containsIgnoreCase(keywordLike.trim()));
         }
@@ -213,6 +211,7 @@ public class FeedRepositoryImpl implements FeedRepositoryCustom {
         Long count = queryFactory
             .select(feed.id.count())
             .from(feed)
+            .where(where)
             .where(where)
             .fetchOne();
 
