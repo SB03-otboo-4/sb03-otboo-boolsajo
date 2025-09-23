@@ -2,12 +2,16 @@ package com.sprint.otboo.clothing.controller;
 
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
+import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,5 +46,26 @@ public class ClothesAttributeDefController {
 
         log.info("의상 속성 정의 등록 완료 : id = {}, name = {}", result.id(), result.name());
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    /**
+     * 의상 속성 정의 수정
+     *
+     * @param definitionId 수정 대상 의상 속성 정의 ID
+     * @param request 수정 요청 DTO
+     * @return 수정된 의상 속성 정의 DTO
+     */
+    @PatchMapping("/{definitionId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ClothesAttributeDefDto> updateAttributeDef(
+        @PathVariable("definitionId") UUID definitionId,
+        @RequestBody ClothesAttributeDefUpdateRequest request
+    ) {
+        log.info("의상 속성 정의 수정 요청 - id: {}, request: {}", definitionId, request);
+        ClothesAttributeDefDto updatedDto = clothesAttributeDefService.updateAttributeDef(definitionId, request);
+
+        log.info("의상 속성 정의 수정 완료 - id: {}, updated name: {}, updated values: {}",
+            updatedDto.id(), updatedDto.name(), updatedDto.selectableValues());
+        return ResponseEntity.ok(updatedDto);
     }
 }
