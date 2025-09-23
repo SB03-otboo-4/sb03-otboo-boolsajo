@@ -13,9 +13,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -62,6 +62,15 @@ public class Feed extends BaseUpdatableEntity {
     @Builder.Default
     @OneToMany(mappedBy = "feed", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FeedClothes> feedClothes = new ArrayList<>();
+
+    public void updateContent(String content) {
+        String newContent = content == null ? null : content.trim();
+
+        if (Objects.equals(this.content, newContent)) {
+            return;
+        }
+        this.content = newContent;
+    }
 
     public void addClothes(Clothes clothes) {
         FeedClothes link = FeedClothes.of(this, clothes);

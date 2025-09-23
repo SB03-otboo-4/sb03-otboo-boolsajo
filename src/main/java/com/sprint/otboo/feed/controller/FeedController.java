@@ -1,8 +1,10 @@
 package com.sprint.otboo.feed.controller;
 
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
+import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.service.FeedService;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
@@ -12,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -72,5 +77,21 @@ public class FeedController implements FeedApi {
             body.data().size(), body.hasNext());
 
         return ResponseEntity.ok(body);
+    }
+
+    @Override
+    @PatchMapping("/{feedId}")
+    public ResponseEntity<FeedDto> update(
+        @PathVariable UUID feedId,
+        @AuthenticationPrincipal CustomUserDetails principal,
+        @Valid @RequestBody FeedUpdateRequest request
+    ) {
+        UUID authorId = principal.getUserId();
+        log.info("[FeedController] 피드 수정 요청: feedId={}, authorId={}", feedId, authorId);
+
+        FeedDto dto = feedService.update(authorId, feedId, request);
+        log.info("[FeedController] 피드 수정 완료: feedId={}", dto.id());
+
+        return ResponseEntity.status(HttpStatus.OK).body(dto);
     }
 }
