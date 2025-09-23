@@ -44,4 +44,33 @@ public class LikeServiceImpl implements LikeService {
         log.debug("[LikeServiceImpl] 좋아요 등록 완료: feedId={}, userId={}, likeCount={}",
             feedId, userId, feed.getLikeCount());
     }
+
+    @Transactional
+    @Override
+    public void removeLike(UUID feedId, UUID userId) {
+        log.debug("[LikeServiceImpl] 좋아요 삭제 요청: feedId={}, userId={}", feedId, userId);
+
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+        userRepository.findById(userId)
+            .orElseThrow(() -> UserNotFoundException.withId(userId));
+
+        boolean exists = feedLikeRepository.existsByFeedIdAndUserId(feedId, userId);
+        if (!exists) {
+            log.debug("[LikeServiceImpl] 좋아요가 존재하지 않음: feedId={}, userId={}", feedId, userId);
+            return;
+        }
+
+        int deleted = feedLikeRepository.deleteByFeedIdAndUserId(feedId, userId);
+        if (deleted > 0) {
+            if (feed.getLikeCount() > 0) {
+                feed.dicreaseLikeCount();
+            }
+            log.debug("[LikeServiceImpl] 좋아요 삭제 완료: feedId={}, userId={}, likeCount={}",
+                feedId, userId, feed.getLikeCount());
+        } else {
+            log.warn("[LikeServiceImpl] deleteByFeedIdAndUserId가 0건 반환: feedId={}, userId={}",
+                feedId, userId);
+        }
+    }
 }
