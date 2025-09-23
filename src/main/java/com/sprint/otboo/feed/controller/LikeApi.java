@@ -38,4 +38,28 @@ public interface LikeApi {
         @Parameter(hidden = true)
         CustomUserDetails user
     );
+    @Operation(
+        summary = "Feed Unlike",
+        description = "로그인 사용자가 해당 Feed의 좋아요를 취소합니다. (멱등)",
+        security = @SecurityRequirement(name = "bearerAuth"),
+        operationId = "removeFeedLike"
+    )
+    @ApiResponses({
+        @ApiResponse(
+            responseCode = "204", description = "좋아요 취소 성공 (또는 이미 없음, 멱등)", content = @Content
+        ),
+        @ApiResponse(
+            responseCode = "401", description = "인증 실패", content = @Content
+        ),
+        @ApiResponse(
+            responseCode = "404", description = "Feed 또는 User를 찾을 수 없음", content = @Content
+        )
+    })
+    ResponseEntity<Void> removeLike(
+        @Parameter(description = "좋아요 취소 대상 Feed ID", required = true)
+        @PathVariable UUID feedId,
+
+        @Parameter(hidden = true)
+        CustomUserDetails principal
+    );
 }

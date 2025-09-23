@@ -33,6 +33,7 @@ public class LikeController implements LikeApi {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
+    @Override
     @DeleteMapping("/{feedId}/like")
     public ResponseEntity<Void> removeLike(
         @PathVariable UUID feedId,
