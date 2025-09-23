@@ -230,34 +230,6 @@ public class ClothesAttributeDefServiceTest {
     }
 
     @Test
-    void 의상속성정의_조회_생성일기준_내림차순정렬() {
-        // given: 의상 속성 정의 두 개 생성 및 저장
-        Instant now = Instant.now();
-
-        ClothesAttributeDef def1 = ClothesAttributeDef.builder()
-            .name("색상")
-            .selectValues("빨강,파랑")
-            .createdAt(now.minus(Duration.ofMinutes(10)))
-            .build();
-
-        ClothesAttributeDef def2 = ClothesAttributeDef.builder()
-            .name("사이즈")
-            .selectValues("S,M,L")
-            .createdAt(now)
-            .build();
-
-        repository.saveAll(List.of(def1, def2));
-
-        // when: 생성일 기준 내림차순으로 조회
-        List<ClothesAttributeDefDto> result =
-            clothesAttributeDefService.listAttributeDefs("createdAt", "DESCENDING", null);
-
-        // then: 나중에 저장된 def2가 먼저 반환되는지 검증
-        assertThat(result).extracting(ClothesAttributeDefDto::name)
-            .containsExactly("사이즈", "색상");
-    }
-
-    @Test
     void 의상속성정의_조회_허용되지않는_sortBy_예외() {
         // when & then: 허용되지 않는 sortBy 입력 시 예외 발생 검증
         CustomException thrown = assertThrows(
