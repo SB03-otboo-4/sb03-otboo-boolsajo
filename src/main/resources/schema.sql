@@ -248,5 +248,3 @@ CREATE TABLE IF NOT EXISTS notifications
     CONSTRAINT ck_notifications_level CHECK (level IN ('INFO', 'WARNING', 'ERROR')),
     CONSTRAINT fk_notifications_receiver FOREIGN KEY (receiver_id) REFERENCES users (id) ON DELETE CASCADE
 );
-
-DELETE FROM weather_locations where latitude = 37.525365 and longitude = 126.684925;;
