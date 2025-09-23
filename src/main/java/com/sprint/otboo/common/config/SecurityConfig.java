@@ -75,6 +75,7 @@ public class SecurityConfig {
 
                 .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs").hasRole("ADMIN")  // 의상 속성 등록( ADMIN )
                 .requestMatchers(HttpMethod.PATCH, "/api/clothes/attribute-defs/**").hasRole("ADMIN") // 의상 속성 수정( ADMIN )
+                .requestMatchers(HttpMethod.DELETE, "/api/clothes/attribute-defs/{definitionId}").hasRole("ADMIN") // 의상 속성 삭제( ADMIN )
 
                 // 나머지 인증 필요
                 .anyRequest().authenticated()
