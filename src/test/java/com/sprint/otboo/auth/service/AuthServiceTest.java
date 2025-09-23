@@ -188,7 +188,7 @@ public class AuthServiceTest {
         verify(tokenProvider).getEmailFromRefreshToken(refreshToken);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(tokenProvider).createAccessToken(userDto);
-        verify(tokenProvider).createAccessToken(userDto);
+        verify(tokenProvider).createRefreshToken(userDto);
     }
 
     @Test
@@ -208,4 +208,34 @@ public class AuthServiceTest {
         verify(tokenProvider).validateRefreshToken(invalidRefreshToken);
         verifyNoInteractions(userDetailsService, passwordEncoder);
     }
+
+    @Test
+    void 로그아웃_성공() throws ParseException {
+        // given
+        String validRefreshToken = "valid.refresh.token";
+        doNothing().when(tokenProvider).validateRefreshToken(validRefreshToken);
+
+        // when
+        authService.signOut(validRefreshToken);
+
+        // then
+        verify(tokenProvider).validateRefreshToken(validRefreshToken);
+    }
+
+    @Test
+    void 로그아웃_실패__유효하지_않은_토큰() throws ParseException {
+        // given
+        String invalidRefreshToken = "invalid.refresh.token";
+        doThrow(new InvalidTokenException()).when(tokenProvider).validateRefreshToken(invalidRefreshToken);
+
+        // when
+        Throwable thrown = catchThrowable(() -> authService.signOut(invalidRefreshToken));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(InvalidTokenException.class);
+
+        verify(tokenProvider).validateRefreshToken(invalidRefreshToken);
+    }
+
 }

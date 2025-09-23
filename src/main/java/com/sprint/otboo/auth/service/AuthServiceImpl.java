@@ -86,4 +86,9 @@ public class AuthServiceImpl implements AuthService{
             throw new TokenCreationException(ErrorCode.TOKEN_CREATION_FAILED);
         }
     }
+
+    @Override
+    public void signOut(String refreshToken) {
+
+    }
 }

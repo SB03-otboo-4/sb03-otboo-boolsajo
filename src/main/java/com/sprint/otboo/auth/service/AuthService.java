@@ -6,5 +6,6 @@ import java.text.ParseException;
 
 public interface AuthService {
     AuthResultDto signIn(SignInRequest request);
-    AuthResultDto reissueToken(String accessToken) throws ParseException;
+    AuthResultDto reissueToken(String refreshToken) throws ParseException;
+    void signOut(String refreshToken);
 }

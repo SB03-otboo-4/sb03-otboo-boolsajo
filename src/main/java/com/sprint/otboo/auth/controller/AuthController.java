@@ -66,4 +66,13 @@ public class AuthController {
             .status(HttpStatus.OK)
             .body(dto);
     }
+
+    @PostMapping("/sign-out")
+    public ResponseEntity<Void> SignOut(@CookieValue("REFRESH_TOKEN") String refreshToken, HttpServletResponse response) {
+        authService.signOut(refreshToken);
+
+        return ResponseEntity
+            .status(HttpStatus.NO_CONTENT)
+            .build();
+    }
 }
