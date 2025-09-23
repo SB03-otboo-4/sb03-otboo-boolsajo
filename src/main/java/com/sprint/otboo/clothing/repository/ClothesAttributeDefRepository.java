@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -13,5 +14,9 @@ public interface ClothesAttributeDefRepository extends JpaRepository<ClothesAttr
 
     Optional<ClothesAttributeDef> findByName(String name);
 
-    List<ClothesAttributeDef> findByNameContainingIgnoreCase(String keyword, Sort sort);
+    // 이름 또는 선택값에 keyword 포함 여부 확인
+    @Query("SELECT c FROM ClothesAttributeDef c " +
+        "WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+        "   OR LOWER(c.selectValues) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<ClothesAttributeDef> findByNameOrSelectValuesContainingIgnoreCase(String keyword, Sort sort);
 }

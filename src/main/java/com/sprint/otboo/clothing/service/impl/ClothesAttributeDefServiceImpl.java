@@ -127,7 +127,7 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
      *
      * @param sortBy 정렬 기준 컬럼 ("name" 또는 "createdAt")
      * @param sortDirection 정렬 방향 ("ASCENDING" 또는 "DESCENDING")
-     * @param keywordLike 이름 검색 키워드
+     * @param keywordLike 이름 및 속성값 검색 키워드
      * @return 의상 속성 정의 DTO 목록
      * @throws CustomException sortBy 값이 허용되지 않는 경우 INVALID_SORT_BY 예외 발생
      */
@@ -155,7 +155,7 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         // 키워드 필터 적용
         List<ClothesAttributeDef> entities = (keywordLike == null || keywordLike.isBlank())
             ? clothesAttributeDefRepository.findAll(sort)
-            : clothesAttributeDefRepository.findByNameContainingIgnoreCase(keywordLike, sort);
+            : clothesAttributeDefRepository.findByNameOrSelectValuesContainingIgnoreCase(keywordLike, sort);
         log.info("조회된 의상 속성 정의 개수: {}", entities.size());
 
         // DTO 변환
