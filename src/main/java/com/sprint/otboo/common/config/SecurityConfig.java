@@ -66,7 +66,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()    // 계정 잠금
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").permitAll()    // 권한 변경
                 .requestMatchers(HttpMethod.GET, "/api/users/*/profiles").permitAll()   // 프로필 조회
-                .requestMatchers(HttpMethod.PATCH, "/api/users/*/profiles").permitAll() // 프로필 변경
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/profiles").authenticated() // 프로필 변경
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll() // 업로드 된 파일
 
                 .requestMatchers("/api/auth/**").permitAll()
