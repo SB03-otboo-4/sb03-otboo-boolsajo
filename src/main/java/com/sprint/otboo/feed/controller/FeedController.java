@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,7 +62,7 @@ public class FeedController implements FeedApi {
             cursor, idAfter, limit, sortBy, sortDirection, keywordLike, skyStatusEqual,
             precipitationTypeEqual, authorIdEqual
         );
-        CursorPageResponse<FeedDto> body = feedService.getFeeds(
+        CursorPageResponse<FeedDto> dto = feedService.getFeeds(
             cursor,
             idAfter,
             limit,
@@ -74,9 +75,9 @@ public class FeedController implements FeedApi {
         );
 
         log.info("[FeedController] 피드 목록 조회 완료: count={}, hasNext={}",
-            body.data().size(), body.hasNext());
+            dto.data().size(), dto.hasNext());
 
-        return ResponseEntity.ok(body);
+        return ResponseEntity.status(HttpStatus.OK).body(dto);
     }
 
     @Override
@@ -93,5 +94,14 @@ public class FeedController implements FeedApi {
         log.info("[FeedController] 피드 수정 완료: feedId={}", dto.id());
 
         return ResponseEntity.status(HttpStatus.OK).body(dto);
+    }
+
+    @DeleteMapping("/{feedId}")
+    public ResponseEntity<Void> delete(
+        @PathVariable UUID feedId,
+        @AuthenticationPrincipal CustomUserDetails principal
+    ) {
+        feedService.delete(principal.getUserId(), feedId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
