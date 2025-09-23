@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "storage.s3.enabled", havingValue = "true")
-public class S3FileStorageService implements FileStorageService{
+public class S3FileStorageService implements FileStorageService {
 
     private final S3Client s3Client;
 

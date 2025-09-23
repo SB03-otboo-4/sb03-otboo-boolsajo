@@ -11,7 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @ConditionalOnProperty(name = "storage.local.enabled", havingValue = "true", matchIfMissing = true)
-public class LocalFileStorageService implements FileStorageService{
+public class LocalFileStorageService implements FileStorageService {
 
     private final String uploadDir;
     private final String baseUrl;
