@@ -11,9 +11,11 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>의상 등록</li>
  *   <li>의상 목록 조회</li>
  *   <li>의상 수정</li>
+ *   <li>의상 삭제</li>
  * </ul>
  *
  * <p>보안: 인증된 사용자( USER, ADMIN )만 접근 가능하도록 Spring Security 설정</p>
@@ -53,6 +56,7 @@ public class ClothesController {
      * @param image 업로드할 이미지 파일 (선택)
      * @return {@link ResponseEntity}<{@link ClothesDto}> 생성된 의상 정보와 HTTP 상태 코드
      */
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ClothesDto> createClothes(
         @RequestPart("request") ClothesCreateRequest request,
@@ -126,5 +130,23 @@ public class ClothesController {
 
         ClothesDto updated = clothesService.updateClothes(clothesId, request, image);
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * 의상 삭제
+     *
+     * @param clothesId 삭제할 의상 ID
+     * @return 204 No Content
+     */
+    @DeleteMapping("/{clothesId}")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<Void> deleteClothes(@PathVariable UUID clothesId) {
+        log.info("의상 삭제 요청 - clothesId: {}", clothesId);
+        clothesService.deleteClothes(clothesId);
+
+        log.info("의상 삭제 완료 - clothesId: {}", clothesId);
+        return ResponseEntity
+            .status(HttpStatus.NO_CONTENT)
+            .build();
     }
 }

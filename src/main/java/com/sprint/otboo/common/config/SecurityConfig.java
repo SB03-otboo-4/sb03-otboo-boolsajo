@@ -72,6 +72,7 @@ public class SecurityConfig {
                 // 의상 관련 API
                 .requestMatchers(HttpMethod.POST, "/api/clothes").hasAnyRole("USER", "ADMIN")  // 의상 등록( 공용 )
                 .requestMatchers(HttpMethod.PATCH, "/api/clothes/{clothesId}").hasAnyRole("USER", "ADMIN") // 의상 수정( 공용 )
+                .requestMatchers(HttpMethod.DELETE, "/api/clothes/{clothesId}").hasAnyRole("USER", "ADMIN") // 의상 삭제( 공용 )
 
                 .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs").hasRole("ADMIN")  // 의상 속성 등록( ADMIN )
                 .requestMatchers(HttpMethod.PATCH, "/api/clothes/attribute-defs/**").hasRole("ADMIN") // 의상 속성 수정( ADMIN )
