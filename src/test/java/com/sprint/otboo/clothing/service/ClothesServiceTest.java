@@ -3,6 +3,7 @@ package com.sprint.otboo.clothing.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -512,5 +513,39 @@ public class ClothesServiceTest {
             .isInstanceOf(CustomException.class)
             .extracting("errorCode")
             .isEqualTo(ErrorCode.CLOTHES_NOT_FOUND);
+    }
+
+    @Test
+    void 의상_삭제_성공() {
+        // given: 존재하는 의상 ID와 엔티티 준비
+        UUID clothesId = UUID.randomUUID();
+        User user = User.builder().id(UUID.randomUUID()).build();
+        Clothes clothes = Clothes.builder()
+            .id(clothesId)
+            .name("삭제할 티셔츠")
+            .type(ClothesType.TOP)
+            .user(user)
+            .build();
+
+        when(clothesRepository.findById(clothesId)).thenReturn(Optional.of(clothes));
+        doNothing().when(clothesRepository).delete(clothes);
+
+        // when: 서비스 메서드 호출
+        clothesService.deleteClothes(clothesId);
+
+        // then: delete 메서드가 정확히 한 번 호출되었는지 검증
+        verify(clothesRepository, times(1)).delete(clothes);
+    }
+
+    @Test
+    void 의상_삭제_실패_존재하지않는의상() {
+        // given: 존재하지 않는 ID
+        UUID clothesId = UUID.randomUUID();
+        when(clothesRepository.findById(clothesId)).thenReturn(Optional.empty());
+
+        // when & then: CustomException 발생 검증
+        assertThatThrownBy(() -> clothesService.deleteClothes(clothesId))
+            .isInstanceOf(CustomException.class)
+            .hasMessage("의상 정보를 찾을 수 없습니다.");
     }
 }
