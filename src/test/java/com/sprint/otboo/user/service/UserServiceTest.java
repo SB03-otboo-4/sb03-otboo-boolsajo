@@ -30,6 +30,8 @@ import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.service.impl.UserServiceImpl;
+import com.sprint.otboo.user.service.support.AsyncProfileImageUploader;
+import com.sprint.otboo.user.service.support.ProfileImageUploadTask;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.service.WeatherLocationQueryService;
 import java.math.BigDecimal;
@@ -68,6 +70,8 @@ public class UserServiceTest {
     private FileStorageService fileStorageService;
     @Mock
     private WeatherLocationQueryService weatherLocationQueryService;
+    @Mock
+    private AsyncProfileImageUploader asyncProfileImageUploader;
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -849,6 +853,7 @@ public class UserServiceTest {
         assertThat(result).isEqualTo(expected);
         then(fileStorageService).should().delete("http://old.url/img.png");
         then(fileStorageService).should().upload(image);
+        then(asyncProfileImageUploader).should().upload(any(ProfileImageUploadTask.class));
         assertThat(user.getProfileImageUrl()).isEqualTo("http://new.url/img.png");
     }
 
