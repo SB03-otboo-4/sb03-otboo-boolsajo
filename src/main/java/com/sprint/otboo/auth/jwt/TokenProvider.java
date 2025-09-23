@@ -30,22 +30,37 @@ import org.springframework.stereotype.Component;
 public class TokenProvider {
 
     private final long accessTokenExpiration;
+    private final long refreshTokenExpiration;
 
     private final JWSSigner accessTokenSigner;
+    private final JWSSigner refreshTokenSigner;
     private final JWSVerifier accessTokenVerifier;
+    private final JWSVerifier refreshTokenVerifier;
 
     public TokenProvider(
         @Value("${jwt.access-token.secret}") String accessTokenSecret,
-        @Value("${jwt.access-token.expiration}") long accessTokenExpiration
+        @Value("${jwt.access-token.expiration}") long accessTokenExpiration,
+        @Value("${jwt.refresh-token.secret}") String refreshTokenSecret,
+        @Value("${jwt.refresh-token.expiration}") long refreshTokenExpiration
     ) throws JOSEException {
         this.accessTokenExpiration = accessTokenExpiration;
+        this.refreshTokenExpiration = refreshTokenExpiration;
+
         byte[] accessTokenSecretBytes = accessTokenSecret.getBytes(StandardCharsets.UTF_8);
         this.accessTokenSigner = new MACSigner(accessTokenSecretBytes);
         this.accessTokenVerifier = new MACVerifier(accessTokenSecretBytes);
+
+        byte[] refreshTokenSecretBytes = refreshTokenSecret.getBytes(StandardCharsets.UTF_8);
+        this.refreshTokenSigner = new MACSigner(refreshTokenSecretBytes);
+        this.refreshTokenVerifier = new MACVerifier(refreshTokenSecretBytes);
     }
 
     public String createAccessToken(UserDto user) throws JOSEException {
         return createToken(user, accessTokenExpiration, accessTokenSigner, "access");
+    }
+
+    public String createRefreshToken(UserDto user) throws JOSEException {
+        return createToken(user, refreshTokenExpiration, refreshTokenSigner, "refresh");
     }
 
     private String createToken(UserDto user, long expiration, JWSSigner signer, String tokenType) throws JOSEException {
@@ -76,6 +91,10 @@ public class TokenProvider {
 
     public void validateAccessToken(String token) throws TokenExpiredException, ParseException {
         validateToken(token, accessTokenVerifier, "access");
+    }
+
+    public void validateRefreshToken(String token) throws TokenExpiredException, ParseException {
+        validateToken(token, refreshTokenVerifier, "refresh");
     }
 
     private void validateToken(String token, JWSVerifier verifier, String expectedType)
@@ -132,5 +151,11 @@ public class TokenProvider {
         // 5. CustomUserDetails를 principal로 사용하는 Authentication 객체 생성
         Collection<? extends GrantedAuthority> authorities = principal.getAuthorities();
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
+    }
+
+    public String getEmailFromRefreshToken(String token) throws ParseException {
+
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        return signedJWT.getJWTClaimsSet().getSubject();
     }
 }
