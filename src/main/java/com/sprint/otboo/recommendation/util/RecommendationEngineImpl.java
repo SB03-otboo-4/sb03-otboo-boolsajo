@@ -229,10 +229,9 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     private boolean matchesOuterRule(Season season, TemperatureCategory category, Weather weather) {
         return switch (season) {
             case SPRING -> ((category == TemperatureCategory.LOW)
-                || (category == TemperatureCategory.HIGH && weather.getType() == PrecipitationType.RAIN))
-                && windSpeed > 5;
+                || (category == TemperatureCategory.HIGH && weather.getType() == PrecipitationType.RAIN));
             case SUMMER -> (category == TemperatureCategory.LOW && weather.getSkyStatus() == SkyStatus.CLEAR);
-            case FALL -> category == TemperatureCategory.HIGH && windSpeed > 5;
+            case FALL -> category == TemperatureCategory.HIGH;
             case WINTER -> true;
         };
     }

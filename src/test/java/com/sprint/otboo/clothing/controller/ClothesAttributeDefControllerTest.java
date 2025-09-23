@@ -1,14 +1,25 @@
 package com.sprint.otboo.clothing.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.jwt.TokenProvider;
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
+import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
+import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,13 +43,22 @@ public class ClothesAttributeDefControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
+    private ClothesAttributeDefService service;
+
+    @MockitoBean
     TokenProvider tokenProvider;
 
     @Test
     @WithMockUser(username = "admin", roles = {"ADMIN"})
     void ADMIN_권한이면_의상_속성_정의_등록_가능() throws Exception {
-        // given: ADMIN 권한과 유효한 요청 DTO
-        var request = new ClothesAttributeDefCreateRequest("사이즈", List.of("S","M","L"));
+        // given: 유효한 요청 DTO와 서비스 반환 DTO
+        ClothesAttributeDefCreateRequest request = new ClothesAttributeDefCreateRequest(
+            "사이즈", List.of("S", "M", "L")
+        );
+        ClothesAttributeDefDto responseDto = new ClothesAttributeDefDto(
+            UUID.randomUUID(), "사이즈", List.of("S", "M", "L"), Instant.now()
+        );
+        when(service.createAttributeDef(any())).thenReturn(responseDto);
 
         // when: POST 요청 실행
         ResultActions resultActions = mockMvc.perform(post("/api/clothes/attribute-defs")
@@ -49,8 +69,12 @@ public class ClothesAttributeDefControllerTest {
         // then: 상태코드 201과 응답 내용 검증
         resultActions
             .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(responseDto.id().toString()))
             .andExpect(jsonPath("$.name").value("사이즈"))
-            .andExpect(jsonPath("$.selectableValues[0]").value("S"));
+            .andExpect(jsonPath("$.selectableValues[0]").value("S"))
+            .andExpect(jsonPath("$.selectableValues[1]").value("M"))
+            .andExpect(jsonPath("$.selectableValues[2]").value("L"))
+            .andExpect(jsonPath("$.createdAt").exists());
     }
 
     @Test
@@ -66,5 +90,88 @@ public class ClothesAttributeDefControllerTest {
 
         // then: 상태코드 403 Forbidden 검증
         resultActions.andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상_속성_정의_등록_성공() throws Exception {
+        // given: ADMIN 권한, 요청 DTO와 서비스 반환 DTO 준비
+        ClothesAttributeDefCreateRequest request = new ClothesAttributeDefCreateRequest(
+            "색상",
+            List.of("빨강", "파랑")
+        );
+        ClothesAttributeDefDto responseDto = new ClothesAttributeDefDto(
+            UUID.randomUUID(),
+            "색상",
+            List.of("빨강", "파랑"),
+            Instant.now()
+        );
+        when(service.createAttributeDef(any())).thenReturn(responseDto);
+
+        // when: POST 요청 실행
+        mockMvc.perform(post("/api/clothes/attribute-defs")
+                .with(csrf()) // CSRF 필수
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andDo(print())
+            // then: 상태 코드와 응답 JSON 검증
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(responseDto.id().toString()))
+            .andExpect(jsonPath("$.name").value("색상"))
+            .andExpect(jsonPath("$.selectableValues[0]").value("빨강"))
+            .andExpect(jsonPath("$.selectableValues[1]").value("파랑"))
+            .andExpect(jsonPath("$.createdAt").exists());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상_속성_정의_수정_성공() throws Exception {
+        // given: ADMIN 권한, 기존 ID와 수정 요청 DTO 준비
+        UUID id = UUID.randomUUID();
+        ClothesAttributeDefUpdateRequest request = new ClothesAttributeDefUpdateRequest(
+            "사이즈",
+            List.of("S", "M", "L")
+        );
+        ClothesAttributeDefDto responseDto = new ClothesAttributeDefDto(
+            id,
+            "사이즈",
+            List.of("S", "M", "L"),
+            Instant.now()
+        );
+        when(service.updateAttributeDef(eq(id), any())).thenReturn(responseDto);
+
+        // when: PATCH 요청 실행
+        mockMvc.perform(patch("/api/clothes/attribute-defs/{id}", id)
+                .with(csrf()) // CSRF 필수
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andDo(print())
+            // then: 상태 코드와 응답 JSON 검증
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(id.toString()))
+            .andExpect(jsonPath("$.name").value("사이즈"))
+            .andExpect(jsonPath("$.selectableValues[0]").value("S"))
+            .andExpect(jsonPath("$.selectableValues[1]").value("M"))
+            .andExpect(jsonPath("$.selectableValues[2]").value("L"))
+            .andExpect(jsonPath("$.createdAt").exists());
+    }
+
+    @Test
+    void ADMIN_권한_없는_사용자는_등록_불가() throws Exception {
+        // given: USER 권한, 요청 DTO 준비
+        ClothesAttributeDefCreateRequest request = new ClothesAttributeDefCreateRequest(
+            "색상",
+            List.of("빨강", "파랑")
+        );
+
+        // when: POST 요청 실행
+        var perform = mockMvc.perform(post("/api/clothes/attribute-defs")
+                .with(user("user").roles("USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andDo(print());
+
+        // then: 접근 거부 상태 코드 확인
+        perform.andExpect(status().isForbidden());
     }
 }

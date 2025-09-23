@@ -43,7 +43,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("의상 등록 서비스")
+@DisplayName("의상 서비스 테스트")
 public class ClothesServiceTest {
 
     @Mock
