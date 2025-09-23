@@ -192,7 +192,7 @@ public class LikeServiceTest {
             // When & Then
             assertThatThrownBy(() -> likeService.removeLike(feedId, userId))
                 .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("유저를 찾을 수 없습니다.");
+                .hasMessageContaining("사용자를 찾을 수 없습니다.");
             then(feedRepository).should().findById(feedId);
             then(userRepository).should().findById(userId);
             then(feedLikeRepository).shouldHaveNoMoreInteractions();
