@@ -99,6 +99,16 @@ public class FeedFixture {
             .build();
     }
 
+    public static Feed createEntity(User author, Weather weather) {
+        return Feed.builder()
+            .author(author)
+            .weather(weather)
+            .content("컨텐츠")
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .build();
+    }
+
     public static Feed createEntity(User author, Weather weather, String content,
         Instant createdAt, Instant updatedAt) {
         return Feed.builder()
