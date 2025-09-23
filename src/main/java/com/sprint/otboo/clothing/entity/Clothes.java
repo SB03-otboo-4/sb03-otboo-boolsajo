@@ -80,4 +80,26 @@ public class Clothes extends BaseUpdatableEntity {
             .createdAt(createdAt)
             .build();
     }
+
+    /**
+     * 의상 업데이트용 팩토리 메서드
+     *
+     * @param name 새 이름
+     * @param imageUrl 새 이미지 URL
+     * @param type 새 의상 타입
+     * @param updatedAttributes 새 속성 리스트
+     * @return 업데이트된 Clothes 객체
+     */
+    public Clothes update(String name, String imageUrl, ClothesType type, List<ClothesAttribute> updatedAttributes) {
+        return Clothes.builder()
+            .id(this.getId())
+            .user(this.user)
+            .createdAt(this.getCreatedAt())
+            .updatedAt(Instant.now())
+            .name(name)
+            .imageUrl(imageUrl)
+            .type(type)
+            .attributes(updatedAttributes)
+            .build();
+    }
 }

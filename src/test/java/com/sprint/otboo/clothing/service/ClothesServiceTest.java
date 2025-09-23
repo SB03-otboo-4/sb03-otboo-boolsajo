@@ -3,6 +3,7 @@ package com.sprint.otboo.clothing.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,6 +13,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
+import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
@@ -25,10 +27,15 @@ import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.service.impl.ClothesServiceImpl;
 import com.sprint.otboo.clothing.storage.FileStorageService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -393,4 +400,117 @@ public class ClothesServiceTest {
         assertThat(actualOrder).isEqualTo(expectedOrder);
     }
 
+    @Test
+    void 의상_수정_이름_타입_이미지_속성_갱신() throws IOException {
+        // given: 의상, 사용자, 속성 생성
+        UUID ownerId = UUID.randomUUID();
+        UUID clothesId = UUID.randomUUID();
+        UUID defId = UUID.randomUUID();
+
+        User user = User.builder().id(ownerId).build();
+        ClothesAttributeDef def = ClothesAttributeDef.builder().id(defId).name("색상").build();
+
+        ClothesAttribute existingAttr = ClothesAttribute.create(null, def, "White");
+        Clothes existing = Clothes.builder()
+            .id(clothesId)
+            .user(user)
+            .name("기존 티셔츠")
+            .type(ClothesType.TOP)
+            .imageUrl("/uploads/old.png")
+            .attributes(new ArrayList<>(List.of(existingAttr)))
+            .build();
+
+        List<ClothesAttribute> linkedAttributes = existing.getAttributes().stream()
+            .map(attr -> ClothesAttribute.create(existing, attr.getDefinition(), attr.getValue()))
+            .toList();
+        existing.getAttributes().clear();
+        existing.getAttributes().addAll(linkedAttributes);
+
+        ClothesUpdateRequest request = new ClothesUpdateRequest(
+            "새 티셔츠",
+            ClothesType.TOP,
+            List.of(new ClothesAttributeDto(defId, "Black"))
+        );
+
+        MultipartFile newImage = mock(MultipartFile.class);
+        when(fileStorageService.upload(newImage)).thenReturn("/uploads/new.png");
+        when(clothesRepository.findById(clothesId)).thenReturn(Optional.of(existing));
+        when(defRepository.findById(defId)).thenReturn(Optional.of(def));
+        when(clothesRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when: 실제 테스트 대상 동작 수행
+        ClothesDto result = clothesService.updateClothes(clothesId, request, newImage);
+
+        // then: 동작 결과 검증
+        assertThat(result).isNotNull();
+        assertThat(result.name()).isEqualTo("새 티셔츠");
+        assertThat(result.type()).isEqualTo(ClothesType.TOP);
+        assertThat(result.imageUrl()).isEqualTo("/uploads/new.png");
+        assertThat(result.attributes()).hasSize(1);
+        assertThat(result.attributes().get(0).definitionId()).isEqualTo(defId);
+        assertThat(result.attributes().get(0).value()).isEqualTo("Black");
+
+        verify(clothesRepository, times(1)).save(any());
+        verify(fileStorageService, times(1)).upload(newImage);
+    }
+
+    @Test
+    void 의상_수정_이미지_없이() throws Exception {
+        // given: 테스트 준비
+        UUID clothesId = UUID.randomUUID();
+        User user = User.builder().id(UUID.randomUUID()).build();
+
+        Clothes existing = Clothes.builder()
+            .id(clothesId)
+            .user(user)
+            .name("기존 상의")
+            .type(ClothesType.TOP)
+            .imageUrl("old_image_url")
+            .attributes(new ArrayList<>())
+            .build();
+
+        when(clothesRepository.findById(clothesId)).thenReturn(Optional.of(existing));
+
+        ClothesAttributeDef def = ClothesAttributeDef.builder().id(UUID.randomUUID()).build();
+        when(defRepository.findById(any())).thenReturn(Optional.of(def));
+        when(clothesRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ClothesUpdateRequest request = new ClothesUpdateRequest(
+            "새 상의",
+            ClothesType.OUTER,
+            List.of(new ClothesAttributeDto(def.getId(), "BLUE"))
+        );
+
+        // when: 의상 업데이트 수행 (이미지 없이)
+        ClothesDto updated = clothesService.updateClothes(clothesId, request, null);
+
+        // then: 검증
+        assertThat(updated.name()).isEqualTo("새 상의");
+        assertThat(updated.type()).isEqualTo(ClothesType.OUTER);
+        assertThat(updated.imageUrl()).isEqualTo("old_image_url");
+        assertThat(updated.attributes()).hasSize(1);
+        assertThat(updated.attributes().get(0).value()).isEqualTo("BLUE");
+        assertThat(updated.attributes().get(0).definitionId()).isEqualTo(def.getId());
+
+        verify(clothesRepository).save(any(Clothes.class));
+    }
+
+    @Test
+    void 의상_수정_존재하지_않는_의상() {
+        // given: 없는 의상 ID
+        UUID clothesId = UUID.randomUUID();
+        when(clothesRepository.findById(clothesId)).thenReturn(Optional.empty());
+
+        ClothesUpdateRequest request = new ClothesUpdateRequest(
+            "새 상의",
+            ClothesType.TOP,
+            Collections.emptyList()
+        );
+
+        // when & then: 예외 발생 확인
+        assertThatThrownBy(() -> clothesService.updateClothes(clothesId, request, null))
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.CLOTHES_NOT_FOUND);
+    }
 }
