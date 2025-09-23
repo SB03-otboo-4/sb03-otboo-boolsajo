@@ -2,12 +2,15 @@ package com.sprint.otboo.auth.service;
 
 import com.nimbusds.jose.JOSEException;
 import com.sprint.otboo.auth.dto.AuthResultDto;
+import com.sprint.otboo.auth.dto.JwtInformation;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.auth.AccountLockedException;
 import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
+import com.sprint.otboo.common.exception.auth.InvalidTokenException;
 import com.sprint.otboo.common.exception.auth.TokenCreationException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import java.text.ParseException;
@@ -25,6 +28,7 @@ public class AuthServiceImpl implements AuthService{
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
     private final UserDetailsService userDetailsService;
+    private final JwtRegistry jwtRegistry;
 
     @Override
     public AuthResultDto signIn(SignInRequest request) {
@@ -54,6 +58,8 @@ public class AuthServiceImpl implements AuthService{
         try {
             accessToken = tokenProvider.createAccessToken(userDto);
             String refreshToken = tokenProvider.createRefreshToken(userDto);
+
+            jwtRegistry.register(new JwtInformation(userDto, accessToken, refreshToken));
             return new AuthResultDto(userDto, accessToken, refreshToken);
         } catch (JOSEException e) {
             throw new TokenCreationException(ErrorCode.TOKEN_CREATION_FAILED);
@@ -62,6 +68,10 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public AuthResultDto reissueToken(String refreshToken) throws ParseException {
+        if (!jwtRegistry.isRefreshTokenValid(refreshToken)) {
+            throw new InvalidTokenException();
+        }
+
         // 1. Refresh Token 검증
         tokenProvider.validateRefreshToken(refreshToken);
 
@@ -81,6 +91,9 @@ public class AuthServiceImpl implements AuthService{
         try {
             String newAccessToken = tokenProvider.createAccessToken(userDto);
             String newRefreshToken = tokenProvider.createRefreshToken(userDto);
+
+            jwtRegistry.invalidate(refreshToken);
+            jwtRegistry.register(new JwtInformation(userDto, newAccessToken, newRefreshToken));
             return new AuthResultDto(userDto, newAccessToken, newRefreshToken);
         } catch (JOSEException e) {
             throw new TokenCreationException(ErrorCode.TOKEN_CREATION_FAILED);
@@ -90,5 +103,6 @@ public class AuthServiceImpl implements AuthService{
     @Override
     public void signOut(String refreshToken) throws ParseException {
         tokenProvider.validateRefreshToken(refreshToken);
+        jwtRegistry.invalidate(refreshToken);
     }
 }
