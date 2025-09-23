@@ -6,6 +6,7 @@ import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.data.FeedDto;
@@ -34,12 +35,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = FeedController.class)
@@ -58,6 +58,22 @@ class FeedControllerTest {
 
     @MockitoBean
     private FeedService feedService;
+
+    private CustomUserDetails principal(UUID userId) {
+        UserDto userDto = new UserDto(
+            userId,
+            Instant.now(),
+            "tester@example.com",
+            "name",
+            Role.USER,
+            LoginType.GENERAL,
+            false
+        );
+        return CustomUserDetails.builder()
+            .userDto(userDto)
+            .password("password")
+            .build();
+    }
 
     @Nested
     @DisplayName("피드 등록 테스트")
@@ -175,22 +191,6 @@ class FeedControllerTest {
     @Nested
     @DisplayName("피드 수정 테스트")
     class FeedUpdateTests {
-
-        private CustomUserDetails principal(UUID userId) {
-            UserDto userDto = new UserDto(
-                userId,
-                Instant.now(),
-                "tester@example.com",
-                "name",
-                Role.USER,
-                LoginType.GENERAL,
-                false
-            );
-            return CustomUserDetails.builder()
-                .userDto(userDto)
-                .password("password")
-                .build();
-        }
 
         @Test
         void 피드를_수정하면_200과_DTO가_반환된다() throws Exception {
@@ -331,6 +331,89 @@ class FeedControllerTest {
                         .with(user(principal))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        }
+    }
+
+    @Nested
+    @DisplayName("피드 삭제 테스트 (Soft Delete)")
+    class FeedDeleteTests {
+
+        @Test
+        void 본인_피드를_삭제하면_204를_반환한다() throws Exception {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails p = principal(userId);
+
+            willDoNothing().given(feedService).delete(userId, feedId);
+
+            // When & Then
+            mockMvc.perform(
+                    delete("/api/feeds/{feedId}", feedId)
+                        .with(csrf())
+                        .with(user(p))
+                )
+                .andExpect(status().isNoContent());
+        }
+
+        @Test
+        void 존재하지_않는_피드를_삭제하면_404를_반환한다() throws Exception {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails p = principal(userId);
+
+            willThrow(new FeedNotFoundException())
+                .given(feedService).delete(userId, feedId);
+
+            // When & Then
+            mockMvc.perform(
+                    delete("/api/feeds/{feedId}", feedId)
+                        .with(csrf())
+                        .with(user(p))
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        }
+
+        @Test
+        void 해당_피드의_작성자가_아니면_403을_반환한다() throws Exception {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails p = principal(userId);
+
+            willThrow(new FeedAccessDeniedException())
+                .given(feedService).delete(userId, feedId);
+
+            // When & Then
+            mockMvc.perform(
+                    delete("/api/feeds/{feedId}", feedId)
+                        .with(csrf())
+                        .with(user(p))
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        }
+
+        @Test
+        void 존재하지_않는_작성자로_삭제하면_404를_반환한다() throws Exception {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails p = principal(userId);
+
+            willThrow(new UserNotFoundException())
+                .given(feedService).delete(userId, feedId);
+
+            // When & Then
+            mockMvc.perform(
+                    delete("/api/feeds/{feedId}", feedId)
+                        .with(csrf())
+                        .with(user(p))
                 )
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
