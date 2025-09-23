@@ -165,6 +165,14 @@ public class ClothesServiceImpl implements ClothesService {
         return clothesMapper.toDto(saved);
     }
 
+    @Override
+    public void deleteClothes(UUID clothesId) {
+        Clothes clothes = clothesRepository.findById(clothesId)
+            .orElseThrow(() -> new CustomException(ErrorCode.CLOTHES_NOT_FOUND));
+
+        clothesRepository.delete(clothes);
+    }
+
     /**
      * 요청 기본 검증
      *
