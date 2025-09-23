@@ -4,7 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -563,5 +569,70 @@ public class ClothesControllerTest {
             .andExpect(jsonPath("$.type").value("TOP"))
             .andExpect(jsonPath("$.imageUrl").value("/uploads/new.png"))
             .andExpect(jsonPath("$.attributes[0].value").value("BLACK"));
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상삭제_USER성공() throws Exception {
+        // given: 삭제할 의상 ID와 서비스 mocking
+        UUID clothesId = UUID.randomUUID();
+        doNothing().when(clothesService).deleteClothes(clothesId);
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/{clothesId}", clothesId)
+                .with(csrf()))
+            // then: 204 No Content 확인 및 서비스 호출 검증
+            .andExpect(status().isNoContent());
+
+        verify(clothesService, times(1)).deleteClothes(clothesId);
+    }
+
+    @Test
+    @WithMockUser(username = "admin1", roles = {"ADMIN"})
+    void 의상삭제_ADMIN성공() throws Exception {
+        // given: 삭제할 의상 ID와 서비스 mocking
+        UUID clothesId = UUID.randomUUID();
+        doNothing().when(clothesService).deleteClothes(clothesId);
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/{clothesId}", clothesId)
+                .with(csrf()))
+            // then: 204 No Content 확인 및 서비스 호출 검증
+            .andExpect(status().isNoContent());
+
+        verify(clothesService, times(1)).deleteClothes(clothesId);
+    }
+
+    @Test
+    @DisplayName("의상 삭제 실패 - 인증 없음")
+    void 의상삭제_실패_인증없음() throws Exception {
+        // given: 인증 없음
+        UUID clothesId = UUID.randomUUID();
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/{clothesId}", clothesId))
+            // then: 403 Forbidden 확인
+            .andExpect(status().isForbidden());
+
+        verify(clothesService, never()).deleteClothes(any());
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상삭제_실패_존재하지않음() throws Exception {
+        // given: 존재하지 않는 의상 ID로 서비스에서 예외 발생
+        UUID clothesId = UUID.randomUUID();
+        doThrow(new CustomException(ErrorCode.CLOTHES_NOT_FOUND))
+            .when(clothesService).deleteClothes(clothesId);
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/{clothesId}", clothesId)
+                .with(csrf()))
+            // then: 404 Not Found 확인, 에러 코드 / 메시지 검증
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("CLOTHES_NOT_FOUND"))
+            .andExpect(jsonPath("$.message").value("의상 정보를 찾을 수 없습니다."));
+
+        verify(clothesService, times(1)).deleteClothes(clothesId);
     }
 }
