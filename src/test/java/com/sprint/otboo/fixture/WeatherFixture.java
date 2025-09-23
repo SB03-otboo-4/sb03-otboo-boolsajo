@@ -30,7 +30,7 @@ public class WeatherFixture {
             .createdAt(now)
             .build();
     }
-
+  
     public static Weather createWeatherWithDefault(WeatherLocation location, SkyStatus skyStatus,
         PrecipitationType type, Instant base) {
         return Weather.builder()
