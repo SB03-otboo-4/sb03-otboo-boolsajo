@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -18,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
@@ -52,6 +54,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @WebMvcTest(UserController.class)
 @DisplayName("UserController 테스트")
@@ -201,6 +204,23 @@ public class UserControllerTest {
             "application/json",
             objectMapper.writeValueAsBytes(request)
         );
+    }
+
+    private RequestPostProcessor authenticatedUser(UUID userId, Role role) {
+        UserDto dto = new UserDto(
+            userId,
+            Instant.now(),
+            "tester@example.com",
+            "tester",
+            role,
+            LoginType.GENERAL,
+            false
+        );
+        CustomUserDetails principal = CustomUserDetails.builder()
+            .userDto(dto)
+            .password("password")
+            .build();
+        return user(principal);
     }
 
     @Test
@@ -781,6 +801,7 @@ public class UserControllerTest {
                 .file(imagePart)
                 .with(request -> { request.setMethod("PATCH"); return request; })
                 .with(csrf())
+                .with(authenticatedUser(userId, Role.USER))
         );
 
         // then
@@ -808,6 +829,7 @@ public class UserControllerTest {
                 .file(requestPart)
                 .with(request -> { request.setMethod("PATCH"); return request; })
                 .with(csrf())
+                .with(authenticatedUser(userId, Role.USER))
         );
 
         // then
