@@ -5,6 +5,8 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,25 +47,17 @@ public class LikeControllerTest {
     @MockitoBean
     private LikeService likeService;
 
+    private CustomUserDetails principal(UUID userId) {
+        UserDto userDto = new UserDto(
+            userId, Instant.now(), "tester@example.com", "name",
+            Role.USER, LoginType.GENERAL, false
+        );
+        return CustomUserDetails.builder().userDto(userDto).password("password").build();
+    }
+
     @Nested
     @DisplayName("피드 좋아요 등록 테스트")
     class FeedLikeCreateTests {
-
-        private CustomUserDetails principal(UUID userId) {
-            UserDto userDto = new UserDto(
-                userId,
-                Instant.now(),
-                "tester@example.com",
-                "name",
-                Role.USER,
-                LoginType.GENERAL,
-                false
-            );
-            return CustomUserDetails.builder()
-                .userDto(userDto)
-                .password("password")
-                .build();
-        }
 
         @Test
         @DisplayName("좋아요를_등록하면_204를_반환한다")
@@ -77,7 +71,7 @@ public class LikeControllerTest {
             CustomUserDetails principal = principal(userId);
 
             // When & Then
-            mockMvc.perform(post("/api/feeds/{feedId}/like", feedId, principal.getUserId())
+            mockMvc.perform(post("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))
                     .contentType(MediaType.APPLICATION_JSON))
@@ -116,6 +110,64 @@ public class LikeControllerTest {
                     .with(user(principal))
                     .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
+        }
+    }
+
+    @Nested
+    @DisplayName("피드 좋아요 취소 테스트")
+    class FeedLikeDeleteTests {
+
+        @Test
+        @DisplayName("좋아요를_취소하면_204를_반환한다")
+        void 좋아요를_취소하면_204를_반환한다() throws Exception {
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails principal = principal(userId);
+
+            willDoNothing().given(likeService).removeLike(feedId, userId);
+
+            mockMvc.perform(delete("/api/feeds/{feedId}/like", feedId)
+                    .with(csrf())
+                    .with(user(principal))
+                    .contentType(MediaType.APPLICATION_JSON)
+                )
+                .andExpect(status().isNoContent());
+        }
+
+        @Test
+        void 존재하지_않는_피드의_좋아요를_취소하려고_하면_404를_반환한다() throws Exception {
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails principal = principal(userId);
+
+            willThrow(FeedNotFoundException.withId(feedId))
+                .given(likeService).removeLike(feedId, userId);
+
+            mockMvc.perform(delete("/api/feeds/{feedId}/like", feedId)
+                    .with(csrf())
+                    .with(user(principal))
+                    .contentType(MediaType.APPLICATION_JSON)
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        }
+
+        @Test
+        void 존재하지_않는_유저가_좋아요를_취소하려고_하면_404를_반환한다() throws Exception {
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            CustomUserDetails principal = principal(userId);
+
+            willThrow(UserNotFoundException.withId(userId))
+                .given(likeService).removeLike(feedId, userId);
+
+            mockMvc.perform(delete("/api/feeds/{feedId}/like", feedId)
+                    .with(csrf())
+                    .with(user(principal))
+                    .contentType(MediaType.APPLICATION_JSON)
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
         }
     }
 }
