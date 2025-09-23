@@ -23,8 +23,10 @@ import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
+import com.sprint.otboo.user.dto.data.ProfileLocationDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileLocationUpdateRequest;
 import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
@@ -137,12 +139,14 @@ public class UserControllerTest {
             "testUser",
             "http://example.com/profile.jpg",
             Gender.MALE,
-            LocalDate.of(1998,9,21),
-            new BigDecimal("37.509278"),
-            new BigDecimal("126.671607"),
-            55,
-            125,
-            List.of("인천광역시", "서구", "석남1동"),
+            LocalDate.of(1998, 9, 21),
+            new ProfileLocationDto(
+                new BigDecimal("37.509278"),
+                new BigDecimal("126.671607"),
+                55,
+                125,
+                List.of("인천광역시", "서구", "가정1동")
+            ),
             5
         );
     }
@@ -155,10 +159,6 @@ public class UserControllerTest {
             null,
             null,
             null,
-            null,
-            null,
-            null,
-            List.of(),
             null
         );
     }
@@ -184,18 +184,21 @@ public class UserControllerTest {
         ProfileUpdateRequest request = new ProfileUpdateRequest(
             "updatedName",
             "FEMALE",
-            LocalDate.of(1998,9,21),
-            new BigDecimal("37.5253652"),
-            new BigDecimal("126.6849254"),
-            55,
-            126,
-            List.of("인천광역시","서구","가정2동"),
+            LocalDate.of(1998, 9, 21),
+            new ProfileLocationUpdateRequest(
+                new BigDecimal("37.5253652"),
+                new BigDecimal("126.6849254"),
+                55,
+                126,
+                List.of("인천광역시", "서구", "가정2동")
+            ),
             5
         );
+
         return new MockMultipartFile(
             "request",
-            "request.json",
-            MediaType.APPLICATION_JSON_VALUE,
+            "",
+            "application/json",
             objectMapper.writeValueAsBytes(request)
         );
     }
@@ -525,14 +528,13 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.profileImageUrl").value("http://example.com/profile.jpg"))
             .andExpect(jsonPath("$.gender").value("MALE"))
             .andExpect(jsonPath("$.birthDate").value("1998-09-21"))
-            .andExpect(jsonPath("$.latitude").value(37.509278))
-            .andExpect(jsonPath("$.longitude").value(126.671607))
-            .andExpect(jsonPath("$.x").value(55))
-            .andExpect(jsonPath("$.y").value(125))
-            .andExpect(jsonPath("$.locationNames").isArray())
-            .andExpect(jsonPath("$.locationNames[0]").value("인천광역시"))
-            .andExpect(jsonPath("$.locationNames[1]").value("서구"))
-            .andExpect(jsonPath("$.locationNames[2]").value("석남1동"))
+            .andExpect(jsonPath("$.location.latitude").value(37.509278))
+            .andExpect(jsonPath("$.location.longitude").value(126.671607))
+            .andExpect(jsonPath("$.location.x").value(55))
+            .andExpect(jsonPath("$.location.y").value(125))
+            .andExpect(jsonPath("$.location.locationNames[0]").value("인천광역시"))
+            .andExpect(jsonPath("$.location.locationNames[1]").value("서구"))
+            .andExpect(jsonPath("$.location.locationNames[2]").value("가정1동"))
             .andExpect(jsonPath("$.temperatureSensitivity").value(5));
 
         then(userService).should().getUserProfile(userId);
@@ -554,16 +556,11 @@ public class UserControllerTest {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.userId").value(userId.toString()))
             .andExpect(jsonPath("$.name").value("testUser"))
-            .andExpect(jsonPath("$.profileImageUrl").isEmpty())
-            .andExpect(jsonPath("$.gender").isEmpty())
-            .andExpect(jsonPath("$.birthDate").isEmpty())
-            .andExpect(jsonPath("$.latitude").isEmpty())
-            .andExpect(jsonPath("$.longitude").isEmpty())
-            .andExpect(jsonPath("$.x").isEmpty())
-            .andExpect(jsonPath("$.y").isEmpty())
-            .andExpect(jsonPath("$.locationNames").isArray())
-            .andExpect(jsonPath("$.locationNames").isEmpty())
-            .andExpect(jsonPath("$.temperatureSensitivity").isEmpty());
+            .andExpect(jsonPath("$.profileImageUrl").doesNotExist())
+            .andExpect(jsonPath("$.gender").doesNotExist())
+            .andExpect(jsonPath("$.birthDate").doesNotExist())
+            .andExpect(jsonPath("$.location").doesNotExist())
+            .andExpect(jsonPath("$.temperatureSensitivity").doesNotExist());
 
         then(userService).should().getUserProfile(userId);
     }

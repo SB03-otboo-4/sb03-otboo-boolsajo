@@ -9,6 +9,8 @@ spring:
       max-request-size: 10MB
   cache:
     type: caffeine
+  config:
+    import: optional:file:.env[.properties]
 
   # Spring Actuator
   management:

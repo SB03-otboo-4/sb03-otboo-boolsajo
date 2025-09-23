@@ -23,6 +23,9 @@ import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.UserService;
 import com.sprint.otboo.user.service.support.UserListEnums.SortBy;
 import com.sprint.otboo.user.service.support.UserListEnums.SortDirection;
+import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
+import com.sprint.otboo.weather.service.WeatherLocationQueryService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +48,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final UserQueryRepository userQueryRepository;
     private final FileStorageService fileStorageService;
+    private final WeatherLocationQueryService weatherLocationQueryService;
 
     @Override
     @Transactional
@@ -191,14 +195,23 @@ public class UserServiceImpl implements UserService {
 
         profile.updateBirthDate(request.birthDate());
 
-        if (request.latitude() != null || request.longitude() != null || request.x() != null || request.y() != null
-            || request.locationNames() != null) {
+        if (request.location() != null) {
+            WeatherLocationResponse resolved = weatherLocationQueryService.getWeatherLocation(
+                request.location().latitude().doubleValue(),
+                request.location().longitude().doubleValue()
+            );
+
+            List<String> effectiveNames =
+                request.location().locationNames().isEmpty()
+                    ? resolved.locationNames()
+                    : request.location().locationNames();
+
             profile.updateLocation(
-                request.latitude(),
-                request.longitude(),
-                request.x(),
-                request.y(),
-                request.locationNames() == null ? null : String.join(",", request.locationNames())
+                BigDecimal.valueOf(resolved.latitude()),
+                BigDecimal.valueOf(resolved.longitude()),
+                resolved.x(),
+                resolved.y(),
+                effectiveNames.isEmpty() ? null : String.join(" ", effectiveNames)
             );
         }
 
