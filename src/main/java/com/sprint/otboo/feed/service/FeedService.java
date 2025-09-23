@@ -24,4 +24,6 @@ public interface FeedService {
         UUID authorId);
 
     FeedDto update(UUID authorId, UUID feedId, FeedUpdateRequest request);
+
+    void delete(UUID userId, UUID feedId);
 }

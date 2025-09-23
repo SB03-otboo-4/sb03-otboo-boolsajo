@@ -99,7 +99,7 @@ public class FeedServiceImpl implements FeedService {
             .orElseThrow(() -> FeedNotFoundException.withId(feedId));
 
         if (!feed.getAuthor().getId().equals(authorId)) {
-            throw FeedAccessDeniedException.withAuthorIdAndFeedId(authorId, feedId);
+            throw FeedAccessDeniedException.withUserIdAndFeedId(authorId, feedId);
         }
 
         String newContent = request.content();
@@ -168,6 +168,29 @@ public class FeedServiceImpl implements FeedService {
             sortBy,
             sortDirection
         );
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID userId, UUID feedId) {
+        log.info("[FeedServiceImpl] 피드 삭제 시작: userId={}, feedId={}", userId, feedId);
+        userRepository.findById(userId)
+            .orElseThrow(() -> UserNotFoundException.withId(userId));
+
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+
+        if (!feed.getAuthor().getId().equals(userId)) {
+            throw FeedAccessDeniedException.withUserIdAndFeedId(userId, feedId);
+        }
+
+        if (feed.isDeleted()) {
+            return;
+        }
+
+        feed.softDelete();
+        feedRepository.save(feed);
+        log.info("[FeedServiceImpl] 피드 삭제 완료: feedId={}", feedId);
     }
 
     private void validatePaging(int limit, String sortBy, String sortDirection) {

@@ -59,6 +59,9 @@ public class Feed extends BaseUpdatableEntity {
     )
     private Weather weather;
 
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
+
     @Builder.Default
     @OneToMany(mappedBy = "feed", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FeedClothes> feedClothes = new ArrayList<>();
@@ -79,5 +82,9 @@ public class Feed extends BaseUpdatableEntity {
 
     public void increaseLikeCount() {
         this.likeCount = this.likeCount + 1;
+    }
+
+    public void softDelete() {
+        this.deleted = true;
     }
 }

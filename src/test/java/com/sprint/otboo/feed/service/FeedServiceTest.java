@@ -35,6 +35,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -197,6 +198,10 @@ public class FeedServiceTest {
             assertThatThrownBy(() -> feedService.update(authorId, feedId, request))
                 .isInstanceOf(FeedNotFoundException.class)
                 .hasMessageContaining("피드를 찾을 수 없습니다");
+
+            then(userRepository).should().findById(authorId);
+            then(feedRepository).should().findById(feedId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
         }
 
         @Test
@@ -222,6 +227,100 @@ public class FeedServiceTest {
             assertThatThrownBy(() -> feedService.update(authorId, feedId, request))
                 .isInstanceOf(FeedAccessDeniedException.class)
                 .hasMessageContaining("피드에 대한 권한이 없습니다");
+
+            then(userRepository).should().findById(authorId);
+            then(feedRepository).should().findById(feedId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
+        }
+    }
+
+    @Nested
+    @DisplayName("피드 삭제 테스트 (Soft Delete)")
+    class FeedDeleteTests {
+
+        @Test
+        void 작성자가_본인_피드를_삭제하면_성공한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID authorId = UUID.randomUUID();
+
+            User author = UserFixture.create(authorId, "홍길동", "profile.png");
+            Weather weather = WeatherFixture.create(UUID.randomUUID());
+            Feed existing = FeedFixture.createEntity(
+                feedId, author, weather, "삭제 대상",
+                Instant.now().minusSeconds(120),
+                Instant.now().minusSeconds(60)
+            );
+
+            given(userRepository.findById(authorId)).willReturn(Optional.of(author));
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(existing));
+            given(feedRepository.save(any(Feed.class))).willAnswer(inv -> inv.getArgument(0));
+
+            // When
+            feedService.delete(authorId, feedId);
+
+            // Then
+            then(userRepository).should().findById(authorId);
+            then(feedRepository).should().findById(feedId);
+
+            ArgumentCaptor<Feed> captor = ArgumentCaptor.forClass(Feed.class);
+            then(feedRepository).should().save(captor.capture());
+            Feed saved = captor.getValue();
+
+            assertThat(saved.isDeleted()).isTrue();
+
+            then(userRepository).should().findById(authorId);
+            then(feedRepository).should().findById(feedId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 피드가_없으면_예외를_반환한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID authorId = UUID.randomUUID();
+            User author = UserFixture.create(authorId, "홍길동", "profile.png");
+
+            given(userRepository.findById(authorId)).willReturn(Optional.of(author));
+            given(feedRepository.findById(feedId)).willReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> feedService.delete(authorId, feedId))
+                .isInstanceOf(FeedNotFoundException.class)
+                .hasMessageContaining("피드를 찾을 수 없습니다");
+
+            then(userRepository).should().findById(authorId);
+            then(feedRepository).should().findById(feedId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 해당_피드의_작성자가_아니면_예외를_반환한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID requesterId = UUID.randomUUID();
+            UUID ownerId = UUID.randomUUID();
+
+            User requester = UserFixture.create(requesterId, "임꺽정", "p2.png");
+            User owner = UserFixture.create(ownerId, "홍길동", "p1.png");
+            Weather weather = WeatherFixture.create(UUID.randomUUID());
+            Feed existing = FeedFixture.createEntity(
+                feedId, owner, weather, "원본",
+                Instant.now().minusSeconds(120),
+                Instant.now().minusSeconds(60)
+            );
+
+            given(userRepository.findById(requesterId)).willReturn(Optional.of(requester));
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(existing));
+
+            // When & Then
+            assertThatThrownBy(() -> feedService.delete(requesterId, feedId))
+                .isInstanceOf(FeedAccessDeniedException.class)
+                .hasMessageContaining("피드에 대한 권한이 없습니다");
+
+            then(userRepository).should().findById(requesterId);
+            then(feedRepository).should().findById(feedId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
         }
     }
 }
