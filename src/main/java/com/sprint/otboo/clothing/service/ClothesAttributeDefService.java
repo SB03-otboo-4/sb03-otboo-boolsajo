@@ -13,4 +13,6 @@ public interface ClothesAttributeDefService {
     ClothesAttributeDefDto updateAttributeDef(UUID id, ClothesAttributeDefUpdateRequest request);
 
     List<ClothesAttributeDefDto> listAttributeDefs(String sortBy, String sortDirection, String keywordLike);
+
+    void deleteAttributeDef(UUID id);
 }

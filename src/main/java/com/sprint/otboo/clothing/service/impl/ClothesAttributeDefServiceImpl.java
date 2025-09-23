@@ -165,6 +165,27 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
     }
 
     /**
+     * 의상 속성 정의 삭제
+     *
+     * <p>주어진 ID에 해당하는 ClothesAttributeDef를 삭제
+     * 존재하지 않는 ID일 경우 {@link CustomException}을 발생
+     *
+     * <p>연관된 의상 속성(ClothesAttribute)이 존재할 경우 삭제 정책에 따라 처리
+     *
+     * @param id 삭제할 의상 속성 정의의 고유 ID
+     * @throws CustomException 해당 ID의 리소스가 존재하지 않을 경우 발생
+     */
+    @Override
+    public void deleteAttributeDef(UUID id) {
+        ClothesAttributeDef def = clothesAttributeDefRepository.findById(id)
+            .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // 연관된 ClothesAttribute 존재 시 삭제 정책 반영 가능
+        clothesAttributeDefRepository.delete(def);
+        log.info("의상 속성 정의 삭제 완료 - id: {}", id);
+    }
+
+    /**
      * 요청 검증
      *
      * @param request 생성 요청 DTO

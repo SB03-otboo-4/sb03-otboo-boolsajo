@@ -4,6 +4,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import com.sprint.otboo.common.exception.CustomException;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -95,5 +97,23 @@ public class ClothesAttributeDefController {
         log.info("조회 완료 - 결과 개수: {}", result.size());
 
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 의상 속성 정의 삭제
+     *
+     * @param definitionId 삭제할 의상 속성 정의 ID
+     * @return 삭제 성공 시 204 No Content
+     * @throws CustomException 삭제할 정의가 존재하지 않으면 RESOURCE_NOT_FOUND 예외 발생
+     */
+    @DeleteMapping("/{definitionId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAttributeDef(@PathVariable UUID definitionId) {
+        log.info("의상 속성 정의 삭제 요청 - id: {}", definitionId);
+
+        clothesAttributeDefService.deleteAttributeDef(definitionId);
+
+        log.info("의상 속성 정의 삭제 완료 - id: {}", definitionId);
+        return ResponseEntity.noContent().build();
     }
 }
