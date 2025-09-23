@@ -13,6 +13,7 @@ public enum ErrorCode {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "요청 값 검증에 실패했습니다."),
     WEATHER_BAD_COORDINATE(HttpStatus.BAD_REQUEST, "잘못된 좌표 값입니다."),
     WEATHER_GRID_CONVERSION_FAILED(HttpStatus.BAD_REQUEST, "격자 변환에 실패했습니다."),
+    REQUIRED_COOKIE_MISSING(HttpStatus.BAD_REQUEST, "필수 쿠키가 요청에 포함되지 않았습니다."),
 
     INVALID_PAGING_LIMIT(HttpStatus.BAD_REQUEST, "limit 값이 올바르지 않습니다."),
     INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 컬럼입니다."),
@@ -38,7 +39,6 @@ public enum ErrorCode {
     USER_CLOTHES_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 사용자의 일부 의상을 찾을 수 없습니다"),
     FEED_NOT_FOUND(HttpStatus.NOT_FOUND, "피드를 찾을 수 없습니다."),
 
-
     // 409 CONFLICT
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
@@ -62,7 +62,7 @@ public enum ErrorCode {
 
     // 504 Gateway Timeout
     WEATHER_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "외부 제공자 응답 지연이 발생했습니다."),
-    
+
     TOKEN_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "JWT 토큰 생성에 실패했습니다.");
 
 

@@ -3,20 +3,24 @@ package com.sprint.otboo.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nimbusds.jose.JOSEException;
-import com.sprint.otboo.auth.dto.JwtDto;
+import com.sprint.otboo.auth.dto.AuthResultDto;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.auth.AccountLockedException;
 import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
+import com.sprint.otboo.common.exception.auth.InvalidTokenException;
 import com.sprint.otboo.common.exception.auth.TokenCreationException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
+import java.text.ParseException;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -57,7 +61,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void 로그인_성공_JwtDto를_반환한다() throws Exception {
+    void 로그인_성공__AuthResultDto를_반환한다() throws Exception {
         // given
         SignInRequest request = new SignInRequest(TEST_EMAIL, TEST_PASSWORD);
         CustomUserDetails userDetails = createTestUserDetails(false);
@@ -66,18 +70,21 @@ public class AuthServiceTest {
         given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
         given(passwordEncoder.matches(TEST_PASSWORD, ENCODED_PASSWORD)).willReturn(true);
         given(tokenProvider.createAccessToken(userDto)).willReturn("access.jwt.token");
+        given(tokenProvider.createRefreshToken(userDto)).willReturn("refresh.jwt.token");
 
         // when
-        JwtDto result = authService.signIn(request);
+        AuthResultDto result = authService.signIn(request);
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.accessToken()).isEqualTo("access.jwt.token");
+        assertThat(result.refreshToken()).isEqualTo("refresh.jwt.token");
         assertThat(result.userDto()).isEqualTo(userDto);
 
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(TEST_PASSWORD, ENCODED_PASSWORD);
         verify(tokenProvider).createAccessToken(userDto);
+        verify(tokenProvider).createRefreshToken(userDto);
     }
 
     @Test
@@ -151,5 +158,54 @@ public class AuthServiceTest {
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(TEST_PASSWORD, ENCODED_PASSWORD);
         verify(tokenProvider).createAccessToken(userDto);
+    }
+
+    @Test
+    void 토큰재발급_성공() throws Exception {
+        // given
+        String refreshToken = "valid.refresh.token";
+        CustomUserDetails userDetails = createTestUserDetails(false);
+        UserDto userDto = userDetails.getUserDto();
+        String newAccessToken = "new.access.token";
+        String newRefreshToken = "new.refresh.token";
+
+        doNothing().when(tokenProvider).validateRefreshToken(refreshToken);
+        given(tokenProvider.getEmailFromRefreshToken(refreshToken)).willReturn(TEST_EMAIL);
+        given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
+        given(tokenProvider.createAccessToken(userDto)).willReturn(newAccessToken);
+        given(tokenProvider.createRefreshToken(userDto)).willReturn(newRefreshToken);
+
+        // when
+        AuthResultDto result = authService.reissueToken(refreshToken);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.accessToken()).isEqualTo(newAccessToken);
+        assertThat(result.refreshToken()).isEqualTo(newRefreshToken);
+        assertThat(result.userDto()).isEqualTo(userDto);
+
+        verify(tokenProvider).validateRefreshToken(refreshToken);
+        verify(tokenProvider).getEmailFromRefreshToken(refreshToken);
+        verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
+        verify(tokenProvider).createAccessToken(userDto);
+        verify(tokenProvider).createAccessToken(userDto);
+    }
+
+    @Test
+    void 토큰재발급_실패_유효하지않은_토큰() throws ParseException {
+        // given
+        String invalidRefreshToken = "invalid.refresh.token";
+
+        doThrow(new InvalidTokenException())
+            .when(tokenProvider).validateRefreshToken(invalidRefreshToken);
+
+        // when
+        Throwable thrown = catchThrowable(() -> authService.reissueToken(invalidRefreshToken));
+
+        // then
+        assertThat(thrown).isInstanceOf(InvalidTokenException.class);
+
+        verify(tokenProvider).validateRefreshToken(invalidRefreshToken);
+        verifyNoInteractions(userDetailsService, passwordEncoder);
     }
 }
