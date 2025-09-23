@@ -11,6 +11,7 @@ import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -236,7 +237,7 @@ public class ClothesAttributeDefServiceTest {
         ClothesAttributeDef def1 = ClothesAttributeDef.builder()
             .name("색상")
             .selectValues("빨강,파랑")
-            .createdAt(now.minusSeconds(10))
+            .createdAt(now.minus(Duration.ofMinutes(10)))
             .build();
 
         ClothesAttributeDef def2 = ClothesAttributeDef.builder()
