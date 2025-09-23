@@ -1,6 +1,5 @@
 package com.sprint.otboo.fixture;
 
-
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 
