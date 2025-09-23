@@ -1,7 +1,12 @@
 package com.sprint.otboo.clothing.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
@@ -15,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -277,5 +283,34 @@ public class ClothesAttributeDefServiceTest {
         // then: 기본 이름 기준 오름차순 정렬 확인
         assertThat(result).extracting(ClothesAttributeDefDto::name)
             .containsExactly("사이즈", "색상");
+    }
+
+    @Test
+    void 의상속성정의_삭제_성공() {
+        // given: 의상 속성 정의 생성 및 저장
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .name("색상")
+            .selectValues("빨강,파랑")
+            .build();
+        repository.save(def);
+
+        // when: 삭제 메서드 실행
+        clothesAttributeDefService.deleteAttributeDef(def.getId());
+
+        // then: DB에서 해당 엔티티가 제거되었는지 확인
+        assertThat(repository.findById(def.getId())).isEmpty();
+    }
+
+    @Test
+    void 의상속성정의_삭제_실패_존재하지않는ID() {
+        // given: 존재하지 않는 UUID
+        UUID randomId = UUID.randomUUID();
+
+        // when & then: 삭제 시 CustomException 발생 검증
+        CustomException thrown = assertThrows(
+            CustomException.class,
+            () -> clothesAttributeDefService.deleteAttributeDef(randomId)
+        );
+        assertThat(thrown.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
     }
 }
