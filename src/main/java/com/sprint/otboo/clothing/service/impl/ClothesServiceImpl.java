@@ -21,6 +21,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -40,7 +41,6 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ClothesServiceImpl implements ClothesService {
 
     private final ClothesRepository clothesRepository;
@@ -50,6 +50,24 @@ public class ClothesServiceImpl implements ClothesService {
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final ClothesAttributeDefRepository defRepository;
+
+    public ClothesServiceImpl(
+        ClothesRepository clothesRepository,
+        ClothesAttributeRepository clothesAttributeRepository,
+        ClothesMapper clothesMapper,
+        ClothesAttributeMapper clothesAttributeMapper,
+        @Qualifier("clothingImageStorageService") FileStorageService fileStorageService,
+        UserRepository userRepository,
+        ClothesAttributeDefRepository defRepository
+    ) {
+        this.clothesRepository = clothesRepository;
+        this.clothesAttributeRepository = clothesAttributeRepository;
+        this.clothesMapper = clothesMapper;
+        this.clothesAttributeMapper = clothesAttributeMapper;
+        this.fileStorageService = fileStorageService;
+        this.userRepository = userRepository;
+        this.defRepository = defRepository;
+    }
 
     /**
      * 새로운 의상을 생성합니다.

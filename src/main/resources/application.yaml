@@ -56,3 +56,6 @@ storage:
     bucket: ${S3_BUCKET_NAME:otboo-bucket-boolsajo}
     base-url: https://s3.ap-northeast-2.amazonaws.com/${S3_BUCKET_NAME:otboo-bucket-boolsajo}
     region: ap-northeast-2
+    prefixes:
+      profile: binary-content/profiles
+      clothing: binary-content/clothing

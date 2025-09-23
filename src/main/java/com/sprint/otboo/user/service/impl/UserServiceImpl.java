@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +38,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Slf4j
 public class UserServiceImpl implements UserService {
@@ -49,6 +49,24 @@ public class UserServiceImpl implements UserService {
     private final UserQueryRepository userQueryRepository;
     private final FileStorageService fileStorageService;
     private final WeatherLocationQueryService weatherLocationQueryService;
+
+    public UserServiceImpl(
+        UserRepository userRepository,
+        UserProfileRepository userProfileRepository,
+        PasswordEncoder passwordEncoder,
+        UserMapper userMapper,
+        UserQueryRepository userQueryRepository,
+        @Qualifier("profileImageStorageService") FileStorageService fileStorageService,
+        WeatherLocationQueryService weatherLocationQueryService
+    ) {
+        this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.userMapper = userMapper;
+        this.userQueryRepository = userQueryRepository;
+        this.fileStorageService = fileStorageService;
+        this.weatherLocationQueryService = weatherLocationQueryService;
+    }
 
     @Override
     @Transactional

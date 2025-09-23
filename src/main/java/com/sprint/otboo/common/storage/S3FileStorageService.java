@@ -1,36 +1,42 @@
 package com.sprint.otboo.common.storage;
 
 import java.io.IOException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Slf4j
-@Service
-@RequiredArgsConstructor
-@ConditionalOnProperty(name = "storage.s3.enabled", havingValue = "true")
 public class S3FileStorageService implements FileStorageService {
 
     private final S3Client s3Client;
+    private final String bucket;
+    private final String baseUrl;
+    private final String keyPrefix;
 
-    @Value("${storage.s3.bucket}")
-    private String bucket;
+    public S3FileStorageService(S3Client s3Client, String bucket, String baseUrl, String keyPrefix) {
+        this.s3Client = s3Client;
+        this.bucket = bucket;
+        this.baseUrl = baseUrl.replaceAll("/$", "");
+        this.keyPrefix = keyPrefix.replaceAll("^/|/$", "");
+    }
 
-    @Value("${storage.s3.base-url}")
-    private String baseUrl;
 
     @Override
     public String upload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return "";
         }
-        String key = "binary-content/" + System.currentTimeMillis() + "-" + file.getOriginalFilename();
+
+        String originalName = StringUtils.hasText(file.getOriginalFilename())
+            ? file.getOriginalFilename()
+            : "upload.bin";
+
+        String key = keyPrefix + "/" + System.currentTimeMillis() + "-" + originalName;
+
         try {
             PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucket)
@@ -38,27 +44,46 @@ public class S3FileStorageService implements FileStorageService {
                 .contentType(file.getContentType())
                 .build();
 
-            s3Client.putObject(request, software.amazon.awssdk.core.sync.RequestBody.fromInputStream(
-                file.getInputStream(), file.getSize()
-            ));
+            s3Client.putObject(
+                request,
+                RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+            );
 
             return baseUrl + "/" + key;
-        } catch (IOException e) {
-            log.error("S3 파일 업로드 실패", e);
-            throw new StorageException("S3 파일 업로드에 실패했습니다.", e);
+        } catch (IOException ex) {
+            log.error("S3 업로드 실패", ex);
+            throw new StorageException("S3 업로드 중 오류가 발생했습니다.", ex);
         }
     }
 
     @Override
     public void delete(String url) {
-        if (url == null || url.isBlank()) return;
+        if (!StringUtils.hasText(url) || !url.startsWith(baseUrl)) {
+            return;
+        }
 
-        String key = url.replace(baseUrl + "/", "");
+        String key = url.substring(baseUrl.length() + 1);
+
         DeleteObjectRequest request = DeleteObjectRequest.builder()
             .bucket(bucket)
             .key(key)
             .build();
 
         s3Client.deleteObject(request);
+    }
+
+    private static String trimTrailingSlash(String value) {
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    private static String trimSlashes(String value) {
+        String trimmed = value;
+        if (trimmed.startsWith("/")) {
+            trimmed = trimmed.substring(1);
+        }
+        if (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 }
