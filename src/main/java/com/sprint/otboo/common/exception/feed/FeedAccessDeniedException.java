@@ -8,7 +8,7 @@ public class FeedAccessDeniedException extends FeedException {
         super(ErrorCode.FEED_DENIED);
     }
 
-    public static FeedAccessDeniedException withAuthorIdAndFeedId(UUID authorId, UUID feedId) {
+    public static FeedAccessDeniedException withUserIdAndFeedId(UUID authorId, UUID feedId) {
         FeedAccessDeniedException ex = new FeedAccessDeniedException();
         ex.addDetail("authorId", authorId);
         ex.addDetail("feedId", feedId);

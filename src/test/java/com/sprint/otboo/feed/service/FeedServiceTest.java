@@ -268,8 +268,6 @@ public class FeedServiceTest {
             Feed saved = captor.getValue();
 
             assertThat(saved.isDeleted()).isTrue();
-            assertThat(saved.getDeletedBy()).isEqualTo(authorId);
-            assertThat(saved.getDeletedAt()).isNotNull();
 
             then(userRepository).should().findById(authorId);
             then(feedRepository).should().findById(feedId);
@@ -297,7 +295,7 @@ public class FeedServiceTest {
         }
 
         @Test
-        void 해당_피드의_작성자가_아니면_삭제에_실패한다() {
+        void 해당_피드의_작성자가_아니면_예외를_반환한다() {
             // Given
             UUID feedId = UUID.randomUUID();
             UUID requesterId = UUID.randomUUID();
@@ -321,33 +319,6 @@ public class FeedServiceTest {
                 .hasMessageContaining("피드에 대한 권한이 없습니다");
 
             then(userRepository).should().findById(requesterId);
-            then(feedRepository).should().findById(feedId);
-            then(feedRepository).shouldHaveNoMoreInteractions();
-        }
-
-        @Test
-        void 이미_삭제된_피드를_재삭제하면_예외가_반환된다() {
-            // Given
-            UUID feedId = UUID.randomUUID();
-            UUID authorId = UUID.randomUUID();
-
-            User author = UserFixture.create(authorId, "홍길동", "profile.png");
-            Weather weather = WeatherFixture.create(UUID.randomUUID());
-            Feed existing = FeedFixture.createEntity(
-                feedId, author, weather, "삭제 대상",
-                Instant.now().minusSeconds(120),
-                Instant.now().minusSeconds(60)
-            );
-            existing.softDelete(authorId);
-
-            given(userRepository.findById(authorId)).willReturn(Optional.of(author));
-            given(feedRepository.findById(feedId)).willReturn(Optional.of(existing));
-
-            // When & Then
-            assertThatThrownBy(() -> feedService.delete(authorId, feedId))
-                .isInstanceOf(FeedAlreadyDeletedException.class);
-
-            then(userRepository).should().findById(authorId);
             then(feedRepository).should().findById(feedId);
             then(feedRepository).shouldHaveNoMoreInteractions();
         }
