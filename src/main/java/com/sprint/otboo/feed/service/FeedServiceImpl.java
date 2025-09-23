@@ -173,6 +173,7 @@ public class FeedServiceImpl implements FeedService {
     @Override
     @Transactional
     public void delete(UUID userId, UUID feedId) {
+        log.info("[FeedServiceImpl] 피드 삭제 시작: userId={}, feedId={}", userId, feedId);
         userRepository.findById(userId)
             .orElseThrow(() -> UserNotFoundException.withId(userId));
 
@@ -189,6 +190,7 @@ public class FeedServiceImpl implements FeedService {
 
         feed.softDelete();
         feedRepository.save(feed);
+        log.info("[FeedServiceImpl] 피드 삭제 완료: feedId={}", feedId);
     }
 
     private void validatePaging(int limit, String sortBy, String sortDirection) {

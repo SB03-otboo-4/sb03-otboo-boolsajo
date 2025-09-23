@@ -88,7 +88,7 @@ public class FeedController implements FeedApi {
         @Valid @RequestBody FeedUpdateRequest request
     ) {
         UUID authorId = principal.getUserId();
-        log.info("[FeedController] 피드 수정 요청: feedId={}, authorId={}", feedId, authorId);
+        log.info("[FeedController] 피드 수정 요청: feedId={}, authorId={}", feedId, principal.getUserId());
 
         FeedDto dto = feedService.update(authorId, feedId, request);
         log.info("[FeedController] 피드 수정 완료: feedId={}", dto.id());
@@ -101,7 +101,11 @@ public class FeedController implements FeedApi {
         @PathVariable UUID feedId,
         @AuthenticationPrincipal CustomUserDetails principal
     ) {
+        log.info("[FeedController] 피드 삭제 요청: feedId={}, userId={}", feedId, principal.getUserId());
+
         feedService.delete(principal.getUserId(), feedId);
+        log.info("[FeedController] 피드 삭제 완료: feedId={}", feedId);
+
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
