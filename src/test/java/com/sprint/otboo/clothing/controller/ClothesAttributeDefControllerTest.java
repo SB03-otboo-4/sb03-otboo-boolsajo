@@ -3,7 +3,10 @@ package com.sprint.otboo.clothing.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -19,6 +22,8 @@ import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -258,5 +263,60 @@ public class ClothesAttributeDefControllerTest {
                 .accept(MediaType.APPLICATION_JSON))
             // then: 400 Bad Request 확인
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상속성정의_삭제_성공_ADMIN() throws Exception {
+        // given: 삭제할 ID와 서비스 mocking
+        UUID id = UUID.randomUUID();
+        doNothing().when(service).deleteAttributeDef(id);
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/attribute-defs/{definitionId}", id)
+                .with(csrf())
+            )
+            // then: 204 No Content 확인
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    void 의상속성정의_삭제_실패_존재하지않는ID() throws Exception {
+        // given: 존재하지 않는 ID로 서비스에서 예외 발생
+        UUID id = UUID.randomUUID();
+        doThrow(new CustomException(ErrorCode.RESOURCE_NOT_FOUND))
+            .when(service).deleteAttributeDef(id);
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/attribute-defs/{definitionId}", id)
+                .with(csrf())
+            )
+            // then: 404 Not Found 확인
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상속성정의_삭제_실패_USER권한() throws Exception {
+        // given: USER 권한
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/attribute-defs/{definitionId}", UUID.randomUUID())
+                .with(csrf())
+            )
+            // then: 403 Forbidden 확인
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 의상속성정의_삭제_실패_인증없음() throws Exception {
+        // given: 인증 없음
+
+        // when: DELETE 요청 실행
+        mockMvc.perform(delete("/api/clothes/attribute-defs/{id}", UUID.randomUUID())
+                .with(csrf()))
+            // then: 401 Unauthorized 확인
+            .andExpect(status().isUnauthorized());
     }
 }
