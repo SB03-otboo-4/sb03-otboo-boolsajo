@@ -28,18 +28,18 @@ CREATE TABLE IF NOT EXISTS users
 (
     id                UUID PRIMARY KEY,
     email             VARCHAR(100) NOT NULL,
-    name              VARCHAR(100)  NOT NULL,
+    name              VARCHAR(100) NOT NULL,
     password          VARCHAR(100),
     role              VARCHAR(20)  NOT NULL,
     locked            BOOLEAN      NOT NULL DEFAULT FALSE,
     updated_at        TIMESTAMPTZ,
     created_at        TIMESTAMPTZ  NOT NULL,
     profile_image_url VARCHAR(255),
-    provider_user_id   VARCHAR(255),
-    provider           VARCHAR(10)  NOT NULL,
+    provider_user_id  VARCHAR(255),
+    provider          VARCHAR(10)  NOT NULL,
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT uq_users_provider_uid UNIQUE (provider, provider_user_id),
-    CONSTRAINT chk_provider CHECK (provider IN ('GENERAL','GOOGLE','KAKAO'))
+    CONSTRAINT chk_provider CHECK (provider IN ('GENERAL', 'GOOGLE', 'KAKAO'))
 );
 
 -- 2) Weathers
@@ -82,10 +82,11 @@ CREATE TABLE IF NOT EXISTS weathers
     CONSTRAINT ck_weathers_sky_status CHECK (sky_status IN ('CLEAR', 'MOSTLY_CLOUDY', 'CLOUDY')),
     CONSTRAINT ck_weathers_as_word CHECK (as_word IN ('WEAK', 'MODERATE', 'STRONG')),
     CONSTRAINT ck_weathers_type CHECK (type IN ('NONE', 'RAIN', 'RAIN_SNOW', 'SNOW', 'SHOWER')),
-    CONSTRAINT ck_weathers_prob_range  CHECK (probability >= 0 AND probability <= 1),
-    CONSTRAINT ck_weathers_hum_range   CHECK (current_pct IS NULL OR (current_pct >= 0 AND current_pct <= 100)),
+    CONSTRAINT ck_weathers_prob_range CHECK (probability >= 0 AND probability <= 1),
+    CONSTRAINT ck_weathers_hum_range CHECK (current_pct IS NULL OR
+                                            (current_pct >= 0 AND current_pct <= 100)),
     CONSTRAINT ck_weathers_wind_nonneg CHECK (speed_ms IS NULL OR speed_ms >= 0),
-    CONSTRAINT fk_weathers_location FOREIGN KEY (location_id) REFERENCES weather_locations(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_weathers_location FOREIGN KEY (location_id) REFERENCES weather_locations (id) ON DELETE RESTRICT,
     CONSTRAINT uq_weathers_loc_target UNIQUE (location_id, forecast_at)
 );
 
@@ -154,6 +155,7 @@ CREATE TABLE IF NOT EXISTS feeds
     updated_at    TIMESTAMPTZ,
     author_id     UUID        NOT NULL,
     weather_id    UUID        NOT NULL,
+    deleted       BOOLEAN     NOT NULL DEFAULT false,
     CONSTRAINT fk_feeds_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_feeds_weather FOREIGN KEY (weather_id) REFERENCES weathers (id)
 );

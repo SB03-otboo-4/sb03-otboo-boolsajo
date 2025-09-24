@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS feeds
     updated_at    TIMESTAMP,
     author_id     UUID        NOT NULL,
     weather_id    UUID        NOT NULL,
+    deleted       BOOLEAN     NOT NULL DEFAULT false,
     CONSTRAINT fk_feeds_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_feeds_weather FOREIGN KEY (weather_id) REFERENCES weathers (id)
 );
