@@ -1,9 +1,12 @@
 package com.sprint.otboo.clothing.service.impl;
 
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
+import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesAttribute;
+import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.mapper.ClothesAttributeMapper;
@@ -14,8 +17,11 @@ import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.clothing.storage.FileStorageService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,8 +37,8 @@ import org.springframework.web.multipart.MultipartFile;
  * <p>의상(Clothes) 관련 비즈니스 로직을 수행
  *
  * <ul>
- *   <li>요청 데이터 검증</li>
- *   <li>이미지 업로드 및 URL 생성</li>
+ *   <li>의상 생성 및 수정</li>
+ *   <li>이미지 업로드 처리</li>
  *   <li>Clothes 엔티티 저장</li>
  *   <li>ClothesAttribute 엔티티 저장</li>
  *   <li>DTO 변환 및 반환</li>
@@ -124,6 +130,47 @@ public class ClothesServiceImpl implements ClothesService {
             .toList();
 
         return buildCursorPageResponse(clothesList, content, total, limit);
+    }
+
+    /**
+     * 의상 수정
+     *
+     * <p>이미지 업로드, 이름 / 타입 / 속성 갱신 포함
+     *
+     * @param clothesId 수정할 의상 ID
+     * @param request 수정 요청 DTO
+     * @param file 새 이미지 파일 (없으면 기존 이미지 유지)
+     * @return 수정 완료된 의상 DTO
+     */
+    @Transactional
+    @Override
+    public ClothesDto updateClothes(UUID clothesId, ClothesUpdateRequest request, MultipartFile file
+    ) {
+        // 1. 의상 조회
+        Clothes clothes = clothesRepository.findById(clothesId)
+            .orElseThrow(() -> new CustomException(ErrorCode.CLOTHES_NOT_FOUND));
+
+        // 2. 이미지 처리
+        String imageUrl = resolveImageUrl(clothes, file);
+
+        // 3. 속성 업데이트
+        List<ClothesAttribute> updatedAttributes = buildUpdatedAttributes(clothes, request.attributes());
+
+        // 4. Clothes 엔티티 갱신
+        Clothes updated = clothes.update(request.name(), imageUrl, request.type(), updatedAttributes);
+
+        // 5. 저장
+        Clothes saved = clothesRepository.save(updated);
+
+        return clothesMapper.toDto(saved);
+    }
+
+    @Override
+    public void deleteClothes(UUID clothesId) {
+        Clothes clothes = clothesRepository.findById(clothesId)
+            .orElseThrow(() -> new CustomException(ErrorCode.CLOTHES_NOT_FOUND));
+
+        clothesRepository.delete(clothes);
     }
 
     /**
@@ -222,5 +269,36 @@ public class ClothesServiceImpl implements ClothesService {
             "createdAt",
             "DESCENDING"
         );
+    }
+
+    /**
+     * 이미지 URL 결정
+     *
+     * <p>새 파일이 존재하면 업로드 후 URL 반환, 없으면 기존 이미지 유지
+     */
+    private String resolveImageUrl(Clothes clothes, MultipartFile file) {
+        if (file != null && !file.isEmpty()) {
+            return fileStorageService.upload(file);
+        }
+        return clothes.getImageUrl();
+    }
+
+    /**
+     * 요청 DTO 속성을 ClothesAttribute 엔티티 리스트로 변환
+     *
+     * @param clothes 속성을 연결할 의상 엔티티
+     * @param attributeDtos 요청 DTO 속성 리스트
+     * @return 생성된 ClothesAttribute 리스트
+     */
+    private List<ClothesAttribute> buildUpdatedAttributes(Clothes clothes, List<ClothesAttributeDto> attributeDtos) {
+        if (attributeDtos == null) return new ArrayList<>();
+
+        return attributeDtos.stream()
+            .map(dto -> {
+                ClothesAttributeDef def = defRepository.findById(dto.definitionId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+                return ClothesAttribute.create(clothes, def, dto.value());
+            })
+            .collect(Collectors.toList());
     }
 }
