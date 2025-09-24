@@ -9,6 +9,7 @@ import com.sprint.otboo.user.repository.UserRepository;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,13 +21,16 @@ public class AsyncProfileImageUploader {
 
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
+    private final RetryTemplate profileImageStorageRetryTemplate;
 
     public AsyncProfileImageUploader(
         @Qualifier("profileImageStorageService") FileStorageService fileStorageService,
-        UserRepository userRepository
+        UserRepository userRepository,
+        @Qualifier("profileImageStorageRetryTemplate") RetryTemplate profileImageStorageRetryTemplate
     ) {
         this.fileStorageService = fileStorageService;
         this.userRepository = userRepository;
+        this.profileImageStorageRetryTemplate = profileImageStorageRetryTemplate;
     }
 
     @Async("fileUploadExecutor")
@@ -42,7 +46,18 @@ public class AsyncProfileImageUploader {
         );
 
         try {
-            String imageUrl = fileStorageService.upload(resource);
+            String imageUrl = profileImageStorageRetryTemplate.execute(
+                ctx -> fileStorageService.upload(resource),
+                ctx -> {
+                    Throwable last = ctx.getLastThrowable();
+                    log.error("[AsyncProfileImageUploader] 프로필 이미지 업로드가 {}회 시도 후에도 실패했습니다. userId={}",
+                        ctx.getRetryCount(), task.userId(), last);
+                    if (last instanceof Exception ex) {
+                        throw ex;
+                    }
+                    throw new RuntimeException(last);
+                }
+            );
             updateUserProfileImage(task.userId(), imageUrl);
         } catch (Exception ex) {
             log.error("[AsyncProfileImageUploader] 업로드 실패 userId={}", task.userId(), ex);

@@ -34,6 +34,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class UserServiceImpl implements UserService {
     private final FileStorageService fileStorageService;
     private final WeatherLocationQueryService weatherLocationQueryService;
     private final AsyncProfileImageUploader asyncProfileImageUploader;
+    private final RetryTemplate profileImageStorageRetryTemplate;
 
     public UserServiceImpl(
         UserRepository userRepository,
@@ -62,7 +64,8 @@ public class UserServiceImpl implements UserService {
         UserQueryRepository userQueryRepository,
         @Qualifier("profileImageStorageService") FileStorageService fileStorageService,
         WeatherLocationQueryService weatherLocationQueryService,
-        AsyncProfileImageUploader asyncProfileImageUploader
+        AsyncProfileImageUploader asyncProfileImageUploader,
+        @Qualifier("profileImageStorageRetryTemplate") RetryTemplate profileImageStorageRetryTemplate
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
@@ -72,6 +75,7 @@ public class UserServiceImpl implements UserService {
         this.fileStorageService = fileStorageService;
         this.weatherLocationQueryService = weatherLocationQueryService;
         this.asyncProfileImageUploader = asyncProfileImageUploader;
+        this.profileImageStorageRetryTemplate = profileImageStorageRetryTemplate;
     }
 
     @Override
@@ -205,9 +209,14 @@ public class UserServiceImpl implements UserService {
 
         if (image != null && !image.isEmpty()) {
             if (StringUtils.hasText(user.getProfileImageUrl())) {
-                fileStorageService.delete(user.getProfileImageUrl());
+                profileImageStorageRetryTemplate.execute(context -> {
+                    fileStorageService.delete(user.getProfileImageUrl());
+                    return null;
+                });
             }
-            String imageUrl = fileStorageService.upload(image);
+            String imageUrl = profileImageStorageRetryTemplate.execute(
+                context -> fileStorageService.upload(image)
+            );
             user.updateProfileImageUrl(imageUrl);
         }
 

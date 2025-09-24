@@ -91,6 +91,10 @@ dependencies {
     // configuration-processor
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
 
+    // retry
+    implementation 'org.springframework.retry:spring-retry'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'

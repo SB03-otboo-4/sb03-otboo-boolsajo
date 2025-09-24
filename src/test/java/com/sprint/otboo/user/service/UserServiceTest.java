@@ -46,10 +46,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.sprint.otboo.user.repository.query.UserQueryRepository;
 import com.sprint.otboo.user.repository.query.UserSlice;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,6 +74,8 @@ public class UserServiceTest {
     private WeatherLocationQueryService weatherLocationQueryService;
     @Mock
     private AsyncProfileImageUploader asyncProfileImageUploader;
+    @Spy
+    private RetryTemplate profileImageStorageRetryTemplate = new RetryTemplate();
     @InjectMocks
     private UserServiceImpl userService;
 
