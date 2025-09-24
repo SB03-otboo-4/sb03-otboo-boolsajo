@@ -15,8 +15,8 @@ import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.repository.ClothesAttributeRepository;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.clothing.service.ClothesService;
-import com.sprint.otboo.clothing.storage.FileStorageService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.storage.FileStorageService;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.repository.UserRepository;
@@ -27,6 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,7 +47,6 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ClothesServiceImpl implements ClothesService {
 
     private final ClothesRepository clothesRepository;
@@ -56,6 +56,24 @@ public class ClothesServiceImpl implements ClothesService {
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final ClothesAttributeDefRepository defRepository;
+
+    public ClothesServiceImpl(
+        ClothesRepository clothesRepository,
+        ClothesAttributeRepository clothesAttributeRepository,
+        ClothesMapper clothesMapper,
+        ClothesAttributeMapper clothesAttributeMapper,
+        @Qualifier("clothingImageStorageService") FileStorageService fileStorageService,
+        UserRepository userRepository,
+        ClothesAttributeDefRepository defRepository
+    ) {
+        this.clothesRepository = clothesRepository;
+        this.clothesAttributeRepository = clothesAttributeRepository;
+        this.clothesMapper = clothesMapper;
+        this.clothesAttributeMapper = clothesAttributeMapper;
+        this.fileStorageService = fileStorageService;
+        this.userRepository = userRepository;
+        this.defRepository = defRepository;
+    }
 
     /**
      * 새로운 의상을 생성합니다.

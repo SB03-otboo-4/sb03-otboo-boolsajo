@@ -12,11 +12,7 @@ public record ProfileDto(
     String profileImageUrl,
     Gender gender,
     LocalDate birthDate,
-    BigDecimal latitude,
-    BigDecimal longitude,
-    Integer x,
-    Integer y,
-    List<String> locationNames,
+    ProfileLocationDto location,
     Integer temperatureSensitivity
 ) {
 
