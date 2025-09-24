@@ -1,6 +1,7 @@
 package com.sprint.otboo.user.mapper;
 
 import com.sprint.otboo.user.dto.data.ProfileDto;
+import com.sprint.otboo.user.dto.data.ProfileLocationDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
@@ -25,28 +26,45 @@ public interface UserMapper {
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "user.username", target = "name")
     @Mapping(source = "user.profileImageUrl", target = "profileImageUrl")
-    @Mapping(source = "profile.gender", target = "gender")
-    @Mapping(source = "profile.birthDate", target = "birthDate")
-    @Mapping(source = "profile.latitude", target = "latitude")
-    @Mapping(source = "profile.longitude", target = "longitude")
-    @Mapping(source = "profile.x", target = "x")
-    @Mapping(source = "profile.y", target = "y")
-    @Mapping(target = "locationNames", expression = "java(convertLocationNames(profile.getLocationNames()))")
+    @Mapping(target = "location", expression = "java(toLocation(profile))")
     @Mapping(source = "profile.temperatureSensitivity", target = "temperatureSensitivity")
     ProfileDto toProfileDto(User user, UserProfile profile);
 
     @Mapping(source = "userId", target = "userId")
     @Mapping(source = "user.username", target = "name")
     @Mapping(source = "user.profileImageUrl", target = "profileImageUrl")
-    @Mapping(target = "locationNames", expression = "java(convertLocationNames(profile.getLocationNames()))")
+    @Mapping(target = "location", expression = "java(toLocation(profile))")
     ProfileDto toProfileDto(UserProfile profile);
 
-    default List<String> convertLocationNames(String locationNames) {
-        if (locationNames == null || locationNames.trim().isEmpty()) {
-            return Collections.emptyList();
+    default ProfileLocationDto toLocation(UserProfile profile) {
+        if (profile == null) {
+            return null;
         }
-        return Arrays.asList(locationNames.split(","))
-            .stream()
+        boolean hasLocation =
+            profile.getLatitude() != null ||
+                profile.getLongitude() != null ||
+                profile.getX() != null ||
+                profile.getY() != null ||
+                (profile.getLocationNames() != null && !profile.getLocationNames().isBlank());
+
+        if (!hasLocation) {
+            return null;
+        }
+
+        return new ProfileLocationDto(
+            profile.getLatitude(),
+            profile.getLongitude(),
+            profile.getX(),
+            profile.getY(),
+            convertLocationNames(profile.getLocationNames())
+        );
+    }
+
+    default List<String> convertLocationNames(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(raw.trim().split("\\s+"))
             .map(String::trim)
             .filter(s -> !s.isEmpty())
             .toList();

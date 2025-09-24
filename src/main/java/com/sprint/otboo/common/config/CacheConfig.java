@@ -13,6 +13,7 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager() {
         return new ConcurrentMapCacheManager(
+            "kakao:region",
             "kakao:coord2region",
             "weatherLocation",
             "weathers"
