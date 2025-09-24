@@ -14,8 +14,15 @@ public class RefreshTokenCookieUtil {
         Cookie cookie = new Cookie("REFRESH_TOKEN", refreshToken);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
-        cookie.setPath("/api/auth/refresh");
+        cookie.setPath("/");
         cookie.setMaxAge((int) (refreshTokenExpiration / 1000));
+        return cookie;
+    }
+
+    public Cookie createExpiredCookie() {
+        Cookie cookie = new Cookie("REFRESH_TOKEN", "");
+        cookie.setMaxAge(0);
+        cookie.setPath("/");
         return cookie;
     }
 

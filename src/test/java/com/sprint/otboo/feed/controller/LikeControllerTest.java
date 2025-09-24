@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
@@ -41,6 +42,9 @@ public class LikeControllerTest {
 
     @MockitoBean
     TokenProvider tokenProvider;
+
+    @MockitoBean
+    JwtRegistry jwtRegistry;
 
     @MockitoBean
     private LikeService likeService;

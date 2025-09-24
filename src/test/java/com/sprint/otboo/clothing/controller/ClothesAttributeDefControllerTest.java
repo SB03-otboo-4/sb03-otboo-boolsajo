@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
@@ -54,6 +55,9 @@ public class ClothesAttributeDefControllerTest {
 
     @MockitoBean
     TokenProvider tokenProvider;
+
+    @MockitoBean
+    JwtRegistry jwtRegistry;
 
     @Test
     @WithMockUser(username = "admin", roles = {"ADMIN"})
