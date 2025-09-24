@@ -42,9 +42,10 @@ public class LikeController implements LikeApi {
         log.info("[LikeController] 좋아요 취소 요청: feedId={}, userId={}",
             feedId, principal.getUserId());
         UUID userId = principal.getUserId();
-        log.info("[FeedController] 좋아요 취소 완료: feedId={}, userId={}",
-            feedId, principal.getUserId());
+
         likeService.removeLike(feedId, userId);
+        log.info("[LikeController] 좋아요 취소 완료: feedId={}, userId={}",
+            feedId, principal.getUserId());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

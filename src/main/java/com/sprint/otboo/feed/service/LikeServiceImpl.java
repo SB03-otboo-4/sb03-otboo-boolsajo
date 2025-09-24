@@ -64,7 +64,7 @@ public class LikeServiceImpl implements LikeService {
         int deleted = feedLikeRepository.deleteByFeedIdAndUserId(feedId, userId);
         if (deleted > 0) {
             if (feed.getLikeCount() > 0) {
-                feed.dicreaseLikeCount();
+                feed.decreaseLikeCount();
             }
             log.debug("[LikeServiceImpl] 좋아요 삭제 완료: feedId={}, userId={}, likeCount={}",
                 feedId, userId, feed.getLikeCount());
