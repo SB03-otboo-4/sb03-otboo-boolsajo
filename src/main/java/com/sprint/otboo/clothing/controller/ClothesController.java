@@ -4,6 +4,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesType;
+import com.sprint.otboo.clothing.scraper.ClothesExtractionService;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.clothing.valid.ClothesTypeValid;
 import com.sprint.otboo.common.dto.CursorPageResponse;
@@ -46,6 +47,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ClothesController {
 
     private final ClothesService clothesService;
+    private final ClothesExtractionService extractionService;
 
     /**
      * 의상 등록
@@ -148,5 +150,10 @@ public class ClothesController {
         return ResponseEntity
             .status(HttpStatus.NO_CONTENT)
             .build();
+    }
+
+    @GetMapping("/extractions")
+    public ClothesDto extractByUrl(@RequestParam String url) {
+        return extractionService.extractByUrl(url);
     }
 }

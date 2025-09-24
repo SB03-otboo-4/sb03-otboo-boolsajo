@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS user_profiles
 CREATE TABLE IF NOT EXISTS clothes_attributes_def
 (
     id            UUID PRIMARY KEY,
-    name          VARCHAR(20) NOT NULL,
+    name          VARCHAR(80) NOT NULL,
     select_values VARCHAR(255),
     created_at    TIMESTAMPTZ NOT NULL
 );

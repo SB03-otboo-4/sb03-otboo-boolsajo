@@ -47,7 +47,7 @@ public class Clothes extends BaseUpdatableEntity {
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_clothes_user"))
     private User user;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
