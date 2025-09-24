@@ -1,6 +1,5 @@
 package com.sprint.otboo.notification.service;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
