@@ -102,9 +102,9 @@ public class NotificationServiceTest {
         Slice<Notification> slice = notificationSlice(List.of(entity), query.limit(), false);
         given(notificationRepository.findByReceiverWithCursor(
             receiverId,
-            query.cursor(),
+            query.parsedCursor(),
             query.idAfter(),
-            query.limit()
+            query.fetchSize()
         )).willReturn(slice);
 
         NotificationDto expectedDto = notificationDto(entity);

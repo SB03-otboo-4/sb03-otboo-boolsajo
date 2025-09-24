@@ -22,27 +22,28 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Slice<Notification> findByReceiverWithCursor(UUID receiverId, String cursor, UUID idAfter, int size) {
+    public Slice<Notification> findByReceiverWithCursor(UUID receiverId, Instant cursor, UUID idAfter, int fetchSize) {
         QNotification notification = QNotification.notification;
 
         List<Notification> results = queryFactory
             .selectFrom(notification)
             .where(
                 notification.receiver.id.eq(receiverId),
-                cursorPredicate(notification, parseCursor(cursor), idAfter)
+                cursorPredicate(notification, cursor, idAfter)
             )
             .orderBy(notification.createdAt.desc(), notification.id.desc())
-            .limit(size + 1L)
+            .limit(fetchSize)
             .fetch();
 
-        boolean hasNext = results.size() > size;
+        boolean hasNext = results.size() == fetchSize;
         if (hasNext) {
-            results = results.subList(0, size);
+            results = results.subList(0, fetchSize - 1);
         }
 
+        int pageSize = Math.max(fetchSize - 1, 0);
         Pageable pageable = PageRequest.of(
             0,
-            size,
+            pageSize,
             Sort.by(Sort.Direction.DESC, "createdAt")
                 .and(Sort.by(Sort.Direction.DESC, "id"))
         );
@@ -67,12 +68,5 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
             predicate = notification.id.lt(idAfter);
         }
         return predicate;
-    }
-
-    private Instant parseCursor(String cursor) {
-        if (cursor == null || cursor.isBlank()) {
-            return null;
-        }
-        return Instant.parse(cursor);
     }
 }

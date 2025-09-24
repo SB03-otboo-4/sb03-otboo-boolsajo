@@ -24,9 +24,9 @@ public class NotificationServiceImpl implements NotificationService {
     public CursorPageResponse<NotificationDto> getNotifications(UUID receiverId, NotificationQueryParams query) {
         var slice = notificationRepository.findByReceiverWithCursor(
             receiverId,
-            query.cursor(),
+            query.parsedCursor(),
             query.idAfter(),
-            query.limit()
+            query.fetchSize()
         );
 
         List<NotificationDto> data = slice.getContent()
