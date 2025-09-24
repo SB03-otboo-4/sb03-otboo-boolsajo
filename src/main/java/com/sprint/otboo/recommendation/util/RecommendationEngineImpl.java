@@ -67,6 +67,13 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         Map<ClothesType, List<Clothes>> groupedByType = filtered.stream()
             .collect(Collectors.groupingBy(Clothes::getType));
 
+        // 5. DRESS 포함 시 TOP & BOTTOM 제외
+        if (!excludeDress && groupedByType.containsKey(ClothesType.DRESS)) {
+            groupedByType.remove(ClothesType.TOP);
+            groupedByType.remove(ClothesType.BOTTOM);
+        }
+
+        // 6. 타입별 첫 번째 요소 선택 후 반환
         return groupedByType.values().stream()
             .map(list -> list.get(0))
             .toList();
