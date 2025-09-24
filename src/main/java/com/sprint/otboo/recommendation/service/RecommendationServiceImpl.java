@@ -1,6 +1,7 @@
 package com.sprint.otboo.recommendation.service;
 
 import com.sprint.otboo.clothing.entity.Clothes;
+import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
@@ -75,16 +76,23 @@ public class RecommendationServiceImpl implements RecommendationService {
             profile.getTemperatureSensitivity()
         );
 
-        // 5. 추천 엔진 실행 → 사용자의 옷 중 체감 온도에 적합한 옷 필터링
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        // 5. 이전 추천 조회 → 재추천 여부 판단
+        boolean excludeDress = recommendationRepository
+            .findTopByUser_IdOrderByCreatedAtDesc(userId)
+            .map(prev -> prev.getRecommendationClothes().stream()
+                .anyMatch(rc -> rc.getClothes().getType() == ClothesType.DRESS))
+            .orElse(false);
 
-        // 6. 추천 엔티티 구성
+        // 6. 추천 엔진 실행 → 사용자의 옷 중 체감 온도에 적합한 옷 필터링
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, excludeDress);
+
+        // 7. 추천 엔티티 구성
         Recommendation recommendation = Recommendation.builder()
             .user(User.builder().id(userId).build())
             .weather(weather)
             .build();
 
-        // 7. 추천된 옷들을 RecommendationClothes로 묶어서 연결
+        // 8. 추천된 옷들을 RecommendationClothes로 묶어서 연결
         recommended.forEach(c -> recommendation.addRecommendationClothes(
             RecommendationClothes.builder()
                 .clothes(c)
@@ -92,7 +100,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .build()
         ));
 
-        // 8. 엔티티 → DTO 변환 후 반환
+        // 9. 엔티티 → DTO 변환 후 반환
         return recommendationMapper.toDto(recommendation);
     }
 }

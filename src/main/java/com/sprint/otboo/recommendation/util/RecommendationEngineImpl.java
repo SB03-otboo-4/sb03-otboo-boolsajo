@@ -41,7 +41,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
      * @return 추천 대상 의상 리스트 (타입별 1개)
      */
     @Override
-    public List<Clothes> recommend(List<Clothes> clothes, double perceivedTemp, Weather weather
+    public List<Clothes> recommend(List<Clothes> clothes, double perceivedTemp, Weather weather, boolean excludeDress
     ) {
         // 풍속 초기화
         this.windSpeed = (weather.getSpeedMs() != null) ? weather.getSpeedMs() : 0.0;
@@ -54,7 +54,13 @@ public class RecommendationEngineImpl implements RecommendationEngine {
 
         // 3. 추천 필터링
         List<Clothes> filtered = clothes.stream()
-            .filter(c -> matchesSeasonAndCategory(c, season, category, weather))
+            .filter(c -> {
+                // 재추천 시 Dress 제외
+                if (excludeDress && c.getType() == ClothesType.DRESS) {
+                    return false;
+                }
+                return matchesSeasonAndCategory(c, season, category, weather);
+            })
             .toList();
 
         // 4. 타입별 그룹화 후 첫 번째 요소 선택
@@ -186,9 +192,10 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     private boolean matchesTypeRuleOnly(Clothes clothes, Season season, TemperatureCategory category, Weather weather) {
         return switch (clothes.getType()) {
             case OUTER -> matchesOuterRule(season, category, weather);
+            case DRESS -> matchesDressRule(season, category, weather);
             case HAT -> matchesHatRule(season, category, weather);
             case SCARF -> matchesScarfRule(season, category, weather);
-            default -> true; // TOP, BOTTOM, DRESS, UNDERWEAR, ACCESSORY, SHOES, SOCKS, ETC 등 기본 추천
+            default -> true; // TOP, BOTTOM, UNDERWEAR, ACCESSORY, SHOES, SOCKS, ETC 등 기본 추천
         };
     }
 
@@ -255,6 +262,29 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     }
 
     /**
+     * DRESS 전용 추천 규칙
+     * <ul>
+     *     <li>SPRING: 비 + 풍속 ≥ 3m/s 제외, 풍속 ≥ 5m/s 제외</li>
+     *     <li>SUMMER: 비 + 풍속 ≥ 3m/s 제외</li>
+     *     <li>FALL: 비 + 풍속 ≥ 3m/s 제외, 풍속 ≥ 5m/s 제외, 눈 제외</li>
+     *     <li>WINTER: 눈 제외</li>
+     * </ul>
+     */
+    private boolean matchesDressRule(Season season, TemperatureCategory category, Weather weather) {
+        // 지역 변수로 조건 정의
+        boolean rainWithWind3 = weather.getType() == PrecipitationType.RAIN && windSpeed >= 3.0;
+        boolean windOver5 = windSpeed >= 5.0;
+        boolean snow = weather.getType() == PrecipitationType.SNOW;
+
+        return switch (season) {
+            case SPRING -> !rainWithWind3 && !windOver5;
+            case SUMMER -> !rainWithWind3;
+            case FALL -> !rainWithWind3 && !windOver5 && !snow;
+            case WINTER -> !snow;
+        };
+    }
+
+    /**
      * SCARF 전용 추천 규칙
      * <ul>
      *     <li>SPRING, SUMMER: 제외</li>
@@ -289,6 +319,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
 
         return switch (type) {
             case OUTER -> isOuterSuitable(thickness, season, category);
+            case DRESS -> isDressSuitable(thickness, season, category);
             case TOP, BOTTOM -> isTopBottomSuitable(thickness, season, category);
             default -> true; // 나머지 타입은 두께 제한 없음
         };
@@ -309,6 +340,26 @@ public class RecommendationEngineImpl implements RecommendationEngine {
             case SUMMER -> thickness == Thickness.LIGHT;
             case FALL -> category == TemperatureCategory.HIGH
                 ? thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM
+                : thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
+            case WINTER -> thickness == Thickness.HEAVY;
+        };
+    }
+
+    /**
+     * DRESS 전용 두께 추천 규칙
+     *   SPRING: HIGH -> 얇음 또는 중간, LOW -> 중간
+     *   SUMMER: 얇음
+     *   FALL: HIGH -> 중간, LOW -> 중간 또는 두꺼움
+     *   WINTER: 두꺼움
+     */
+    private boolean isDressSuitable(Thickness thickness, Season season, TemperatureCategory category) {
+        return switch (season) {
+            case SPRING -> category == TemperatureCategory.HIGH
+                ? thickness == Thickness.LIGHT || thickness == Thickness.MEDIUM
+                : thickness == Thickness.MEDIUM;
+            case SUMMER -> thickness == Thickness.LIGHT;
+            case FALL -> category == TemperatureCategory.HIGH
+                ? thickness == Thickness.MEDIUM
                 : thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
             case WINTER -> thickness == Thickness.HEAVY;
         };
