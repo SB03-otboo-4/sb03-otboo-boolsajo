@@ -29,7 +29,7 @@ public class Notification extends BaseEntity {
         nullable = false,
         foreignKey = @ForeignKey(name = "fk_notifications_receiver")
     )
-    private User user;
+    private User receiver;
 
     @Column(name = "title", nullable = false, length = 50)
     private String title;
