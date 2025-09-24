@@ -22,11 +22,10 @@ import com.sprint.otboo.user.entity.Role;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import org.h2.engine.User;
-import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("NotificationController 테스트")
 public class NotificationControllerTest {
 
-    @AutoClose
+    @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
@@ -90,7 +89,7 @@ public class NotificationControllerTest {
             .willReturn(response);
 
         // when
-        mockMvc.perform(get("/api/notificaitons")
+        mockMvc.perform(get("/api/notifications")
             .param("limit","10")
             .with(user(principal)))
             // then
@@ -100,9 +99,12 @@ public class NotificationControllerTest {
             .andExpect(jsonPath("$.hasNext").value(true))
             .andExpect(jsonPath("$.sortBy").value("createdAt"));
 
-        ArgumentCaptor<NotificationQueryParams> captor = ArgumentCaptor.forClass(NotificationQueryParams.class);
-        then(notificationService).should().getNotifications(receiverId, captor.capture());
-        NotificationQueryParams captured = captor.getValue();
-        assertThat(captured.limit()).isEqualTo(10);
+        ArgumentCaptor<UUID> idCaptor = ArgumentCaptor.forClass(UUID.class);
+        ArgumentCaptor<NotificationQueryParams> paramCaptor = ArgumentCaptor.forClass(NotificationQueryParams.class);
+
+        then(notificationService).should().getNotifications(idCaptor.capture(), paramCaptor.capture());
+
+        assertThat(idCaptor.getValue()).isEqualTo(receiverId);
+        assertThat(paramCaptor.getValue().limit()).isEqualTo(10);
     }
 }
