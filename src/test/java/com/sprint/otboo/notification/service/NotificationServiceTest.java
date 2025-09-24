@@ -118,4 +118,40 @@ public class NotificationServiceTest {
         assertThat(actual.nextCursor()).isNull();
         assertThat(actual.nextIdAfter()).isNull();
     }
+
+    @Test
+    void 알림_목록을_조회하면_hasNext와_cursor_정보를_갱신() {
+        // given
+        UUID receiverId = UUID.randomUUID();
+        NotificationQueryParams query = new NotificationQueryParams(null, null, 2);
+
+        Notification first = notificationEntity(receiverId, NotificationLevel.INFO);
+        Notification second = notificationEntity(receiverId, NotificationLevel.WARNING);
+        Notification third = notificationEntity(receiverId, NotificationLevel.ERROR);
+
+        Slice<Notification> slice = notificationSlice(
+            List.of(first, second, third),
+            query.fetchSize(),
+            true
+        );
+        given(notificationRepository.findByReceiverWithCursor(
+            receiverId,
+            query.parsedCursor(),
+            query.idAfter(),
+            query.fetchSize()
+        )).willReturn(slice);
+        given(notificationMapper.toDto(first)).willReturn(notificationDto(first));
+        given(notificationMapper.toDto(second)).willReturn(notificationDto(second));
+        given(notificationMapper.toDto(third)).willReturn(notificationDto(third));
+
+        // when
+        CursorPageResponse<NotificationDto> actual = notificationService.getNotifications(receiverId, query);
+
+        // then
+        NotificationDto last = actual.data().get(actual.data().size() - 1);
+        assertThat(actual.data()).hasSize(3);
+        assertThat(actual.hasNext()).isTrue();
+        assertThat(actual.nextCursor()).isEqualTo(last.createdAt().toString());
+        assertThat(actual.nextIdAfter()).isEqualTo(last.id().toString());
+    }
 }
