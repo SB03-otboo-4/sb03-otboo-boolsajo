@@ -24,6 +24,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesType;
+import com.sprint.otboo.clothing.scraper.ClothesExtractionService;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
@@ -55,6 +56,9 @@ public class ClothesControllerTest {
 
     @MockitoBean
     private ClothesService clothesService;
+
+    @MockitoBean
+    private ClothesExtractionService clothesExtractionService;
 
     @MockitoBean
     TokenProvider tokenProvider;
