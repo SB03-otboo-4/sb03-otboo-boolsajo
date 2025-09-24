@@ -7,12 +7,13 @@ import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.clothing.UserClothesNotFoundException;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.paging.InvalidPagingParamException;
+import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.common.exception.weather.WeatherNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
+import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.entity.Feed;
-import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
@@ -25,7 +26,6 @@ import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +82,31 @@ public class FeedServiceImpl implements FeedService {
             log.info("[FeedServiceImpl] 피드-의상 연결 완료: feedId={}, clothesCount={}",
                 saved.getId(), clothesList.size());
         }
+
+        return feedMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public FeedDto update(UUID authorId, UUID feedId, FeedUpdateRequest request) {
+        log.info("[FeedServiceImpl] 피드 수정 시작: authorId={}, feedId={}, newContent={}", authorId,
+            feedId, request.content());
+
+        userRepository.findById(authorId)
+            .orElseThrow(() -> UserNotFoundException.withId(authorId));
+
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+
+        if (!feed.getAuthor().getId().equals(authorId)) {
+            throw FeedAccessDeniedException.withUserIdAndFeedId(authorId, feedId);
+        }
+
+        String newContent = request.content();
+        feed.updateContent(newContent);
+
+        Feed saved = feedRepository.save(feed);
+        log.info("[FeedServiceImpl] 피드 수정 완료: newContent={}", saved.getContent());
 
         return feedMapper.toDto(saved);
     }
@@ -145,21 +170,27 @@ public class FeedServiceImpl implements FeedService {
         );
     }
 
-
-    @Transactional
     @Override
-    public void addLike(UUID feedId, UUID userId) {
-        Feed feed = feedRepository.findById(feedId)
-            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
-        User user = userRepository.findById(userId)
+    @Transactional
+    public void delete(UUID userId, UUID feedId) {
+        log.info("[FeedServiceImpl] 피드 삭제 시작: userId={}, feedId={}", userId, feedId);
+        userRepository.findById(userId)
             .orElseThrow(() -> UserNotFoundException.withId(userId));
 
-        try {
-            feedLikeRepository.save(FeedLike.builder().feed(feed).user(user).build());
-            feed.increaseLikeCount();
-        } catch (DataIntegrityViolationException e) {
-            log.debug("[FeedServiceImpl] feedLike가 이미 존재함: feedId={}, userId={}", feedId, userId);
+        Feed feed = feedRepository.findById(feedId)
+            .orElseThrow(() -> FeedNotFoundException.withId(feedId));
+
+        if (!feed.getAuthor().getId().equals(userId)) {
+            throw FeedAccessDeniedException.withUserIdAndFeedId(userId, feedId);
         }
+
+        if (feed.isDeleted()) {
+            return;
+        }
+
+        feed.softDelete();
+        feedRepository.save(feed);
+        log.info("[FeedServiceImpl] 피드 삭제 완료: feedId={}", feedId);
     }
 
     private void validatePaging(int limit, String sortBy, String sortDirection) {
