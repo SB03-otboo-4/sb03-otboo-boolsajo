@@ -2,14 +2,16 @@ package com.sprint.otboo.notification.service;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.given;
+import static org.mockito.BDDMockito.given;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
 import com.sprint.otboo.notification.entity.NotificationLevel;
 import com.sprint.otboo.notification.mapper.NotificationMapper;
 import com.sprint.otboo.notification.repository.NotificationRepository;
+import com.sprint.otboo.notification.service.impl.NotificationServiceImpl;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
@@ -97,12 +99,12 @@ public class NotificationServiceTest {
         NotificationQueryParams query = new NotificationQueryParams(null, null, 20);
 
         Notification entity = notificationEntity(receiverId, NotificationLevel.INFO);
-        Slice<Notification> slice = notificationSlice(List.of(entity), 1, false);
+        Slice<Notification> slice = notificationSlice(List.of(entity), query.limit(), false);
         given(notificationRepository.findByReceiverWithCursor(
             receiverId,
             query.cursor(),
             query.idAfter(),
-            query.limit() + 1
+            query.limit()
         )).willReturn(slice);
 
         NotificationDto expectedDto = notificationDto(entity);
