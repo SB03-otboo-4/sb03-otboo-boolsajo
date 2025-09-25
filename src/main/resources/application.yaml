@@ -11,6 +11,19 @@ spring:
     type: caffeine
   config:
     import: optional:file:.env[.properties]
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GOOGLE_ID}
+    password: ${GOOGLE_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
 
   # Spring Actuator
   management:
@@ -22,7 +35,7 @@ spring:
       info:
         enabled: true
       health:
-        shwo-details: always
+        show-details: always
     info:
       env:
         enabled: true
