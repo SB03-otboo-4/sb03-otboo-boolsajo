@@ -1,6 +1,7 @@
 package com.sprint.otboo.weather.integration.kma.dto;
 
 public class KmaForecastItem {
+
     private String category;
     private String fcstDate;
     private String fcstTime;

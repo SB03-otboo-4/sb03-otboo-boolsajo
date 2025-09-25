@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KmaForecastResponse {
+
     private String resultCode;
     private List<KmaForecastItem> items = new ArrayList<>();
 

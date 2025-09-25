@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "weather.kma")
 public class WeatherKmaProperties {
+
     private String baseUrl = "https://apis.data.go.kr/1360000";
     private String serviceKey;
     private int connectTimeoutMs = 3000;
