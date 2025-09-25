@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("KmaForecastMapper 테스트")
 class KmaForecastMapperTest {
 
-    private final KmaForecastMapper mapper = new KmaForecastMapper();
+    private final KmaForecastMapper mapper = new DefaultKmaForecastMapper();
 
     @Test
     @DisplayName("SKY 코드값을 SkyStatus로 변환해야 한다 (1:맑음, 3:구름많음, 4:흐림)")
