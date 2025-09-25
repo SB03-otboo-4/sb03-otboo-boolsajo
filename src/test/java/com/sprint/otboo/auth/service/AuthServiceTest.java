@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -70,7 +71,7 @@ public class AuthServiceTest {
     private StringRedisTemplate redisTemplate;
 
     @Mock
-    private ValueOperations<String, String> valueOperations; // redisTemplate을 Mocking하기 위해 필요
+    private ValueOperations<String, String> valueOperations;
 
     @Mock
     private MailService mailService;
@@ -120,6 +121,38 @@ public class AuthServiceTest {
     }
 
     @Test
+    void 로그인_성공_임시_비밀번호() throws Exception {
+        // given
+        String tempPassword = "test1234";
+        String tempPasswordHash = "hashed_temporary_password";
+        SignInRequest request = new SignInRequest(TEST_EMAIL, tempPassword);
+        CustomUserDetails userDetails = createTestUserDetails(false);
+        UserDto userDto = userDetails.getUserDto();
+        String redisKey = "temp_pw:" + TEST_EMAIL;
+
+        given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
+        given(passwordEncoder.matches(tempPassword, ENCODED_PASSWORD)).willReturn(false);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(redisKey)).willReturn(tempPasswordHash);
+        given(passwordEncoder.matches(tempPassword, tempPasswordHash)).willReturn(true);
+        given(tokenProvider.createAccessToken(userDto)).willReturn("access.jwt.token");
+        given(tokenProvider.createRefreshToken(userDto)).willReturn("refresh.jwt.token");
+
+        // when
+        AuthResultDto result = authService.signIn(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.accessToken()).isEqualTo("access.jwt.token");
+
+        verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
+        verify(passwordEncoder, times(2)).matches(eq(tempPassword), anyString());
+        verify(valueOperations).get(redisKey);
+        verify(redisTemplate).delete(redisKey);
+        verify(jwtRegistry).register(any(JwtInformation.class));
+    }
+
+    @Test
     void 로그인_실패_존재하지않는_사용자() {
         // given
         String nonExistEmail = "no@abc.com";
@@ -136,13 +169,16 @@ public class AuthServiceTest {
     }
 
     @Test
-    void 로그인_실패_비밀번호_불일치() {
+    void 로그인_실패_두_비밀번호_모두_불일치() {
         // given
         CustomUserDetails userDetails = createTestUserDetails(false);
         String wrongPassword = "1324";
+        String redisKey = "temp_pw:" + TEST_EMAIL;
 
         given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
         given(passwordEncoder.matches(wrongPassword, ENCODED_PASSWORD)).willReturn(false);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(redisKey)).willReturn(null);
 
         // when
         Throwable thrown = catchThrowable(() -> authService.signIn(new SignInRequest(TEST_EMAIL, wrongPassword)));
@@ -151,7 +187,8 @@ public class AuthServiceTest {
         assertThat(thrown).isInstanceOf(InvalidCredentialsException.class);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(wrongPassword, ENCODED_PASSWORD);
-        verifyNoInteractions(tokenProvider,jwtRegistry);
+        verify(valueOperations).get(redisKey);
+        verifyNoInteractions(tokenProvider, jwtRegistry);
     }
 
     @Test
