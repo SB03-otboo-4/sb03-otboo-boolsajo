@@ -87,4 +87,8 @@ public class Feed extends BaseUpdatableEntity {
     public void softDelete() {
         this.deleted = true;
     }
+
+    public void decreaseLikeCount() {
+        this.likeCount = this.likeCount - 1;
+    }
 }
