@@ -36,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>의상 목록 조회</li>
  *   <li>의상 수정</li>
  *   <li>의상 삭제</li>
+ *   <li>URL 기반 의상 정보 추출</li>
  * </ul>
  *
  * <p>보안: 인증된 사용자( USER, ADMIN )만 접근 가능하도록 Spring Security 설정</p>
@@ -152,6 +153,19 @@ public class ClothesController {
             .build();
     }
 
+    /**
+     * 의상 정보 추출 API
+     *
+     * <p>주어진 상품 URL(무신사, 지그재그, 29CM 등)에서 의상 정보를 추출하여 반환</p>
+     *
+     * <ul>
+     *   <li>지원하는 사이트 여부를 내부 로직에서 판별</li>
+     *   <li>의상 이름, 이미지, 타입, 속성 등을 DTO로 변환</li>
+     * </ul>
+     *
+     * @param url 상품 상세 페이지 URL
+     * @return {@link ClothesDto} 추출된 의상 정보
+     */
     @GetMapping("/extractions")
     public ClothesDto extractByUrl(@RequestParam String url) {
         return extractionService.extractByUrl(url);
