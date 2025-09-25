@@ -63,11 +63,13 @@ public class NotificationRepositoryTest {
     }
 
     @Test
-    void 커서_없이_조회하면_최신순으로_정렬된다() {
+    void 커서_없이_조회하면_최신순으로_정렬() {
+        // given
         User receiver = persistUser();
         Notification n1 = persistNotification(receiver, Instant.parse("2025-09-24T09:00:00Z"));
         Notification n2 = persistNotification(receiver, Instant.parse("2025-09-24T08:00:00Z"));
 
+        // when
         Slice<Notification> slice = notificationRepository.findByReceiverWithCursor(
             receiver.getId(),
             null,
@@ -75,16 +77,19 @@ public class NotificationRepositoryTest {
             3
         );
 
+        // then
         assertThat(slice.getContent()).extracting(Notification::getId).containsExactly(n1.getId(), n2.getId());
         assertThat(slice.hasNext()).isFalse();
     }
 
     @Test
-    void 커서를_이용해_이후_데이터만_조회한다() {
+    void 커서를_이용해_이후_데이터만_조회() {
+        // given
         User receiver = persistUser();
         Notification newer = persistNotification(receiver, Instant.parse("2025-09-24T10:00:00Z"));
         Notification older = persistNotification(receiver, Instant.parse("2025-09-24T09:00:00Z"));
 
+        // when
         Slice<Notification> slice = notificationRepository.findByReceiverWithCursor(
             receiver.getId(),
             newer.getCreatedAt(),
@@ -92,6 +97,7 @@ public class NotificationRepositoryTest {
             3
         );
 
+        // then
         assertThat(slice.getContent()).extracting(Notification::getId).containsExactly(older.getId());
     }
 }

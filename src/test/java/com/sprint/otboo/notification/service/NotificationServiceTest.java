@@ -169,7 +169,7 @@ public class NotificationServiceTest {
     }
 
     @Test
-    void 권한_변경_알림을_저장하고_DTO로_반환한다() {
+    void 권한_변경_알림을_저장하고_DTO로_반환() {
         // given
         UUID receiverId = UUID.randomUUID();
         Role newRole = Role.ADMIN;
