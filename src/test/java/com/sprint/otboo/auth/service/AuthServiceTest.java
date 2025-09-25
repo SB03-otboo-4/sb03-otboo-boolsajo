@@ -2,16 +2,20 @@ package com.sprint.otboo.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.nimbusds.jose.JOSEException;
 import com.sprint.otboo.auth.dto.AuthResultDto;
+import com.sprint.otboo.auth.dto.JwtInformation;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.auth.AccountLockedException;
 import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
@@ -25,6 +29,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -43,6 +48,9 @@ public class AuthServiceTest {
 
     @Mock
     private UserDetailsService userDetailsService;
+
+    @Mock
+    private JwtRegistry jwtRegistry;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -85,6 +93,7 @@ public class AuthServiceTest {
         verify(passwordEncoder).matches(TEST_PASSWORD, ENCODED_PASSWORD);
         verify(tokenProvider).createAccessToken(userDto);
         verify(tokenProvider).createRefreshToken(userDto);
+        verify(jwtRegistry).register(any(JwtInformation.class));
     }
 
     @Test
@@ -100,7 +109,7 @@ public class AuthServiceTest {
         // then
         assertThat(thrown).isInstanceOf(InvalidCredentialsException.class);
         verify(userDetailsService).loadUserByUsername(nonExistEmail);
-        verifyNoInteractions(passwordEncoder, tokenProvider);
+        verifyNoInteractions(passwordEncoder, tokenProvider,jwtRegistry);
     }
 
     @Test
@@ -119,7 +128,7 @@ public class AuthServiceTest {
         assertThat(thrown).isInstanceOf(InvalidCredentialsException.class);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(passwordEncoder).matches(wrongPassword, ENCODED_PASSWORD);
-        verifyNoInteractions(tokenProvider);
+        verifyNoInteractions(tokenProvider,jwtRegistry);
     }
 
     @Test
@@ -134,7 +143,7 @@ public class AuthServiceTest {
         // then
         assertThat(thrown).isInstanceOf(AccountLockedException.class);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
-        verifyNoInteractions(passwordEncoder, tokenProvider);
+        verifyNoInteractions(passwordEncoder, tokenProvider,jwtRegistry);
     }
 
     @Test
@@ -174,6 +183,7 @@ public class AuthServiceTest {
         given(userDetailsService.loadUserByUsername(TEST_EMAIL)).willReturn(userDetails);
         given(tokenProvider.createAccessToken(userDto)).willReturn(newAccessToken);
         given(tokenProvider.createRefreshToken(userDto)).willReturn(newRefreshToken);
+        given(jwtRegistry.isRefreshTokenValid(refreshToken)).willReturn(true);
 
         // when
         AuthResultDto result = authService.reissueToken(refreshToken);
@@ -188,7 +198,12 @@ public class AuthServiceTest {
         verify(tokenProvider).getEmailFromRefreshToken(refreshToken);
         verify(userDetailsService).loadUserByUsername(TEST_EMAIL);
         verify(tokenProvider).createAccessToken(userDto);
-        verify(tokenProvider).createAccessToken(userDto);
+        verify(tokenProvider).createRefreshToken(userDto);
+
+        InOrder inOrder = inOrder(jwtRegistry);
+        inOrder.verify(jwtRegistry).isRefreshTokenValid(refreshToken);
+        inOrder.verify(jwtRegistry).invalidate(refreshToken);
+        inOrder.verify(jwtRegistry).register(any(JwtInformation.class));
     }
 
     @Test
@@ -196,6 +211,7 @@ public class AuthServiceTest {
         // given
         String invalidRefreshToken = "invalid.refresh.token";
 
+        given(jwtRegistry.isRefreshTokenValid(invalidRefreshToken)).willReturn(true);
         doThrow(new InvalidTokenException())
             .when(tokenProvider).validateRefreshToken(invalidRefreshToken);
 
@@ -204,8 +220,56 @@ public class AuthServiceTest {
 
         // then
         assertThat(thrown).isInstanceOf(InvalidTokenException.class);
-
+        verify(jwtRegistry).isRefreshTokenValid(invalidRefreshToken);
         verify(tokenProvider).validateRefreshToken(invalidRefreshToken);
         verifyNoInteractions(userDetailsService, passwordEncoder);
     }
+
+    @Test
+    void 토큰재발급_실패_레지스트리에_없는_토큰() {
+        // given
+        String invalidRefreshToken = "not.in.registry.token";
+        given(jwtRegistry.isRefreshTokenValid(invalidRefreshToken)).willReturn(false);
+
+        // when
+        Throwable thrown = catchThrowable(() -> authService.reissueToken(invalidRefreshToken));
+
+        // then
+        assertThat(thrown).isInstanceOf(InvalidTokenException.class);
+        verify(jwtRegistry).isRefreshTokenValid(invalidRefreshToken);
+        verifyNoInteractions(tokenProvider, userDetailsService);
+    }
+
+    @Test
+    void 로그아웃_성공() throws ParseException {
+        // given
+        String validRefreshToken = "valid.refresh.token";
+        doNothing().when(tokenProvider).validateRefreshToken(validRefreshToken);
+
+        // when
+        authService.signOut(validRefreshToken);
+
+        // then
+        InOrder inOrder = inOrder(tokenProvider, jwtRegistry);
+        inOrder.verify(tokenProvider).validateRefreshToken(validRefreshToken);
+        inOrder.verify(jwtRegistry).invalidate(validRefreshToken);
+    }
+
+    @Test
+    void 로그아웃_실패__유효하지_않은_토큰() throws ParseException {
+        // given
+        String invalidRefreshToken = "invalid.refresh.token";
+        doThrow(new InvalidTokenException()).when(tokenProvider).validateRefreshToken(invalidRefreshToken);
+
+        // when
+        Throwable thrown = catchThrowable(() -> authService.signOut(invalidRefreshToken));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(InvalidTokenException.class);
+
+        verify(tokenProvider).validateRefreshToken(invalidRefreshToken);
+        verifyNoInteractions(jwtRegistry);
+    }
+
 }

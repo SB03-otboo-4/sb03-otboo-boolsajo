@@ -3,12 +3,15 @@ package com.sprint.otboo.user.service.impl;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.storage.FileStorageService;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
+import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
@@ -18,18 +21,27 @@ import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.user.repository.query.UserQueryRepository;
 import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.UserService;
+import com.sprint.otboo.user.service.support.AsyncProfileImageUploader;
+import com.sprint.otboo.user.service.support.ProfileImageUploadTask;
 import com.sprint.otboo.user.service.support.UserListEnums.SortBy;
 import com.sprint.otboo.user.service.support.UserListEnums.SortDirection;
+import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
+import com.sprint.otboo.weather.service.WeatherLocationQueryService;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Slf4j
 public class UserServiceImpl implements UserService {
@@ -39,6 +51,32 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final UserQueryRepository userQueryRepository;
+    private final FileStorageService fileStorageService;
+    private final WeatherLocationQueryService weatherLocationQueryService;
+    private final AsyncProfileImageUploader asyncProfileImageUploader;
+    private final RetryTemplate profileImageStorageRetryTemplate;
+
+    public UserServiceImpl(
+        UserRepository userRepository,
+        UserProfileRepository userProfileRepository,
+        PasswordEncoder passwordEncoder,
+        UserMapper userMapper,
+        UserQueryRepository userQueryRepository,
+        @Qualifier("profileImageStorageService") FileStorageService fileStorageService,
+        WeatherLocationQueryService weatherLocationQueryService,
+        AsyncProfileImageUploader asyncProfileImageUploader,
+        @Qualifier("profileImageStorageRetryTemplate") RetryTemplate profileImageStorageRetryTemplate
+    ) {
+        this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.userMapper = userMapper;
+        this.userQueryRepository = userQueryRepository;
+        this.fileStorageService = fileStorageService;
+        this.weatherLocationQueryService = weatherLocationQueryService;
+        this.asyncProfileImageUploader = asyncProfileImageUploader;
+        this.profileImageStorageRetryTemplate = profileImageStorageRetryTemplate;
+    }
 
     @Override
     @Transactional
@@ -156,6 +194,80 @@ public class UserServiceImpl implements UserService {
             sortBy.toParam(),
             sd.toParam()
         );
+    }
+
+    @Override
+    @Transactional
+    public ProfileDto updateUserProfile(UUID userId, ProfileUpdateRequest request, MultipartFile image) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        UserProfile profile = userProfileRepository.findById(userId)
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_PROFILE_NOT_FOUND));
+
+        user.updateUsername(request.name());
+
+        if (image != null && !image.isEmpty()) {
+            if (StringUtils.hasText(user.getProfileImageUrl())) {
+                profileImageStorageRetryTemplate.execute(context -> {
+                    fileStorageService.delete(user.getProfileImageUrl());
+                    return null;
+                });
+            }
+            String imageUrl = profileImageStorageRetryTemplate.execute(
+                context -> fileStorageService.upload(image)
+            );
+            user.updateProfileImageUrl(imageUrl);
+        }
+
+        if (StringUtils.hasText(request.gender())) {
+            profile.updateGender(Gender.valueOf(request.gender()));
+        } else {
+            profile.updateGender(null);
+        }
+
+        profile.updateBirthDate(request.birthDate());
+
+        if (request.location() != null) {
+            WeatherLocationResponse resolved = weatherLocationQueryService.getWeatherLocation(
+                request.location().latitude().doubleValue(),
+                request.location().longitude().doubleValue()
+            );
+
+            List<String> effectiveNames =
+                request.location().locationNames().isEmpty()
+                    ? resolved.locationNames()
+                    : request.location().locationNames();
+
+            profile.updateLocation(
+                BigDecimal.valueOf(resolved.latitude()),
+                BigDecimal.valueOf(resolved.longitude()),
+                resolved.x(),
+                resolved.y(),
+                effectiveNames.isEmpty() ? null : String.join(" ", effectiveNames)
+            );
+        }
+
+        if (request.temperatureSensitivity() != null) {
+            profile.updateTemperatureSensitivity(request.temperatureSensitivity());
+        }
+
+        if (image != null && !image.isEmpty()) {
+            try {
+                ProfileImageUploadTask task = new ProfileImageUploadTask(
+                    userId,
+                    image.getOriginalFilename(),
+                    image.getContentType(),
+                    image.getBytes()
+                );
+                asyncProfileImageUploader.upload(task);
+            } catch (IOException ex) {
+                log.error("[UserServiceImpl] 이미지 데이터를 읽는 중 오류 userId={}", userId, ex);
+                throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED, ex);
+            }
+        }
+
+        return userMapper.toProfileDto(user, profile);
     }
 
     private void validateDuplicateEmail(String email) {

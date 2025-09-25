@@ -9,6 +9,8 @@ spring:
       max-request-size: 10MB
   cache:
     type: caffeine
+  config:
+    import: optional:file:.env[.properties]
 
   # Spring Actuator
   management:
@@ -43,3 +45,19 @@ jwt:
   refresh-token:
     secret: ${JWT_REFRESH_SECRET:zK9bC2dR5uH8xL1mQ4vA7wE3gF6jT0fV/oI2sY5pX9c=}
     expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  session:
+    max-active-jwt: 1
+
+storage:
+  local:
+    enabled: true
+    upload-dir: ${user.home}/otboo/uploads
+    base-url: http://localhost:8080/uploads
+  s3:
+    enabled: false
+    bucket: ${S3_BUCKET_NAME:otboo-bucket-boolsajo}
+    base-url: https://s3.ap-northeast-2.amazonaws.com/${S3_BUCKET_NAME:otboo-bucket-boolsajo}
+    region: ap-northeast-2
+    prefixes:
+      profile: binary-content/profiles
+      clothing: binary-content/clothing

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
@@ -36,6 +37,9 @@ class WeatherControllerTest {
 
     @MockitoBean
     private TokenProvider tokenProvider;
+
+    @MockitoBean
+    private JwtRegistry jwtRegistry;
 
     @Test
     void 정상_요청은_200과_올바른_본문을_반환해야_한다() throws Exception {

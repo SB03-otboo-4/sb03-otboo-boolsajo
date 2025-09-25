@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 public interface FeedLikeRepository extends JpaRepository<FeedLike, UUID> {
 
     boolean existsByFeedIdAndUserId(UUID feedId, UUID userId);
+
+    int deleteByFeedIdAndUserId(UUID feedId, UUID userId);
 }

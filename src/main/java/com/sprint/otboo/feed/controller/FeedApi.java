@@ -116,10 +116,18 @@ public interface FeedApi {
     );
     @Operation(summary = "Feed Delete", description = "피드를 삭제합니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "삭제 성공"),
-        @ApiResponse(responseCode = "401", description = "인증되지 않음"),
-        @ApiResponse(responseCode = "403", description = "삭제 권한 없음(작성자 불일치)"),
-        @ApiResponse(responseCode = "404", description = "작성자 또는 Feed를 찾을 수 없음")
+        @ApiResponse(
+            responseCode = "204", description = "삭제 성공"
+        ),
+        @ApiResponse(
+            responseCode = "401", description = "인증되지 않음"
+        ),
+        @ApiResponse(
+            responseCode = "403", description = "삭제 권한 없음(작성자 불일치)"
+        ),
+        @ApiResponse(
+            responseCode = "404", description = "작성자 또는 Feed를 찾을 수 없음"
+        )
     })
     ResponseEntity<Void> delete(
         @Parameter(description = "삭제할 Feed ID", required = true) UUID feedId,
