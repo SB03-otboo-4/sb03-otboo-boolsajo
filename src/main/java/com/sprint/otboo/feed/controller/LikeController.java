@@ -28,8 +28,8 @@ public class LikeController implements LikeApi {
             feedId, principal.getUserId());
         UUID userId = principal.getUserId();
         likeService.addLike(feedId, userId);
-        log.info("[FeedController] 좋아요 등록 완료: feedId={}, userId={}",
-            feedId, principal.getUserId());
+        log.info("[LikeController] 좋아요 등록 완료: feedId={}, userId={}",
+            feedId, userId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
