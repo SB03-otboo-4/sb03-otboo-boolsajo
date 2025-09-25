@@ -31,6 +31,16 @@ logging:
   level:
     root: info
 
+weather:
+  kma:
+    base-url: https://apis.data.go.kr/1360000
+    service-key: ${KMA_SERVICE_KEY:}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+    retry-max-attempts: 3
+    retry-backoff-ms: 300
+    num-of-rows: 1000
+    data-type: JSON
 
 kakao:
   api:
