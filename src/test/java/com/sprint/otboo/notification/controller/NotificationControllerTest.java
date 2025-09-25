@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
@@ -42,6 +43,9 @@ public class NotificationControllerTest {
 
     @MockitoBean
     private TokenProvider tokenProvider;
+
+    @MockitoBean
+    private JwtRegistry jwtRegistry;
 
     private CustomUserDetails userPrincipal(UUID id) {
         UserDto dto = new UserDto(
