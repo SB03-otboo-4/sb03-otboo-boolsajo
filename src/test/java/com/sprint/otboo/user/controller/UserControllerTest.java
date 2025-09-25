@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
@@ -68,6 +69,9 @@ public class UserControllerTest {
 
     @MockitoBean
     TokenProvider tokenProvider;
+
+    @MockitoBean
+    JwtRegistry jwtRegistry;
 
     @MockitoBean
     private UserService userService;

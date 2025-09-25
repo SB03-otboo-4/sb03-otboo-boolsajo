@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -222,7 +223,7 @@ public class AuthControllerTest {
 
         resultActions.andExpect(cookie().exists("REFRESH_TOKEN"))
             .andExpect(cookie().httpOnly("REFRESH_TOKEN", true))
-            .andExpect(cookie().path("REFRESH_TOKEN", "/api/auth/refresh"));
+            .andExpect(cookie().path("REFRESH_TOKEN", "/"));
     }
 
     @Test
@@ -269,6 +270,67 @@ public class AuthControllerTest {
 
         // then
         resultActions.andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 로그아웃_성공() throws Exception {
+        // given
+        Cookie refreshTokenCookie = new Cookie("REFRESH_TOKEN", "existing.refresh.token");
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setPath("/");
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/sign-out")
+            .with(csrf())
+            .cookie(refreshTokenCookie));
+
+        // then
+        resultActions.andExpect(status().isNoContent());
+
+        resultActions.andExpect(cookie().exists("REFRESH_TOKEN"))
+            .andExpect(cookie().maxAge("REFRESH_TOKEN", 0))
+            .andExpect(cookie().path("REFRESH_TOKEN", "/"));
+    }
+
+    @Test
+    void 로그아웃_실패_쿠키없음() throws Exception {
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/sign-out")
+            .with(csrf()));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 로그아웃_실패_유효하지않은_토큰() throws Exception {
+        // given
+        String invalidRefreshToken = "invalid.or.expired.refresh.token";
+        Cookie invalidCookie = new Cookie("REFRESH_TOKEN", invalidRefreshToken);
+
+        doThrow(new InvalidTokenException())
+            .when(authService).signOut(invalidRefreshToken);
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/sign-out")
+            .with(csrf())
+            .cookie(invalidCookie));
+
+        // then
+        resultActions.andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 로그아웃_실패_csrf토큰_없음() throws Exception {
+        // given
+        Cookie refreshTokenCookie = new Cookie("REFRESH_TOKEN", "existing.refresh.token");
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/sign-out")
+            .cookie(refreshTokenCookie));
+
+        // then
+        resultActions.andExpect(status().isForbidden());
     }
 
 }

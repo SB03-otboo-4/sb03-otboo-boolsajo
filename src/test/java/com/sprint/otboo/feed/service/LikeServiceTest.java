@@ -113,4 +113,90 @@ public class LikeServiceTest {
                 .isInstanceOf(UserNotFoundException.class);
         }
     }
+
+    @Nested
+    @DisplayName("피드 좋아요 삭제 테스트")
+    class FeedLikeDeleteTests {
+
+        @Test
+        void 좋아요를_삭제하면_likeCount가_1_감소한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            User liker = User.builder().id(userId).build();
+            Feed feed = Feed.builder()
+                .id(feedId)
+                .author(User.builder().id(UUID.randomUUID()).build())
+                .content("hi")
+                .likeCount(1L)
+                .commentCount(0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+            given(userRepository.findById(userId)).willReturn(Optional.of(liker));
+            given(feedLikeRepository.existsByFeedIdAndUserId(feedId, userId)).willReturn(true);
+            given(feedLikeRepository.deleteByFeedIdAndUserId(feedId, userId)).willReturn(1);
+
+            // When
+            likeService.removeLike(feedId, userId);
+
+            // Then
+            assertThat(feed.getLikeCount()).isEqualTo(0L);
+            then(feedRepository).should().findById(feedId);
+            then(userRepository).should().findById(userId);
+            then(feedLikeRepository).should().existsByFeedIdAndUserId(feedId, userId);
+            then(feedLikeRepository).should().deleteByFeedIdAndUserId(feedId, userId);
+            then(feedRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).shouldHaveNoMoreInteractions();
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 피드가_존재하지_않으면_예외가_발생한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> likeService.removeLike(feedId, userId))
+                .isInstanceOf(FeedNotFoundException.class)
+                .hasMessageContaining("피드를 찾을 수 없습니다.");
+            then(feedRepository).should().findById(feedId);
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+        }
+
+        @Test
+        void 유저가_존재하지_않으면_예외가_발생한다() {
+            // Given
+            UUID feedId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            Feed feed = Feed.builder()
+                .id(feedId)
+                .author(User.builder().id(UUID.randomUUID()).build())
+                .content("hi")
+                .likeCount(1L)
+                .commentCount(0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
+            given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> likeService.removeLike(feedId, userId))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("사용자를 찾을 수 없습니다.");
+            then(feedRepository).should().findById(feedId);
+            then(userRepository).should().findById(userId);
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).shouldHaveNoMoreInteractions();
+        }
+    }
 }
