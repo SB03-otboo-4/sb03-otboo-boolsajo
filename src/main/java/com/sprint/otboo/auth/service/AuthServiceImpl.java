@@ -20,6 +20,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -104,5 +105,16 @@ public class AuthServiceImpl implements AuthService{
     public void signOut(String refreshToken) throws ParseException {
         tokenProvider.validateRefreshToken(refreshToken);
         jwtRegistry.invalidate(refreshToken);
+    }
+
+
+    @Override
+    @Transactional
+    public void sendTemporaryPassword(String email) {
+
+    }
+
+    private String generateRandomPassword(int length) {
+        return null;
     }
 }

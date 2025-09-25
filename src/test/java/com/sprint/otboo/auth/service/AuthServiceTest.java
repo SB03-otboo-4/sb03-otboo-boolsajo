@@ -3,6 +3,8 @@ package com.sprint.otboo.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -17,22 +19,31 @@ import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
+import com.sprint.otboo.auth.util.MailService;
 import com.sprint.otboo.common.exception.auth.AccountLockedException;
 import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
 import com.sprint.otboo.common.exception.auth.InvalidTokenException;
 import com.sprint.otboo.common.exception.auth.TokenCreationException;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
+import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.repository.UserRepository;
 import java.text.ParseException;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -51,6 +62,18 @@ public class AuthServiceTest {
 
     @Mock
     private JwtRegistry jwtRegistry;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations; // redisTemplate을 Mocking하기 위해 필요
+
+    @Mock
+    private MailService mailService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -270,6 +293,60 @@ public class AuthServiceTest {
 
         verify(tokenProvider).validateRefreshToken(invalidRefreshToken);
         verifyNoInteractions(jwtRegistry);
+    }
+
+    @Test
+    void 임시비밀번호_발급_성공() {
+        // given
+        String existingEmail = "test@example.com";
+        User mockUser = User.builder()
+            .id(UUID.randomUUID())
+            .email(existingEmail)
+            .username("testuser")
+            .role(Role.USER)
+            .provider(LoginType.GENERAL)
+            .locked(false)
+            .build();
+        String temporaryPasswordHash = "hashed_password";
+
+        given(userRepository.findByEmail(existingEmail)).willReturn(Optional.of(mockUser));
+        given(passwordEncoder.encode(anyString())).willReturn(temporaryPasswordHash);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        doNothing().when(mailService).sendTemporaryPasswordEmail(anyString(), anyString());
+
+        // when
+        authService.sendTemporaryPassword(existingEmail);
+
+        // then
+        verify(userRepository).findByEmail(existingEmail);
+        verify(passwordEncoder).encode(anyString());
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Duration> durationCaptor = ArgumentCaptor.forClass(Duration.class);
+
+        verify(valueOperations).set(keyCaptor.capture(), valueCaptor.capture(), durationCaptor.capture());
+
+        assertThat(keyCaptor.getValue()).isEqualTo("temp_pw:" + existingEmail);
+        assertThat(valueCaptor.getValue()).isEqualTo(temporaryPasswordHash);
+        assertThat(durationCaptor.getValue().toMinutes()).isEqualTo(3);
+
+        verify(mailService).sendTemporaryPasswordEmail(eq(existingEmail), anyString());
+    }
+
+    @Test
+    void 임시비밀번호_발급_실패_가입되지_않은_이메일() {
+        // given
+        String unregisteredEmail = "none@example.com";
+
+        given(userRepository.findByEmail(unregisteredEmail)).willReturn(Optional.empty());
+
+        // when
+        Throwable thrown = catchThrowable(() -> authService.sendTemporaryPassword(unregisteredEmail));
+
+        // then
+        assertThat(thrown).isInstanceOf(UserNotFoundException.class);
+        verifyNoInteractions(passwordEncoder, redisTemplate, mailService);
     }
 
 }
