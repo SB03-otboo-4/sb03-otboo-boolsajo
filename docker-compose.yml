@@ -5,6 +5,9 @@ services:
     container_name: otboo-db
     restart: unless-stopped
     # 환경변수 설정
+    env_file:
+      - .env
+      - .env.docker
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -48,7 +51,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-
+    env_file:
+      - .env
+      - .env.docker
     # 환경변수 설정
     environment:
       # Spring 프로파일
