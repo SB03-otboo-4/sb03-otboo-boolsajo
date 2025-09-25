@@ -178,16 +178,16 @@ public class NotificationServiceTest {
         given(userRepository.getReferenceById(receiverId)).willReturn(receiver);
 
         Notification saved = notificationEntityOwnedBy(receiver, NotificationLevel.INFO);
-        given(notificationRepository.save(any(Notification.class))).willReturn(saved);
-
         NotificationDto expectedDto = notificationDto(saved);
+
+        given(notificationRepository.saveAndFlush(any(Notification.class))).willReturn(saved);
         given(notificationMapper.toDto(saved)).willReturn(expectedDto);
 
         // when
         NotificationDto result = notificationService.notifyRoleChanged(receiverId, newRole);
 
         // then
-        then(notificationRepository).should().save(any(Notification.class));
+        then(notificationRepository).should().saveAndFlush(any(Notification.class));
         assertThat(result).isEqualTo(expectedDto);
     }
 }

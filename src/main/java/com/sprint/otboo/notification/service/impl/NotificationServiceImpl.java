@@ -66,7 +66,7 @@ public class NotificationServiceImpl implements NotificationService {
         Notification notification = Notification.builder()
             .receiver(receiver)
             .title("권한 변경")
-            .content("Your role is now %s.".formatted(newRole.name()))
+            .content("변경된 권한은 %s 입니다.".formatted(newRole.name()))
             .level(NotificationLevel.INFO)
             .build();
 
