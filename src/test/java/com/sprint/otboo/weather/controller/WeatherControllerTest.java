@@ -1,18 +1,12 @@
 package com.sprint.otboo.weather.controller;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
-import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
-import com.sprint.otboo.weather.service.WeatherLocationQueryService;
-import java.util.List;
+import com.sprint.otboo.weather.service.WeatherService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,32 +26,40 @@ class WeatherControllerTest {
     private MockMvc mvc;
 
     @MockitoBean
-    private WeatherLocationQueryService service;
+    private WeatherService weatherService;
 
     @MockitoBean
     private TokenProvider tokenProvider;
 
     @Test
     void 정상_요청은_200과_올바른_본문을_반환해야_한다() throws Exception {
-        WeatherLocationResponse response =
-            new WeatherLocationResponse(37.5665,126.9780,60,127,
-                List.of("서울특별시","중구","태평로1가"));
-        given(service.getWeatherLocation(anyDouble(), anyDouble()))
-            .willReturn(response);
-
-        mvc.perform(get("/api/weathers/location")
-                .param("longitude","126.9780")
-                .param("latitude","37.5665"))
+        mvc.perform(get("/api/weathers")
+                .param("longitude", "126.9780")
+                .param("latitude", "37.5665"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.x", is(60)))
-            .andExpect(jsonPath("$.y", is(127)))
-            .andExpect(jsonPath("$.locationNames", hasSize(3)));
+            .andExpect(jsonPath("$[0].forecastedAt").exists())
+            .andExpect(jsonPath("$[0].forecastAt").exists())
+            .andExpect(jsonPath("$[0].location.latitude").exists())
+            .andExpect(jsonPath("$[0].location.longitude").exists())
+            .andExpect(jsonPath("$[0].skyStatus").isString())
+            .andExpect(jsonPath("$[0].precipitation.type").isString())
+            .andExpect(jsonPath("$[0].precipitation.probability").isNumber())
+            .andExpect(jsonPath("$[0].temperature.current").isNumber())
+            .andExpect(jsonPath("$[0].humidity.current").isNumber());
     }
 
     @Test
-    void 파라미터가_누락되면_400을_반환해야_한다() throws Exception {
-        mvc.perform(get("/api/weathers/location")
-                .param("longitude","126.9780"))
+    void 파라미터_누락시_400을_반환해야_한다() throws Exception {
+        mvc.perform(get("/api/weathers")
+                .param("longitude", "126.9780"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 잘못된_위경도_형식이면_400을_반환해야_한다() throws Exception {
+        mvc.perform(get("/api/weathers")
+                .param("longitude", "abc")
+                .param("latitude", "def"))
             .andExpect(status().isBadRequest());
     }
 }
