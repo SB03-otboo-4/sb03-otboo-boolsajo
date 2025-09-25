@@ -1,7 +1,9 @@
 package com.sprint.otboo.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
@@ -14,6 +16,7 @@ import com.sprint.otboo.notification.service.impl.NotificationServiceImpl;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -37,6 +40,8 @@ public class NotificationServiceTest {
     private NotificationRepository notificationRepository;
     @Mock
     private NotificationMapper notificationMapper;
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -50,6 +55,17 @@ public class NotificationServiceTest {
             .id(UUID.randomUUID())
             .createdAt(Instant.now())
             .receiver(user(receiverId))
+            .title("테스트 알림")
+            .content("알림 내용")
+            .level(level)
+            .build();
+    }
+
+    private Notification notificationEntityOwnedBy(User receiver, NotificationLevel level) {
+        return Notification.builder()
+            .id(UUID.randomUUID())
+            .createdAt(Instant.now())
+            .receiver(receiver)
             .title("테스트 알림")
             .content("알림 내용")
             .level(level)
@@ -127,31 +143,51 @@ public class NotificationServiceTest {
 
         Notification first = notificationEntity(receiverId, NotificationLevel.INFO);
         Notification second = notificationEntity(receiverId, NotificationLevel.WARNING);
-        Notification third = notificationEntity(receiverId, NotificationLevel.ERROR);
+        Notification overflow = notificationEntity(receiverId, NotificationLevel.ERROR);
 
-        Slice<Notification> slice = notificationSlice(
-            List.of(first, second, third),
-            query.fetchSize(),
+        List<Notification> returned = List.of(first, second);
+        Slice<Notification> slice = new SliceImpl<>(
+            returned,
+            PageRequest.of(0, query.fetchSize() - 1),
             true
         );
         given(notificationRepository.findByReceiverWithCursor(
-            receiverId,
-            query.parsedCursor(),
-            query.idAfter(),
-            query.fetchSize()
+            receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
         )).willReturn(slice);
         given(notificationMapper.toDto(first)).willReturn(notificationDto(first));
         given(notificationMapper.toDto(second)).willReturn(notificationDto(second));
-        given(notificationMapper.toDto(third)).willReturn(notificationDto(third));
 
         // when
         CursorPageResponse<NotificationDto> actual = notificationService.getNotifications(receiverId, query);
 
         // then
         NotificationDto last = actual.data().get(actual.data().size() - 1);
-        assertThat(actual.data()).hasSize(3);
+        assertThat(actual.data()).hasSize(2);
         assertThat(actual.hasNext()).isTrue();
         assertThat(actual.nextCursor()).isEqualTo(last.createdAt().toString());
         assertThat(actual.nextIdAfter()).isEqualTo(last.id().toString());
+    }
+
+    @Test
+    void 권한_변경_알림을_저장하고_DTO로_반환한다() {
+        // given
+        UUID receiverId = UUID.randomUUID();
+        Role newRole = Role.ADMIN;
+        User receiver = user(receiverId);
+
+        given(userRepository.getReferenceById(receiverId)).willReturn(receiver);
+
+        Notification saved = notificationEntityOwnedBy(receiver, NotificationLevel.INFO);
+        given(notificationRepository.save(any(Notification.class))).willReturn(saved);
+
+        NotificationDto expectedDto = notificationDto(saved);
+        given(notificationMapper.toDto(saved)).willReturn(expectedDto);
+
+        // when
+        NotificationDto result = notificationService.notifyRoleChanged(receiverId, newRole);
+
+        // then
+        then(notificationRepository).should().save(any(Notification.class));
+        assertThat(result).isEqualTo(expectedDto);
     }
 }

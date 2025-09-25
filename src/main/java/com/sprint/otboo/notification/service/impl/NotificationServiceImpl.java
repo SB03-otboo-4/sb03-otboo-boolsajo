@@ -3,24 +3,33 @@ package com.sprint.otboo.notification.service.impl;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
+import com.sprint.otboo.notification.entity.Notification;
+import com.sprint.otboo.notification.entity.NotificationLevel;
 import com.sprint.otboo.notification.mapper.NotificationMapper;
 import com.sprint.otboo.notification.repository.NotificationRepository;
 import com.sprint.otboo.notification.service.NotificationService;
+import com.sprint.otboo.user.entity.Role;
+import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Slf4j
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
+    private final UserRepository userRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public CursorPageResponse<NotificationDto> getNotifications(UUID receiverId, NotificationQueryParams query) {
         var slice = notificationRepository.findByReceiverWithCursor(
             receiverId,
@@ -49,4 +58,19 @@ public class NotificationServiceImpl implements NotificationService {
         );
     }
 
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDto notifyRoleChanged(UUID receiverId, Role newRole) {
+        User receiver = userRepository.getReferenceById(receiverId);
+
+        Notification notification = Notification.builder()
+            .receiver(receiver)
+            .title("권한 변경")
+            .content("Your role is now %s.".formatted(newRole.name()))
+            .level(NotificationLevel.INFO)
+            .build();
+
+        Notification saved = notificationRepository.saveAndFlush(notification);
+        return notificationMapper.toDto(saved);
+    }
 }

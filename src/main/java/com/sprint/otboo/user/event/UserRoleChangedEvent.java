@@ -1,12 +1,12 @@
 package com.sprint.otboo.user.event;
 
 import com.sprint.otboo.user.entity.Role;
-import com.sprint.otboo.user.entity.User;
+import java.util.UUID;
 
 public record UserRoleChangedEvent(
-    User user,
-    Role oldRole,
+    UUID userId,
+    Role previousRole,
     Role newRole
 ) {
-
 }
+

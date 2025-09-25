@@ -154,7 +154,10 @@ public class UserServiceImpl implements UserService {
         user.updateRole(newRole);
         User savedUser = userRepository.save(user);
 
-        eventPublisher.publishEvent(new UserRoleChangedEvent(savedUser, previousRole, newRole));
+        log.debug("[UserServiceImpl] publish UserRoleChangedEvent: userId={}, previousRole={}, newRole={}",
+            savedUser.getId(), previousRole, newRole);
+
+        eventPublisher.publishEvent(new UserRoleChangedEvent(savedUser.getId(), previousRole, newRole));
 
         log.debug("[UserServiceImpl] 권한 수정 요청: userId = {} , role = {} ", userId, newRole);
         return userMapper.toUserDto(savedUser);

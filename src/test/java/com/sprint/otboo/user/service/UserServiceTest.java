@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -31,6 +30,8 @@ import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.impl.UserServiceImpl;
 import com.sprint.otboo.user.service.support.AsyncProfileImageUploader;
 import com.sprint.otboo.user.service.support.ProfileImageUploadTask;
@@ -51,12 +52,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.sprint.otboo.user.repository.query.UserQueryRepository;
-import com.sprint.otboo.user.repository.query.UserSlice;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService 테스트")
@@ -892,6 +892,9 @@ public class UserServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         User user = createMockUser(createDefaultRequest());
+        ReflectionTestUtils.setField(user, "id", userId);
+        ReflectionTestUtils.setField(user, "createdAt", Instant.now());
+
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willReturn(user);
         UserRoleUpdateRequest request = new UserRoleUpdateRequest("ADMIN");
@@ -904,7 +907,7 @@ public class UserServiceTest {
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue())
             .isInstanceOfSatisfying(UserRoleChangedEvent.class, event -> {
-                assertThat(event.user()).isEqualTo(user);
+                assertThat(event.userId()).isEqualTo(userId);
                 assertThat(event.newRole()).isEqualTo(Role.ADMIN);
             });
     }
