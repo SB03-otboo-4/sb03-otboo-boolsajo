@@ -6,7 +6,7 @@ import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.entity.attribute.Season;
 import com.sprint.otboo.clothing.entity.attribute.Thickness;
 import com.sprint.otboo.clothing.exception.ClothesExtractionException;
-import com.sprint.otboo.clothing.mapper.ClothesTypeMapper;
+import com.sprint.otboo.clothing.mapper.scraper.ClothesTypeMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
