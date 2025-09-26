@@ -63,15 +63,15 @@ public class SizeMapper {
      */
     private static List<String> getKeywords(Size size) {
         return switch (size) {
-            case XS -> List.of("XS", "X-SMALL", "X-Small", "Extra Small", "EXTRA SMALL", "엑스스몰", "엑스 스몰", "작은사이즈");
-            case S -> List.of("Small","small", "SMALL", "스몰", "스몰사이즈");
-            case M -> List.of("Medium", "medium", "MEDIUM", "미디움", "미디엄", "중간");
-            case L -> List.of("Large", "LARGE", "large", "Big", "BIG", "big", "라지", "빅");
-            case XL -> List.of("XL", "X-LARGE", "Extra Large", "EXTRA LARGE", "빅라지", "엑스라지", "엑스엘");
-            case XXL -> List.of("XXL", "XX-LARGE", "XX-Large", "2XL", "2X-LARGE", "더블엑스라지", "투엑스", "투엑스라지");
-            case XXXL -> List.of("XXXL", "3XL", "3X-LARGE", "트리플엑스라지", "쓰리엑스", "쓰리엑스라지");
             case FREE -> List.of("FREE", "원사이즈", "프리", "ONE SIZE", "ONESIZE", "FREE SIZE");
             case ONE_SIZE -> List.of("ONE", "ONE-SIZE", "ONE SIZE", "One", "Single Size");
+            case XXXL -> List.of("XXXL", "3XL", "3X-LARGE", "트리플엑스라지", "쓰리엑스", "쓰리엑스라지");
+            case XXL -> List.of("XXL", "XX-LARGE", "XX-Large", "2XL", "2X-LARGE", "더블엑스라지", "투엑스", "투엑스라지");
+            case XL -> List.of("XL", "X-LARGE", "Extra Large", "EXTRA LARGE", "빅라지", "엑스라지", "엑스엘");
+            case XS -> List.of("XS", "X-SMALL", "X-Small", "Extra Small", "EXTRA SMALL", "엑스스몰", "엑스 스몰", "작은사이즈");
+            case L -> List.of("Large", "LARGE", "large", "Big", "BIG", "big", "라지", "빅");
+            case M -> List.of("Medium", "medium", "MEDIUM", "미디움", "미디엄", "중간");
+            case S -> List.of("Small","small", "SMALL", "스몰", "스몰사이즈");
             default -> List.of();
         };
     }
