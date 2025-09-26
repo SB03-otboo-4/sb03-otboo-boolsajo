@@ -86,7 +86,7 @@ public class NotificationServiceImpl implements NotificationService {
                 Notification.builder()
                     .receiver(receiver)
                     .title("새 의상 속성이 등록되었습니다.")
-                    .content("%s 속성이 추가되었습니다.".formatted(attributeName))
+                    .content("내 의상에 [%s] 속성을 추가해보세요.".formatted(attributeName))
                     .level(NotificationLevel.INFO)
                     .build()
             );
