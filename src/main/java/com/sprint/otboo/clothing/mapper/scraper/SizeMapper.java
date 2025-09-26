@@ -41,8 +41,9 @@ public class SizeMapper {
         }
 
         // 2. 부분 일치 확인
-        for (Size size : Size.values()) {
-            if (size == Size.UNKNOWN) continue;
+        Size[] sizePriority = { Size.FREE, Size.ONE_SIZE, Size.XXXL, Size.XXL, Size.XL, Size.XS, Size.L, Size.M, Size.S };
+
+        for (Size size : sizePriority) {
             for (String keyword : getKeywords(size)) {
                 if (v.contains(keyword.toLowerCase(Locale.ROOT))) {
                     return size;
