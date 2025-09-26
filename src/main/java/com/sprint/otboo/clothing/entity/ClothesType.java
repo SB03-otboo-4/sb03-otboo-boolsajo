@@ -8,6 +8,7 @@ package com.sprint.otboo.clothing.entity;
  * <ul>
  *   <li>TOP: 상의</li>
  *   <li>BOTTOM: 하의</li>
+ *   <li>DRESS: 원피스</li>
  *   <li>OUTER: 아우터</li>
  *   <li>UNDERWEAR: 속옷</li>
  *   <li>ACCESSORY: 악세서리</li>
@@ -22,6 +23,7 @@ package com.sprint.otboo.clothing.entity;
 public enum ClothesType {
     TOP,
     BOTTOM,
+    DRESS,
     OUTER,
     UNDERWEAR,
     ACCESSORY,
@@ -41,6 +43,7 @@ public enum ClothesType {
         return switch (this) {
             case TOP -> "상의";
             case BOTTOM -> "하의";
+            case DRESS -> "원피스";
             case OUTER -> "아우터";
             case UNDERWEAR -> "속옷";
             case ACCESSORY -> "악세서리";
