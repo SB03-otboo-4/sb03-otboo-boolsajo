@@ -91,7 +91,7 @@ public class ClothesControllerTest {
             MediaType.IMAGE_PNG_VALUE,
             "dummy-image".getBytes()
         );
-        when(clothesService.createClothes(any(), any())).thenReturn(response);
+        when(clothesService.createClothes(any(), any(), any())).thenReturn(response);
 
         // when: API 호출
         mockMvc.perform(multipart("/api/clothes")
@@ -130,7 +130,7 @@ public class ClothesControllerTest {
             "dummy-image".getBytes()
         );
 
-        when(clothesService.createClothes(any(), any())).thenReturn(response);
+        when(clothesService.createClothes(any(), any(), any())).thenReturn(response);
 
         // when & then
         mockMvc.perform(multipart("/api/clothes")
