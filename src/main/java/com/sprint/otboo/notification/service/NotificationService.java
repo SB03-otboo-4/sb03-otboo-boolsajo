@@ -11,4 +11,10 @@ public interface NotificationService {
     CursorPageResponse<NotificationDto> getNotifications(UUID receiverId, NotificationQueryParams query);
 
     NotificationDto notifyRoleChanged(UUID receiverId, Role newRole);
+
+    void notifyClothesAttributeCreatedForAllUsers(String attributeName);
+
+    NotificationDto notifyFeedLiked(UUID feedAuthorId, UUID likedByUserId);
+
+    NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId);
 }

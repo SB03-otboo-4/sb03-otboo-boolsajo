@@ -11,6 +11,7 @@ import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -65,8 +66,62 @@ public class NotificationServiceImpl implements NotificationService {
 
         Notification notification = Notification.builder()
             .receiver(receiver)
-            .title("권한 변경")
+            .title("권한이 변경 되었습니다.")
             .content("변경된 권한은 %s 입니다.".formatted(newRole.name()))
+            .level(NotificationLevel.INFO)
+            .build();
+
+        Notification saved = notificationRepository.saveAndFlush(notification);
+        return notificationMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {
+        List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
+        List<Notification> notifications = new ArrayList<>();
+
+        for (User receiver : receivers) {
+            notifications.add(
+                Notification.builder()
+                    .receiver(receiver)
+                    .title("새 의상 속성이 등록되었습니다.")
+                    .content("%s 속성이 추가되었습니다.".formatted(attributeName))
+                    .level(NotificationLevel.INFO)
+                    .build()
+            );
+        }
+
+        notificationRepository.saveAllAndFlush(notifications);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDto notifyFeedLiked(UUID feedAuthorId, UUID likedByUserId) {
+        User receiver = userRepository.getReferenceById(feedAuthorId);
+        User liker = userRepository.getReferenceById(likedByUserId);
+
+        Notification notification = Notification.builder()
+            .receiver(receiver)
+            .title("피드에 새로운 좋아요")
+            .content("%s 님이 피드를 좋아합니다.".formatted(liker.getUsername()))
+            .level(NotificationLevel.INFO)
+            .build();
+
+        Notification saved = notificationRepository.saveAndFlush(notification);
+        return notificationMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId) {
+        User receiver = userRepository.getReferenceById(feedAuthorId);
+        User commenter = userRepository.getReferenceById(commentedByUserId);
+
+        Notification notification = Notification.builder()
+            .receiver(receiver)
+            .title("피드에 새로운 댓글")
+            .content("%s 님이 댓글을 남겼습니다.".formatted(commenter.getUsername()))
             .level(NotificationLevel.INFO)
             .build();
 
