@@ -10,6 +10,7 @@ import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.entity.FeedLike;
+import com.sprint.otboo.feed.event.FeedLikedEvent;
 import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.user.entity.User;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LikeService 테스트")
@@ -35,6 +37,8 @@ public class LikeServiceTest {
     private FeedRepository feedRepository;
     @Mock
     private FeedLikeRepository feedLikeRepository;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     @InjectMocks
     private LikeServiceImpl likeService;
 
@@ -75,6 +79,7 @@ public class LikeServiceTest {
             then(feedRepository).shouldHaveNoMoreInteractions();
             then(userRepository).should().findById(userId);
             then(userRepository).shouldHaveNoMoreInteractions();
+            then(eventPublisher).should().publishEvent(any(FeedLikedEvent.class));
         }
 
         @Test

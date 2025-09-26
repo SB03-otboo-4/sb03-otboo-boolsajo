@@ -6,6 +6,7 @@ import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.CommentDto;
 import com.sprint.otboo.feed.entity.Comment;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.mapper.CommentMapper;
 import com.sprint.otboo.feed.repository.CommentRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentMapper commentMapper;
     private final UserRepository userRepository;
     private final FeedRepository feedRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -49,6 +52,12 @@ public class CommentServiceImpl implements CommentService {
 
         Comment saved = commentRepository.save(entity);
         log.debug("[CommentServiceImpl] 댓글 생성 완료: commentId={}", saved.getId());
+
+        eventPublisher.publishEvent(new FeedCommentedEvent(
+            feed.getAuthor().getId(),
+            author.getId(),
+            saved.getId()
+        ));
 
         return commentMapper.toDto(saved);
     }
