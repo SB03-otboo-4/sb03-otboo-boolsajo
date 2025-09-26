@@ -118,22 +118,22 @@ public class NotificationServiceTest {
 
         Notification entity = notificationEntity(receiverId, NotificationLevel.INFO);
         Slice<Notification> slice = notificationSlice(List.of(entity), query.limit(), false);
-        given(notificationRepository.findByReceiverWithCursor(
-            receiverId,
-            query.parsedCursor(),
-            query.idAfter(),
-            query.fetchSize()
-        )).willReturn(slice);
 
-        NotificationDto expectedDto = notificationDto(entity);
-        given(notificationMapper.toDto(entity)).willReturn(expectedDto);
+        given(notificationRepository.findByReceiverWithCursor(
+            receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
+        )).willReturn(slice);
+        NotificationDto dto = notificationDto(entity);
+        given(notificationMapper.toDto(entity)).willReturn(dto);
+        given(notificationRepository.countByReceiverId(receiverId)).willReturn(5L);
 
         // when
-        CursorPageResponse<NotificationDto> actual = notificationService.getNotifications(receiverId, query);
+        CursorPageResponse<NotificationDto> actual =
+            notificationService.getNotifications(receiverId, query);
 
         // then
-        assertThat(actual.data()).containsExactly(expectedDto);
+        assertThat(actual.data()).containsExactly(dto);
         assertThat(actual.hasNext()).isFalse();
+        assertThat(actual.totalCount()).isEqualTo(5L);
         assertThat(actual.nextCursor()).isNull();
         assertThat(actual.nextIdAfter()).isNull();
     }
@@ -146,29 +146,33 @@ public class NotificationServiceTest {
 
         Notification first = notificationEntity(receiverId, NotificationLevel.INFO);
         Notification second = notificationEntity(receiverId, NotificationLevel.WARNING);
-        Notification overflow = notificationEntity(receiverId, NotificationLevel.ERROR);
 
-        List<Notification> returned = List.of(first, second);
         Slice<Notification> slice = new SliceImpl<>(
-            returned,
+            List.of(first, second),
             PageRequest.of(0, query.fetchSize() - 1),
             true
         );
+        NotificationDto firstDto = notificationDto(first);
+        NotificationDto secondDto = notificationDto(second);
+
         given(notificationRepository.findByReceiverWithCursor(
             receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
         )).willReturn(slice);
-        given(notificationMapper.toDto(first)).willReturn(notificationDto(first));
-        given(notificationMapper.toDto(second)).willReturn(notificationDto(second));
+        given(notificationMapper.toDto(first)).willReturn(firstDto);
+        given(notificationMapper.toDto(second)).willReturn(secondDto);
+        given(notificationRepository.countByReceiverId(receiverId)).willReturn(42L);
 
         // when
-        CursorPageResponse<NotificationDto> actual = notificationService.getNotifications(receiverId, query);
+        CursorPageResponse<NotificationDto> actual =
+            notificationService.getNotifications(receiverId, query);
 
         // then
-        NotificationDto last = actual.data().get(actual.data().size() - 1);
-        assertThat(actual.data()).hasSize(2);
+        assertThat(actual.data()).containsExactly(firstDto, secondDto);
         assertThat(actual.hasNext()).isTrue();
+        NotificationDto last = actual.data().get(actual.data().size() - 1);
         assertThat(actual.nextCursor()).isEqualTo(last.createdAt().toString());
         assertThat(actual.nextIdAfter()).isEqualTo(last.id().toString());
+        assertThat(actual.totalCount()).isEqualTo(42L);
     }
 
     @Test

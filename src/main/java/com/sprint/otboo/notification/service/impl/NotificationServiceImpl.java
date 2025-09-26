@@ -48,12 +48,14 @@ public class NotificationServiceImpl implements NotificationService {
             ? data.get(data.size() - 1)
             : null;
 
+        long totalCount = notificationRepository.countByReceiverId(receiverId);
+
         return new CursorPageResponse<>(
             data,
             last != null ? last.createdAt().toString() : null,
             last != null ? last.id().toString() : null,
             slice.hasNext(),
-            data.size(),
+            totalCount,
             "createdAt",
             "DESCENDING"
         );
