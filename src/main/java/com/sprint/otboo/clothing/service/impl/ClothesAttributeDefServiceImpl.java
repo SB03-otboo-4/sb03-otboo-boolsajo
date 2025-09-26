@@ -4,6 +4,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
+import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.mapper.ClothesAttributeDefMapper;
 import com.sprint.otboo.clothing.mapper.ClothesMapper;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
     private final ClothesAttributeDefRepository clothesAttributeDefRepository;
     private final ClothesAttributeDefMapper clothesAttributeDefMapper;
     private final ClothesMapper clothesMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 새로운 의상 속성 정의 등록
@@ -78,6 +81,9 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         // 저장
         ClothesAttributeDef saved = clothesAttributeDefRepository.save(def);
         log.info("의상 속성 정의 등록 완료 : id = {}, name = {}", saved.getId(), saved.getName());
+
+        // 이벤트 발행
+        eventPublisher.publishEvent(new ClothesAttributeDefCreatedEvent(saved.getName()));
 
         // DTO 변환 및 반환
         return clothesMapper.toClothesAttributeDefDto(saved);

@@ -5,6 +5,7 @@ import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.entity.WindStrength;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -65,5 +66,16 @@ public class WeatherFixture {
             .skyStatus(skyStatus)
             .type(precipType)
             .build();
+    }
+
+    public static Weather createWeatherWithDefaultLocation() {
+        WeatherLocation location = WeatherLocation.builder()
+            .id(UUID.randomUUID())
+            .latitude(BigDecimal.valueOf(37.5253652))
+            .longitude(BigDecimal.valueOf(126.6849254))
+            .locationNames("인천광역시 서구 가정2동")
+            .build();
+
+        return createWeatherWithDefault(location);
     }
 }

@@ -26,9 +26,12 @@ import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
+import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.impl.UserServiceImpl;
 import com.sprint.otboo.user.service.support.AsyncProfileImageUploader;
 import com.sprint.otboo.user.service.support.ProfileImageUploadTask;
@@ -43,16 +46,17 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.sprint.otboo.user.repository.query.UserQueryRepository;
-import com.sprint.otboo.user.repository.query.UserSlice;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService 테스트")
@@ -74,6 +78,8 @@ public class UserServiceTest {
     private WeatherLocationQueryService weatherLocationQueryService;
     @Mock
     private AsyncProfileImageUploader asyncProfileImageUploader;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     @Spy
     private RetryTemplate profileImageStorageRetryTemplate = new RetryTemplate();
     @InjectMocks
@@ -879,5 +885,30 @@ public class UserServiceTest {
         then(userRepository).should().findById(userId);
         then(userProfileRepository).should(never()).findById(userId);
         then(fileStorageService).should(never()).upload(any());
+    }
+
+    @Test
+    void 권한_변경_시_이벤트를_발행한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(createDefaultRequest());
+        ReflectionTestUtils.setField(user, "id", userId);
+        ReflectionTestUtils.setField(user, "createdAt", Instant.now());
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.save(any(User.class))).willReturn(user);
+        UserRoleUpdateRequest request = new UserRoleUpdateRequest("ADMIN");
+
+        // when
+        userService.updateUserRole(userId, request);
+
+        // then
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue())
+            .isInstanceOfSatisfying(UserRoleChangedEvent.class, event -> {
+                assertThat(event.userId()).isEqualTo(userId);
+                assertThat(event.newRole()).isEqualTo(Role.ADMIN);
+            });
     }
 }

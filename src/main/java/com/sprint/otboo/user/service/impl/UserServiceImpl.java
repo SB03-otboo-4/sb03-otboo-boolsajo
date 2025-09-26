@@ -15,6 +15,7 @@ import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
+import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,6 +57,7 @@ public class UserServiceImpl implements UserService {
     private final WeatherLocationQueryService weatherLocationQueryService;
     private final AsyncProfileImageUploader asyncProfileImageUploader;
     private final RetryTemplate profileImageStorageRetryTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     public UserServiceImpl(
         UserRepository userRepository,
@@ -65,7 +68,8 @@ public class UserServiceImpl implements UserService {
         @Qualifier("profileImageStorageService") FileStorageService fileStorageService,
         WeatherLocationQueryService weatherLocationQueryService,
         AsyncProfileImageUploader asyncProfileImageUploader,
-        @Qualifier("profileImageStorageRetryTemplate") RetryTemplate profileImageStorageRetryTemplate
+        @Qualifier("profileImageStorageRetryTemplate") RetryTemplate profileImageStorageRetryTemplate,
+        ApplicationEventPublisher eventPublisher
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
@@ -76,6 +80,7 @@ public class UserServiceImpl implements UserService {
         this.weatherLocationQueryService = weatherLocationQueryService;
         this.asyncProfileImageUploader = asyncProfileImageUploader;
         this.profileImageStorageRetryTemplate = profileImageStorageRetryTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -144,10 +149,15 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        Role previousRole = user.getRole();
         Role newRole = Role.valueOf(request.role());
         user.updateRole(newRole);
         User savedUser = userRepository.save(user);
 
+        log.debug("[UserServiceImpl] publish UserRoleChangedEvent: userId={}, previousRole={}, newRole={}",
+            savedUser.getId(), previousRole, newRole);
+
+        eventPublisher.publishEvent(new UserRoleChangedEvent(savedUser.getId(), previousRole, newRole));
 
         log.debug("[UserServiceImpl] 권한 수정 요청: userId = {} , role = {} ", userId, newRole);
         return userMapper.toUserDto(savedUser);
