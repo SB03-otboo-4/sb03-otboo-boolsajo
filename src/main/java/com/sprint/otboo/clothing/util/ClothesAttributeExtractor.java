@@ -122,9 +122,11 @@ public class ClothesAttributeExtractor {
             else extractOfferAttributes(offers, attributes, existing);
         }
 
+        // description 텍스트 기반 속성 추출
         if (node.has("description")) extractFromText(node.get("description").asText(), attributes, existing);
     }
 
+    // AttributeType별 문자열을 Enum으로 매핑
     private Enum<?> mapNodeValue(AttributeType type, String value) {
         if (value == null || value.isBlank()) return null;
         return switch (type) {
@@ -136,6 +138,7 @@ public class ClothesAttributeExtractor {
         };
     }
 
+    // offers 속성에서 컬러 / 사이즈 / 소재 추출
     private void extractOfferAttributes(JsonNode offer, List<Attribute> attributes, Set<String> existing) {
         String colorVal = offer.path("color").asText(null);
         if (colorVal != null) {
@@ -186,7 +189,7 @@ public class ClothesAttributeExtractor {
         // 문장 전체를 MaterialMapper에 넘겨서 혼방/복합 키워드 우선 처리
         addIfValidWithLog(attributes, existing, AttributeType.MATERIAL, MaterialMapper.map(text));
 
-        // 다른 속성(Color, Size 등은 기존 단어 단위 유지 가능)
+        // 단어 단위로 나누어 Color, Size, Season, Thickness 매핑
         for (String word : text.split("[,/ \\[\\]\\-]+")) {
             if (word.isBlank()) continue;
 
@@ -208,14 +211,7 @@ public class ClothesAttributeExtractor {
         log.info("Mapped Attribute: {} -> {}", type, formatted);
     }
 
-    // 유효한 문자열 속성 추가
-    private void addIfValid(List<Attribute> attributes, Set<String> existing, AttributeType type, String value) {
-        if (value != null && !value.isBlank() && existing.add(value)) {
-            attributes.add(new Attribute(type, value));
-        }
-    }
-
-    // Enum 이름을 FirstUpperCase 형식으로 변환
+    // Enum 이름을 PascalCase 형식으로 변환
     private String formatEnumValue(String name) {
         if (name == null || name.isBlank()) return name;
         String[] parts = name.toLowerCase().split("_");
@@ -224,25 +220,5 @@ public class ClothesAttributeExtractor {
             if (!part.isBlank()) sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
         return sb.toString();
-    }
-
-    // PascalCase 변환 유틸
-    private String toPascalCase(String str) {
-        if (str == null || str.isEmpty()) return str;
-        // 단어가 공백, 언더스코어, 하이픈으로 연결된 경우만 처리
-        if (str.contains(" ") || str.contains("_") || str.contains("-")) {
-            String[] words = str.split("[ _-]+");
-            StringBuilder sb = new StringBuilder();
-            for (String word : words) {
-                if (!word.isEmpty()) {
-                    sb.append(Character.toUpperCase(word.charAt(0)));
-                    if (word.length() > 1) sb.append(word.substring(1).toLowerCase());
-                }
-            }
-            return sb.toString();
-        } else {
-            // 이미 붙어있는 단어는 첫 글자만 대문자로
-            return Character.toUpperCase(str.charAt(0)) + str.substring(1);
-        }
     }
 }
