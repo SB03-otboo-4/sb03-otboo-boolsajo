@@ -50,7 +50,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MusinsaExractor implements ClothesExtractor {
+public class MusinsaExtractor implements ClothesExtractor {
 
     private final ClothesAttributeExtractor extractor;
     private final ClothesAttributeDefRepository defRepository;
