@@ -24,6 +24,18 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
+/**
+ * 지그재그(zigzag.kr) 사이트에서 의상 정보를 추출하는 {@link ClothesExtractor} 구현체.
+ *
+ * <p>주요 기능:
+ * <ul>
+ *   <li>URL 지원 여부 판단 (supports)</li>
+ *   <li>상품명, 이미지, 카테고리 등 기본 정보 추출</li>
+ *   <li>카테고리 기반 {@link ClothesType} 결정</li>
+ *   <li>속성 추출 및 DB 기반 selectable 값 보정</li>
+ *   <li>최종 {@link ClothesDto} 반환</li>
+ * </ul>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

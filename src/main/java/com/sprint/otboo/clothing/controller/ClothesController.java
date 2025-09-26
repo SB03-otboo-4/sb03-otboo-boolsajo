@@ -51,13 +51,28 @@ public class ClothesController {
     private final ClothesExtractionService extractionService;
 
     /**
-     * 의상 등록
+     * 새로운 의상을 등록하는 POST 엔드포인트.
      *
-     * <p>multipart/form-data 요청을 처리하며, 의상 정보를 등록하고 선택적으로 이미지 파일을 함께 저장</p>
+     * <p>접근 권한: USER 또는 ADMIN 롤이 필요합니다.
      *
-     * @param request 등록할 의상 정보 DTO
-     * @param image 업로드할 이미지 파일 (선택)
-     * @return {@link ResponseEntity}<{@link ClothesDto}> 생성된 의상 정보와 HTTP 상태 코드
+     * <p>요청 형식: multipart/form-data
+     * <ul>
+     *   <li>request: {@link ClothesCreateRequest} - 의상 기본 정보</li>
+     *   <li>image: {@link MultipartFile} (선택) - 업로드할 이미지 파일</li>
+     *   <li>imageUrl: {@link String} (선택) - 외부 이미지 URL</li>
+     * </ul>
+     *
+     * <p>처리 과정:
+     * <ol>
+     *   <li>요청 로그 기록</li>
+     *   <li>{@link ClothesService#createClothes} 호출하여 의상 등록</li>
+     *   <li>등록된 {@link ClothesDto} 반환</li>
+     * </ol>
+     *
+     * @param request  의상 등록 요청 DTO
+     * @param image    업로드할 이미지 파일 (선택)
+     * @param imageUrl 이미지 URL (선택)
+     * @return 등록된 의상 정보 {@link ResponseEntity} (HTTP 201)
      */
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
