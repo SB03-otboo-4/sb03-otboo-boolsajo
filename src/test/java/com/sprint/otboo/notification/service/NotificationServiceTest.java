@@ -2,6 +2,8 @@ package com.sprint.otboo.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
@@ -20,6 +22,7 @@ import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -189,5 +192,77 @@ public class NotificationServiceTest {
         // then
         then(notificationRepository).should().saveAndFlush(any(Notification.class));
         assertThat(result).isEqualTo(expectedDto);
+    }
+
+    @Test
+    void 의상_속성_추가_알림을_모든_사용자에게_저장() {
+        // given
+        String attributeName = "기능성";
+        User user1 = user(UUID.randomUUID());
+        User user2 = user(UUID.randomUUID());
+
+        given(userRepository.findAll()).willReturn(List.of(user1, user2));
+
+        List<Notification> saved = List.of(
+            notificationEntityOwnedBy(user1, NotificationLevel.INFO),
+            notificationEntityOwnedBy(user2, NotificationLevel.INFO)
+        );
+        given(notificationRepository.saveAllAndFlush(anyList())).willReturn(saved);
+
+        // when
+        notificationService.notifyClothesAttributeCreatedForAllUsers(attributeName);
+
+        // then
+        then(notificationRepository).should().saveAllAndFlush(argThat(iterable -> {
+            List<Notification> list = StreamSupport.stream(iterable.spliterator(), false).toList();
+            return list.size() == 2 &&
+                list.stream().allMatch(n -> "새 의상 속성이 등록되었습니다.".equals(n.getTitle()));
+        }));
+    }
+
+    @Test
+    void 피드_좋아요_알림을_저장하고_DTO를_반환() {
+        // given
+        UUID authorId = UUID.randomUUID();
+        UUID likedById = UUID.randomUUID();
+        User author = user(authorId);
+        User liker = user(likedById);
+        Notification saved = notificationEntityOwnedBy(author, NotificationLevel.INFO);
+        NotificationDto expected = notificationDto(saved);
+
+        given(userRepository.getReferenceById(authorId)).willReturn(author);
+        given(userRepository.getReferenceById(likedById)).willReturn(liker);
+        given(notificationRepository.saveAndFlush(any(Notification.class))).willReturn(saved);
+        given(notificationMapper.toDto(saved)).willReturn(expected);
+
+        // when
+        NotificationDto result = notificationService.notifyFeedLiked(authorId, likedById);
+
+        // then
+        assertThat(result).isEqualTo(expected);
+        then(notificationRepository).should().saveAndFlush(any(Notification.class));
+    }
+
+    @Test
+    void 피드_댓글_알림을_저장하고_DTO를_반환() {
+        // given
+        UUID authorId = UUID.randomUUID();
+        UUID commenterId = UUID.randomUUID();
+        User author = user(authorId);
+        User commenter = user(commenterId);
+        Notification saved = notificationEntityOwnedBy(author, NotificationLevel.INFO);
+        NotificationDto expected = notificationDto(saved);
+
+        given(userRepository.getReferenceById(authorId)).willReturn(author);
+        given(userRepository.getReferenceById(commenterId)).willReturn(commenter);
+        given(notificationRepository.saveAndFlush(any(Notification.class))).willReturn(saved);
+        given(notificationMapper.toDto(saved)).willReturn(expected);
+
+        // when
+        NotificationDto result = notificationService.notifyFeedCommented(authorId, commenterId);
+
+        // then
+        assertThat(result).isEqualTo(expected);
+        then(notificationRepository).should().saveAndFlush(any(Notification.class));
     }
 }
