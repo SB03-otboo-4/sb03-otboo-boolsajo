@@ -20,12 +20,18 @@ import com.sprint.otboo.common.storage.FileStorageService;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -94,12 +100,26 @@ public class ClothesServiceImpl implements ClothesService {
      */
     @Override
     @Transactional
-    public ClothesDto createClothes(ClothesCreateRequest request, MultipartFile image) {
-
+    public ClothesDto createClothes(ClothesCreateRequest request, MultipartFile image, String externalImageUrl
+    ) {
         // 요청 유효성 검증
         validateRequest(request);
 
-        String imageUrl = fileStorageService.upload(image);
+        String imageUrl = "";
+
+        try {
+            if (image != null && !image.isEmpty()) {
+                // MultipartFile이 있으면 업로드
+                imageUrl = fileStorageService.upload(image);
+            } else if (externalImageUrl != null && !externalImageUrl.isBlank()) {
+                // 외부 URL이 있으면 다운로드 후 업로드
+                MultipartFile downloaded = downloadImageAsMultipartFile(externalImageUrl);
+                imageUrl = fileStorageService.upload(downloaded);
+            }
+        } catch (IOException e) {
+            log.warn("이미지 다운로드/저장 실패, URL 비워둠: {}", e.getMessage());
+            imageUrl = ""; // 안전하게 빈값 처리
+        }
 
         var user = userRepository.findById(request.ownerId())
             .orElseThrow(() -> new ClothesValidationException("유효하지 않은 사용자"));
@@ -111,7 +131,6 @@ public class ClothesServiceImpl implements ClothesService {
             .type(request.type())
             .build();
 
-        // Clothes 엔티티에 속성 추가
         addAttributes(request, clothes);
 
         Clothes saved = clothesRepository.save(clothes);
@@ -319,4 +338,29 @@ public class ClothesServiceImpl implements ClothesService {
             })
             .collect(Collectors.toList());
     }
+
+    /** URL에서 이미지 다운로드 후 MultipartFile로 변환 */
+    private MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
+        URL url = new URL(imageUrl);
+        String originalFilename = Paths.get(url.getPath()).getFileName().toString();
+        String filenameWithoutQuery = originalFilename.split("\\?")[0];
+        String safeFilename = filenameWithoutQuery.replaceAll("[^a-zA-Z0-9\\-_.]", "");
+        final String finalFilename = safeFilename;
+
+
+        try (InputStream in = url.openStream()) {
+            byte[] bytes = in.readAllBytes();
+            return new MultipartFile() {
+                @Override public String getName() { return finalFilename; }
+                @Override public String getOriginalFilename() { return finalFilename; }
+                @Override public String getContentType() { return "application/octet-stream"; }
+                @Override public boolean isEmpty() { return bytes.length == 0; }
+                @Override public long getSize() { return bytes.length; }
+                @Override public byte[] getBytes() { return bytes; }
+                @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
+                @Override public void transferTo(File dest) throws IOException { Files.write(dest.toPath(), bytes); }
+            };
+        }
+    }
+
 }

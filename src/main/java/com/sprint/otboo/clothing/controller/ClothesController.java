@@ -63,13 +63,17 @@ public class ClothesController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ClothesDto> createClothes(
         @RequestPart("request") ClothesCreateRequest request,
-        @RequestPart(value = "image", required = false) MultipartFile image
+        @RequestPart(value = "image", required = false) MultipartFile image,
+        @RequestPart(value = "imageUrl", required = false) String imageUrl
     ) {
-        log.info("POST /api/clothes 요청 수신: ownerId={}, name={}, image={}",
-            request.ownerId(), request.name(), image != null ? image.getOriginalFilename() : "없음");
+        log.info("POST /api/clothes 요청 수신: ownerId={}, name={}, image={}, imageUrl={}",
+            request.ownerId(), request.name(),
+            image != null ? image.getOriginalFilename() : "없음",
+            imageUrl != null ? imageUrl : "없음"
+        );
 
-        // 서비스에 이미지 파일 전달
-        ClothesDto created = clothesService.createClothes(request, image);
+        // 서비스 호출: 로컬 저장 방식
+        ClothesDto created = clothesService.createClothes(request, image, imageUrl);
 
         log.info("의상 등록 성공: id = {}, ownerId = {}, type = {}",
             created.id(), created.ownerId(), created.type()

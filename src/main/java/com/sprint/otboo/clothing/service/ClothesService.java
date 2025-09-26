@@ -11,7 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface ClothesService {
 
-    ClothesDto createClothes(ClothesCreateRequest request, MultipartFile file);
+    ClothesDto createClothes(ClothesCreateRequest request, MultipartFile image, String externalImageUrl);
 
     CursorPageResponse<ClothesDto> getClothesList(UUID ownerId, int limit, Instant cursor, UUID idAfter, ClothesType type);
 
