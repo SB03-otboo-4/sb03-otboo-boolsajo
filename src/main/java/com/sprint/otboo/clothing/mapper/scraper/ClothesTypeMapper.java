@@ -32,17 +32,12 @@ public class ClothesTypeMapper {
         }
 
         // ===== 원피스 DRESS =====
-        if (lower.matches(".*(원피스|드레스|맥시드레스|미니드레스|셔링원피스|랩원피스|투피스|오버롤|dress|onepiece|twopiece|overall).*")) {
+        if (lower.matches(".*(원피스|드레스|맥시드레스|미니드레스|셔링원피스|랩원피스|투피스|오버롤|dress|one[- ]?piece|twopiece|overall).*")) {
             return ClothesType.DRESS;
         }
 
-        // ===== 상의 TOP =====
-        if (lower.matches(".*(셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|집업|폴로|후디||hoodie|sweater|blouse|tanktop|croptop|top|henley|polo|longsleeve|shortsleeve|shirt|t-shirt|tshirt).*")) {
-            return ClothesType.TOP;
-        }
-
         // ===== 하의 BOTTOM =====
-        if (lower.matches(".*(바지|팬츠|청바지|슬랙스|레깅스|치마|스커트|조거팬츠|반바지|숏팬츠|쇼츠|트레이닝팬츠|스웻팬츠|pants|jeans|skirt|shorts|leggings|jogger|sweatpants|slacks|culottes).*")) {
+        if (lower.matches(".*(바지|팬츠|청바지|슬랙스|레깅스|치마|스커트|조거팬츠|반바지|숏팬츠|쇼츠|트레이닝팬츠|스웻팬츠|pants|jeans|skirt|shorts|leggings|jogger|sweatpants|slacks|culottes|\\bbottom\\b|bottoms).*")) {
             return ClothesType.BOTTOM;
         }
 
@@ -52,7 +47,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 신발 SHOES =====
-        if (lower.matches(".*(신발|슈즈|운동화|런닝화|워킹화|러닝화|트레이너|하이탑|로우탑|슬립온|구두|로퍼|옥스포드|더비|모카신|브로그|부츠|앵클부츠|첼시부츠|워커부츠|레인부츠|샌들|슬리퍼|플랫|발레리나|뮬|하이힐|펌프스|웨지힐|크록스|crocs|sneakers|running shoes|trainers|high[- ]?top|low[- ]?top|slip[- ]?on|loafer|oxford|derby|moccasin|brogue|boots|ankle boots|chelsea boots|walker boots|rain boots|sandals|slipper|flat|ballerina|mule|heels|pumps|wedge).*")) {
+        if (lower.matches(".*(신발|슈즈|운동화|런닝화|워킹화|러닝화|트레이너|하이[- ]?탑|로우[- ]?탑|슬립온|구두|로퍼|옥스포드|더비|모카신|브로그|부츠|앵클부츠|첼시부츠|워커부츠|레인부츠|샌들|슬리퍼|플랫|발레리나|뮬|하이힐|펌프스|웨지힐|크록스|힐|crocs|sneakers|running shoes|trainers|high[- ]?top|low[- ]?top|slip[- ]?on|loafer|oxford|derby|moccasin|brogue|boots|ankle boots|chelsea boots|walker boots|rain boots|sandals|slipper|flat|ballerina|mule|heels|pumps|wedge).*")) {
             return ClothesType.SHOES;
         }
 
@@ -79,6 +74,11 @@ public class ClothesTypeMapper {
         // ===== 스카프 SCARF =====
         if (lower.matches(".*(스카프|머플러|넥워머|목도리|머리스카프|반다나|scarf|stole|muffler|neckwarmer|bandana|shawl).*")) {
             return ClothesType.SCARF;
+        }
+
+        // ===== 상의 TOP =====
+        if (lower.matches(".*(셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|집업|폴로|후디|hoodie|sweater|blouse|tanktop|croptop|\\btop\\b|henley|polo|longsleeve|shortsleeve|shirt|t[- ]?shirt).*")) {
+            return ClothesType.TOP;
         }
 
         // ===== 기타 ETC =====
