@@ -13,6 +13,7 @@ import java.util.Locale;
  *   <li>영문, 한글, 약어 등 다양한 표기를 지원</li>
  *   <li>대소문자 및 공백 무시</li>
  *   <li>포함된 키워드 기반 매핑</li>
+ *   <li>완전 일치 키워드 우선, 이후 부분 일치로 매핑</li>
  *   <li>매칭 불가능 시 {@link Color#UNKNOWN} 반환</li>
  * </ul>
  */
@@ -29,6 +30,17 @@ public class ColorMapper {
 
         String v = value.toLowerCase(Locale.ROOT).trim();
 
+        // 1. 완전 일치 확인
+        for (Color color : Color.values()) {
+            if (color == Color.UNKNOWN) continue;
+            for (String keyword : getKeywords(color)) {
+                if (v.equalsIgnoreCase(keyword)) {
+                    return color;
+                }
+            }
+        }
+
+        // 2. 부분 일치 확인
         for (Color color : Color.values()) {
             if (color == Color.UNKNOWN) continue;
             for (String keyword : getKeywords(color)) {
@@ -53,7 +65,7 @@ public class ColorMapper {
         return switch (color) {
             case BLACK -> List.of("black", "블랙", "검정", "검정색", "bk", "블랙색상");
             case WHITE -> List.of("white", "화이트", "흰색", "화이트색", "wt");
-            case RED -> List.of("red", "레드", "빨강", "빨간", "적색", "rd");
+            case RED -> List.of("red", "레드", "빨강", "빨간", "적색", "와인", "wine", "rd");
             case BLUE -> List.of("blue", "블루", "파랑", "파란", "청색", "blu", "진청");
             case GREY -> List.of("grey", "gray", "그레이", "멜란지", "회색", "애쉬", "아쉬", "그레이색");
             case YELLOW -> List.of("yellow", "옐로우", "노랑", "노란", "황색", "yl");
@@ -75,7 +87,7 @@ public class ColorMapper {
             case GOLD -> List.of("gold", "골드", "금색", "gd");
             case SILVER -> List.of("silver", "실버", "은색", "sl");
             case TRANSPARENT -> List.of("transparent", "투명", "clear", "clr");
-            case MULTI -> List.of("multi", "멀티", "믹스", "컬러풀", "혼합색상");
+            case MULTI -> List.of("multi", "멀티", "믹스", "컬러풀", "혼합색상", "배색");
             default -> List.of();
         };
     }

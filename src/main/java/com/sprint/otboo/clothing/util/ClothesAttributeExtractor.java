@@ -79,7 +79,6 @@ public class ClothesAttributeExtractor {
         List<Attribute> attributes = new ArrayList<>();
         Set<String> existing = new HashSet<>();
 
-        // JSON-LD, HTML, 텍스트 기반 속성 추출
         extractFromJsonLd(doc, attributes, existing);
         extractFromHtml(doc, attributes, existing);
         extractFromText(text, attributes, existing);
@@ -119,16 +118,37 @@ public class ClothesAttributeExtractor {
         // offers 속성 내 color도 추출
         JsonNode offers = node.get("offers");
         if (offers != null) {
-            if (offers.isArray()) offers.forEach(offer -> addJsonLdAttr(attributes, existing, AttributeType.COLOR, offer.get("color")));
-            else addJsonLdAttr(attributes, existing, AttributeType.COLOR, offers.get("color"));
+            if (offers.isArray()) offers.forEach(offer -> extractOfferAttributes(offer, attributes, existing));
+            else extractOfferAttributes(offers, attributes, existing);
         }
 
-        // description 텍스트 기반 속성 추출
-        if (node.has("description")) {
-            String description = node.get("description").asText();
-            log.info("JSON-LD description 기반 속성 추출 시도: {}", description);
-            extractFromText(description, attributes, existing);
+        if (node.has("description")) extractFromText(node.get("description").asText(), attributes, existing);
+    }
+
+    private Enum<?> mapNodeValue(AttributeType type, String value) {
+        if (value == null || value.isBlank()) return null;
+        return switch (type) {
+            case COLOR -> ColorMapper.map(value);
+            case SIZE -> SizeMapper.map(value);
+            case MATERIAL -> MaterialMapper.map(value);
+            case SEASON -> SeasonMapper.map(value);
+            case THICKNESS -> ThicknessMapper.map(value);
+        };
+    }
+
+    private void extractOfferAttributes(JsonNode offer, List<Attribute> attributes, Set<String> existing) {
+        String colorVal = offer.path("color").asText(null);
+        if (colorVal != null) {
+            addIfValidWithLog(attributes, existing, AttributeType.COLOR, ColorMapper.map(colorVal));
+            addIfValidWithLog(attributes, existing, AttributeType.SIZE, SizeMapper.map(colorVal));
+            addIfValidWithLog(attributes, existing, AttributeType.MATERIAL, MaterialMapper.map(colorVal));
         }
+
+        String sizeVal = offer.path("size").asText(null);
+        if (sizeVal != null) addIfValidWithLog(attributes, existing, AttributeType.SIZE, SizeMapper.map(sizeVal));
+
+        String materialVal = offer.path("material").asText(null);
+        if (materialVal != null) addIfValidWithLog(attributes, existing, AttributeType.MATERIAL, MaterialMapper.map(materialVal));
     }
 
     // JSON-LD 속성 추가
@@ -136,12 +156,10 @@ public class ClothesAttributeExtractor {
         if (node == null) return;
         if (node.isArray()) {
             node.forEach(val -> {
-                addIfValid(attributes, existing, type, val.asText());
-                log.info("JSON-LD 배열 속성 추출: {} -> {}", type, val.asText());
+                addIfValidWithLog(attributes, existing, type, mapNodeValue(type, val.asText()));
             });
         } else {
-            addIfValid(attributes, existing, type, node.asText());
-            log.info("JSON-LD 단일 속성 추출: {} -> {}", type, node.asText());
+            addIfValidWithLog(attributes, existing, type, mapNodeValue(type, node.asText()));
         }
     }
 
@@ -157,20 +175,23 @@ public class ClothesAttributeExtractor {
     // HTML 요소에서 안전하게 속성 추가
     private void safeAdd(List<Attribute> target, Set<String> existing, AttributeType type, Elements elems) {
         for (Element el : elems) {
-            addIfValid(target, existing, type, el.text());
-            log.info("HTML 속성 추출: {} -> {}", type, el.text());
+            addIfValidWithLog(target, existing, type, mapNodeValue(type, el.text()));
         }
     }
 
     // 텍스트에서 속성 단어 매핑 후 추출
     private void extractFromText(String text, List<Attribute> attributes, Set<String> existing) {
+        if (text == null || text.isBlank()) return;
+
+        // 문장 전체를 MaterialMapper에 넘겨서 혼방/복합 키워드 우선 처리
+        addIfValidWithLog(attributes, existing, AttributeType.MATERIAL, MaterialMapper.map(text));
+
+        // 다른 속성(Color, Size 등은 기존 단어 단위 유지 가능)
         for (String word : text.split("[,/ \\[\\]\\-]+")) {
             if (word.isBlank()) continue;
 
-            // 각 Mapper를 통해 Enum 변환 후 속성 추가
             addIfValidWithLog(attributes, existing, AttributeType.COLOR, ColorMapper.map(word));
             addIfValidWithLog(attributes, existing, AttributeType.SIZE, SizeMapper.map(word));
-            addIfValidWithLog(attributes, existing, AttributeType.MATERIAL, MaterialMapper.map(word));
             addIfValidWithLog(attributes, existing, AttributeType.SEASON, SeasonMapper.map(word));
             addIfValidWithLog(attributes, existing, AttributeType.THICKNESS, ThicknessMapper.map(word));
         }
@@ -178,16 +199,50 @@ public class ClothesAttributeExtractor {
 
     // 유효한 Enum 타입의 속성( Color, Size, Material ) 추가
     private void addIfValidWithLog(List<Attribute> attributes, Set<String> existing, AttributeType type, Enum<?> value) {
-        if (value != null && !"UNKNOWN".equals(value.name()) && existing.add(value.name())) {
-            attributes.add(new Attribute(type, value.name()));
-            log.info("Text 기반 매핑: {} -> {}", type, value.name());
-        }
+        if (value == null || "UNKNOWN".equals(value.name())) return;
+        String key = type + ":" + value.name();
+        if (!existing.add(key)) return;
+
+        String formatted = type == AttributeType.SIZE ? value.name().toUpperCase() : formatEnumValue(value.name());
+        attributes.add(new Attribute(type, formatted));
+        log.info("Mapped Attribute: {} -> {}", type, formatted);
     }
 
     // 유효한 문자열 속성 추가
     private void addIfValid(List<Attribute> attributes, Set<String> existing, AttributeType type, String value) {
         if (value != null && !value.isBlank() && existing.add(value)) {
             attributes.add(new Attribute(type, value));
+        }
+    }
+
+    // Enum 이름을 FirstUpperCase 형식으로 변환
+    private String formatEnumValue(String name) {
+        if (name == null || name.isBlank()) return name;
+        String[] parts = name.toLowerCase().split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (!part.isBlank()) sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return sb.toString();
+    }
+
+    // PascalCase 변환 유틸
+    private String toPascalCase(String str) {
+        if (str == null || str.isEmpty()) return str;
+        // 단어가 공백, 언더스코어, 하이픈으로 연결된 경우만 처리
+        if (str.contains(" ") || str.contains("_") || str.contains("-")) {
+            String[] words = str.split("[ _-]+");
+            StringBuilder sb = new StringBuilder();
+            for (String word : words) {
+                if (!word.isEmpty()) {
+                    sb.append(Character.toUpperCase(word.charAt(0)));
+                    if (word.length() > 1) sb.append(word.substring(1).toLowerCase());
+                }
+            }
+            return sb.toString();
+        } else {
+            // 이미 붙어있는 단어는 첫 글자만 대문자로
+            return Character.toUpperCase(str.charAt(0)) + str.substring(1);
         }
     }
 }

@@ -13,6 +13,7 @@ import java.util.Locale;
  *   <li>영문, 한글 표기를 모두 지원</li>
  *   <li>대소문자 및 공백 무시</li>
  *   <li>포함된 키워드 기반으로 매핑</li>
+ *   <li>완전 일치 키워드 우선, 이후 부분 일치로 매핑</li>
  *   <li>매칭 불가능 시 {@code null} 반환</li>
  * </ul>
  */
@@ -29,11 +30,17 @@ public class ThicknessMapper {
 
         String v = value.toLowerCase(Locale.ROOT).trim();
 
+        // 1. 완전 일치 확인
         for (Thickness thickness : Thickness.values()) {
             for (String keyword : getKeywords(thickness)) {
-                if (v.contains(keyword.toLowerCase(Locale.ROOT))) {
-                    return thickness;
-                }
+                if (v.equalsIgnoreCase(keyword)) return thickness;
+            }
+        }
+
+        // 2. 부분 일치 확인
+        for (Thickness thickness : Thickness.values()) {
+            for (String keyword : getKeywords(thickness)) {
+                if (v.contains(keyword.toLowerCase(Locale.ROOT))) return thickness;
             }
         }
 

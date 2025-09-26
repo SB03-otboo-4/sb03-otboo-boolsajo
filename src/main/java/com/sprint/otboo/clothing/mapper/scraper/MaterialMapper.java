@@ -1,6 +1,7 @@
 package com.sprint.otboo.clothing.mapper.scraper;
 
 import com.sprint.otboo.clothing.entity.attribute.Material;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -13,6 +14,7 @@ import java.util.Locale;
  *   <li>다양한 영문/한글 표기를 지원</li>
  *   <li>대소문자 및 공백 무시</li>
  *   <li>포함된 키워드 기반으로 매핑</li>
+ *   <li>완전 일치 키워드 우선, 이후 부분 일치로 매핑</li>
  *   <li>매칭 불가능 시 {@link Material#UNKNOWN} 반환</li>
  * </ul>
  */
@@ -27,18 +29,49 @@ public class MaterialMapper {
     public static Material map(String value) {
         if (value == null || value.isBlank()) return Material.UNKNOWN;
 
-        String v = value.toLowerCase(Locale.ROOT).trim();
+        String normalizedValue = normalize(value);
 
+        // 1. 완전 일치 확인
         for (Material material : Material.values()) {
             if (material == Material.UNKNOWN) continue;
             for (String keyword : getKeywords(material)) {
-                if (v.contains(keyword.toLowerCase(Locale.ROOT))) {
+                if (normalizedValue.equals(normalize(keyword))) {
+                    return material;
+                }
+            }
+        }
+
+        // 2. 부분 일치 확인 (복합 키워드 우선)
+        List<Material> sortedMaterials = Arrays.stream(Material.values())
+            .filter(m -> m != Material.UNKNOWN)
+            .sorted((a, b) -> {
+                // _BLEND 포함 이름을 우선
+                boolean aBlend = a.name().contains("_BLEND");
+                boolean bBlend = b.name().contains("_BLEND");
+                return Boolean.compare(bBlend, aBlend); // bBlend true 먼저
+            })
+            .toList();
+
+        for (Material material : sortedMaterials) {
+            for (String keyword : getKeywords(material)) {
+                if (normalizedValue.contains(normalize(keyword))) {
                     return material;
                 }
             }
         }
 
         return Material.UNKNOWN;
+    }
+
+    /**
+     * 문자열 정규화
+     * <ul>
+     *   <li>소문자 변환</li>
+     *   <li>공백 제거</li>
+     * </ul>
+     */
+    private static String normalize(String s) {
+        return s == null ? "" : s.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
     }
 
     /**
@@ -51,7 +84,12 @@ public class MaterialMapper {
      */
     private static List<String> getKeywords(Material material) {
         return switch (material) {
-            case COTTON -> List.of("cotton", "면", "코튼");
+            // 복합 키워드를 단순 키워드보다 먼저 배치
+            case COTTON_BLEND -> List.of("cotton blend", "코튼혼방", "코튼 혼방", "면혼방");
+            case POLYESTER_BLEND -> List.of("polyester blend", "폴리혼방", "폴리 혼방");
+            case WOOL_BLEND -> List.of("wool blend", "울혼방", "울 혼방");
+            // 단일 키워드
+            case COTTON -> List.of("cotton", "코튼", "면");
             case POLYESTER -> List.of("polyester", "폴리에스터", "폴리");
             case WOOL -> List.of("wool", "울", "양모");
             case NYLON -> List.of("nylon", "나일론");
@@ -66,14 +104,7 @@ public class MaterialMapper {
             case ANGORA -> List.of("angora", "앙고라");
             case LAMB_WOOL -> List.of("lambswool", "램스울", "램 울");
             case FUR -> List.of("fur", "퍼", "모피");
-            case NYLON_BLEND -> List.of("nylon blend", "나일론혼방");
-            case POLY_COTTON -> List.of("poly cotton", "폴리코튼");
-            case VISCOSE -> List.of("viscose", "비스코스");
-            case MODAL -> List.of("modal", "모달");
-            case TENCEL -> List.of("tencel", "텐셀");
-            case COTTON_BLEND -> List.of("면혼방", "코튼혼방", "cotton blend");
-            case WOOL_BLEND -> List.of("울혼방", "wool blend");
-            case POLYESTER_BLEND -> List.of("폴리혼방", "polyester blend");
+            case NYLON_BLEND -> List.of("nylon blend", "나일론혼방", "나일론 혼방");
             case RIB -> List.of("리브", "rib");
             case JERSEY -> List.of("저지", "jersey");
             case TERRY -> List.of("테리", "terry");

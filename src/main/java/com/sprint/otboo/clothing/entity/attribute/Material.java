@@ -53,14 +53,14 @@ public enum Material {
             case "angora", "앙고라" -> ANGORA;
             case "lambswool", "램스울", "램 울" -> LAMB_WOOL;
             case "fur", "퍼", "모피" -> FUR;
-            case "나일론혼방", "nylon blend" -> NYLON_BLEND;
+            case "나일론혼방","나일론 혼방", "nylon blend" -> NYLON_BLEND;
             case "poly cotton", "폴리코튼" -> POLY_COTTON;
             case "viscose", "비스코스" -> VISCOSE;
             case "modal", "모달" -> MODAL;
             case "tencel", "텐셀" -> TENCEL;
-            case "cotton blend", "면혼방", "코튼혼방" -> COTTON_BLEND;
-            case "wool blend", "울혼방" -> WOOL_BLEND;
-            case "polyester blend", "폴리혼방" -> POLYESTER_BLEND;
+            case "cotton blend", "면혼방", "코튼혼방", "코튼 혼방" -> COTTON_BLEND;
+            case "wool blend", "울혼방", "울 혼방" -> WOOL_BLEND;
+            case "polyester blend", "폴리혼방", "폴리 혼방" -> POLYESTER_BLEND;
             case "rib", "리브" -> RIB;
             case "jersey", "저지" -> JERSEY;
             case "terry", "테리" -> TERRY;
