@@ -13,6 +13,7 @@ import com.sprint.otboo.clothing.entity.attribute.AttributeType;
 import com.sprint.otboo.clothing.exception.ClothesExtractionException;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.util.ClothesAttributeExtractor;
+import com.sprint.otboo.clothing.util.ClothesAttributeExtractor.Attribute;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ public class ClothesExtractorTest {
 
     private MusinsaExtractor musinsaExtractor;
     private ZigzagExtractor zigzagExtractor;
+    private TwentynineCExtractor twentynineCmExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -46,6 +48,7 @@ public class ClothesExtractorTest {
         MockitoAnnotations.openMocks(this);
         musinsaExtractor = new MusinsaExtractor(attributeExtractor, defRepository);
         zigzagExtractor = new ZigzagExtractor(attributeExtractor, defRepository);
+        twentynineCmExtractor = new TwentynineCExtractor(attributeExtractor, defRepository);
     }
 
     // ------------------ Musinsa ------------------
@@ -255,6 +258,118 @@ public class ClothesExtractorTest {
 
             // when & then: extract 호출 시 예외 변환 확인
             assertThrows(ClothesExtractionException.class, () -> zigzagExtractor.extract(url));
+        }
+    }
+
+    // ------------------ 29CM ------------------
+
+    @Test
+    void Twenty_nine_Cm_URL_지원_여부() {
+        // given: 29CM 상품 URL
+        String url = "https://www.29cm.co.kr/product/123";
+
+        // when: supports 호출
+        boolean result = twentynineCmExtractor.supports(url);
+
+        // then: true 반환 확인
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void Twenty_nine_Cm_의상정보_정상추출() throws IOException {
+        // given: 상품 URL, 문서, 속성, DB 정의
+        String url = "https://www.29cm.co.kr/product/123";
+
+        Document doc = mock(Document.class);
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("슬림핏 셔츠");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+
+        Element imgEl = mock(Element.class);
+        when(imgEl.attr("content")).thenReturn("http://29cm-image.jpg");
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
+
+        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "슬림핏 셔츠"))
+            .thenReturn(List.of(new Attribute(AttributeType.COLOR, "WHITE")));
+
+        UUID defId = UUID.randomUUID();
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .id(defId)
+            .name("COLOR")
+            .selectValues("WHITE,BLACK,BLUE")
+            .build();
+        when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);       // Jsoup.connect 반환
+            Connection connWithUA = mock(Connection.class); // userAgent 반환용
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent("Mozilla/5.0")).thenReturn(connWithUA);
+            when(connWithUA.get()).thenReturn(doc); // Document 반환
+
+            // when: extract 호출
+            ClothesDto result = twentynineCmExtractor.extract(url);
+
+            // then: 의상 정보 정상 추출 확인
+            assertThat(result).isNotNull();
+            assertThat(result.name()).isEqualTo("슬림핏 셔츠");
+            assertThat(result.imageUrl()).isEqualTo("http://29cm-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.TOP);
+            assertThat(result.attributes()).hasSize(1);
+            assertThat(result.attributes().get(0).value()).isEqualTo("WHITE");
+        }
+    }
+
+    @Test
+    void Twenty_nine_Cm_DB정의없는속성_건너뛰기() throws IOException {
+        // given: 상품 URL, 문서, 정의 없는 속성
+        String url = "https://www.29cm.co.kr/product/123";
+
+        Document doc = mock(Document.class);
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("슬림핏 셔츠");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(mock(Element.class));
+        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "슬림핏 셔츠"))
+            .thenReturn(List.of(new Attribute(AttributeType.COLOR, "UNKNOWN")));
+        when(defRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection connWithUA = mock(Connection.class); // userAgent 반환용
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent("Mozilla/5.0")).thenReturn(connWithUA);
+            when(connWithUA.get()).thenReturn(doc); // 실제 Document 반환
+
+            // when: extract 호출
+            ClothesDto result = twentynineCmExtractor.extract(url);
+
+            // then: 정의 없는 속성 건너뛰기 확인
+            assertThat(result.attributes()).isEmpty();
+        }
+    }
+
+    @Test
+    void Twenty_nine_Cm_IOException_발생시_예외변환() throws IOException {
+        // given: 상품 URL, Jsoup 연결에서 IOException 발생
+        String url = "https://www.29cm.co.kr/product/123";
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection connWithUA = mock(Connection.class);
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent("Mozilla/5.0")).thenReturn(connWithUA);
+
+            // when & then: extract 호출 시 예외 변환 확인
+            when(connWithUA.get()).thenThrow(new IOException("네트워크 오류"));
+            assertThrows(ClothesExtractionException.class, () -> twentynineCmExtractor.extract(url));
         }
     }
 }
