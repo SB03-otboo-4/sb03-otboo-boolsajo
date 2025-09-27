@@ -27,7 +27,7 @@ public class ClothesTypeMapper {
         String lower = category.toLowerCase();
 
         // ===== 아우터 OUTER (우선순위 1) =====
-        if (lower.matches(".*(카디건|가디건|자켓|재킷|코트|점퍼|패딩|아우터|후드집업|트렌치|야상|무스탕|퍼|베스트|조끼|jacket|coat|cardigan|outer|parka|zip[- ]?up|mustang|vest).*")) {
+        if (lower.matches(".*(플리스|바람막이|카디건|가디건|자켓|재킷|코트|점퍼|패딩|아우터|후드집업|트렌치|야상|무스탕|퍼|베스트|조끼|jacket|coat|cardigan|outer|parka|zip[- ]?up|mustang|vest).*")) {
             return ClothesType.OUTER;
         }
 
@@ -47,7 +47,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 신발 SHOES =====
-        if (lower.matches(".*(신발|슈즈|운동화|런닝화|워킹화|러닝화|트레이너|하이[- ]?탑|로우[- ]?탑|슬립온|구두|로퍼|옥스포드|더비|모카신|브로그|부츠|앵클부츠|첼시부츠|워커부츠|레인부츠|샌들|슬리퍼|플랫|발레리나|뮬|하이힐|펌프스|웨지힐|크록스|힐|crocs|sneakers|running shoes|trainers|high[- ]?top|low[- ]?top|slip[- ]?on|loafer|oxford|derby|moccasin|brogue|boots|ankle boots|chelsea boots|walker boots|rain boots|sandals|slipper|flat|ballerina|mule|heels|pumps|wedge).*")) {
+        if (lower.matches(".*(신발|슈즈|운동화|런닝화|워킹화|러닝화|트레이너|하이[- ]?탑|로우[- ]?탑|슬립온|구두|로퍼|옥스포드|더비|모카신|브로그|부츠|앵클부츠|첼시부츠|워커부츠|레인부츠|샌들|슬리퍼|플랫|발레리나|뮬|하이힐|펌프스|웨지힐|크록스|스니커즈|힐|워커|캔버스|쪼리|블로퍼|crocs|sneakers|running shoes|trainers|high[- ]?top|low[- ]?top|slip[- ]?on|loafer|oxford|derby|moccasin|brogue|boots|ankle boots|chelsea boots|walker boots|rain boots|sandals|slipper|flat|ballerina|mule|heels|pumps|wedge|vans).*")) {
             return ClothesType.SHOES;
         }
 
@@ -57,7 +57,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 모자 HAT =====
-        if (lower.matches(".*(모자|캡|비니|햇|버킷햇|페도라|카우보이햇|볼캡|플로피햇|hat|cap|beanie|fedora|bucket|cowboy|baseball|floppy|sunhat|beret).*")) {
+        if (lower.matches(".*(머리띠|모자|캡|비니|햇|버킷햇|페도라|카우보이햇|볼캡|플로피햇|hat|cap|beanie|fedora|bucket|cowboy|baseball|floppy|sunhat|beret).*")) {
             return ClothesType.HAT;
         }
 
@@ -67,7 +67,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 악세서리 ACCESSORY =====
-        if (lower.matches(".*(악세서리|액세서리|목걸이|반지|팔찌|귀걸이|시계|벨트|헤어밴드|핀|선글라스|브로치|타이|키링|피어싱|brooch|accessory|necklace|ring|bracelet|earring|watch|belt|hairband|pin|sunglasses|keyring|tie|cufflink).*")) {
+        if (lower.matches(".*(열쇠고리|아이웨어|안경|악세서리|액세서리|목걸이|반지|팔찌|발찌|귀걸이|시계|벨트|헤어밴드|핀|선글라스|브로치|타이|키링|피어싱|brooch|accessory|necklace|ring|bracelet|earring|watch|belt|hairband|pin|sunglasses|keyring|tie|cufflink).*")) {
             return ClothesType.ACCESSORY;
         }
 
@@ -77,7 +77,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 상의 TOP =====
-        if (lower.matches(".*(셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|집업|폴로|후디|hoodie|sweater|blouse|tanktop|croptop|\\btop\\b|henley|polo|longsleeve|shortsleeve|shirt|t[- ]?shirt).*")) {
+        if (lower.matches(".*(민소매|셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|집업|폴로|후디|hoodie|sweater|blouse|tanktop|croptop|\\btop\\b|henley|polo|longsleeve|shortsleeve|shirt|t[- ]?shirt).*")) {
             return ClothesType.TOP;
         }
 
