@@ -43,6 +43,7 @@ public class ClothesExtractorTest {
     private ZigzagExtractor zigzagExtractor;
     private TwentynineCMExtractor twentynineCmExtractor;
     private HiverExtractor hiverExtractor;
+    private AblyExtractor ablyExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -60,6 +61,7 @@ public class ClothesExtractorTest {
         zigzagExtractor = new ZigzagExtractor(attributeExtractor, defRepository);
         twentynineCmExtractor = new TwentynineCMExtractor(attributeExtractor, defRepository);
         hiverExtractor = new HiverExtractor(attributeExtractor, defRepository, fileStorageService);
+        ablyExtractor = new AblyExtractor(attributeExtractor, defRepository, fileStorageService);
 
     }
 
@@ -497,6 +499,121 @@ public class ClothesExtractorTest {
 
             // when & then: extract 호출 시 예외 변환 확인
             assertThrows(ClothesExtractionException.class, () -> hiverExtractor.extract(url));
+        }
+    }
+
+    // ------------------ Ably ------------------
+
+    @Test
+    void Ably_URL_지원_여부() {
+        // given: Ably 상품 URL
+        String url = "https://www.a-bly.com/product/123";
+
+        // when: supports 호출
+        boolean result = ablyExtractor.supports(url);
+
+        // then: true 반환 확인
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void Ably_의상정보_정상추출() throws IOException {
+        // given: 상품 URL, HTML 문서, 속성, DB 정의, 내부 이미지 URL 준비
+        String url = "https://www.a-bly.com/product/123";
+        Document doc = mock(Document.class);
+
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("플로럴 원피스");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+
+        Element imgEl = mock(Element.class);
+        when(imgEl.attr("content")).thenReturn("http://ably-image.jpg");
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
+
+        when(doc.select(".breadcrumb a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "플로럴 원피스"))
+            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "PINK")));
+
+        UUID defId = UUID.randomUUID();
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .id(defId)
+            .name("COLOR")
+            .selectValues("PINK,BLUE,WHITE")
+            .build();
+        when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+
+        when(fileStorageService.upload(any(MultipartFile.class)))
+            .thenReturn("http://internal-server/ably-image.jpg");
+
+        // spy로 downloadImageAsMultipartFile 호출 제어
+        AblyExtractor spyExtractor = spy(new AblyExtractor(attributeExtractor, defRepository, fileStorageService));
+        doReturn(mock(MultipartFile.class)).when(spyExtractor).downloadImageAsMultipartFile(anyString());
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
+            when(conn.header(anyString(), anyString())).thenReturn(conn);
+            when(conn.get()).thenReturn(doc);
+
+            // when: extract 호출
+            ClothesDto result = spyExtractor.extract(url);
+
+            // then: 의상 정보 정상 추출 확인
+            assertThat(result).isNotNull();
+            assertThat(result.name()).isEqualTo("플로럴 원피스");
+            assertThat(result.imageUrl()).isEqualTo("http://internal-server/ably-image.jpg");
+            assertThat(result.attributes()).hasSize(1);
+            assertThat(result.attributes().get(0).value()).isEqualTo("PINK");
+        }
+    }
+
+    @Test
+    void Ably_DB정의없는속성_건너뛰기() throws IOException {
+        // given: 상품 URL, HTML 문서, 정의 없는 속성 준비
+        String url = "https://www.a-bly.com/product/123";
+        Document doc = mock(Document.class);
+
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("플로럴 원피스");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(mock(Element.class));
+        when(doc.select(".breadcrumb a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "플로럴 원피스"))
+            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "UNKNOWN")));
+        when(defRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
+            when(conn.header(anyString(), anyString())).thenReturn(conn);
+            when(conn.get()).thenReturn(doc);
+
+            // when: extract 호출
+            ClothesDto result = ablyExtractor.extract(url);
+
+            // then: 정의 없는 속성 건너뛰기 확인
+            assertThat(result.attributes()).isEmpty();
+        }
+    }
+
+    @Test
+    void Ably_IOException_발생시_예외변환() throws IOException {
+        // given: 상품 URL, Jsoup 연결에서 IOException 발생 준비
+        String url = "https://www.a-bly.com/product/123";
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
+            when(conn.header(anyString(), anyString())).thenReturn(conn);
+            when(conn.get()).thenThrow(new IOException("네트워크 오류"));
+
+            // when & then: extract 호출 시 예외 변환 확인
+            assertThrows(ClothesExtractionException.class, () -> ablyExtractor.extract(url));
         }
     }
 }
