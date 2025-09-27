@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -133,7 +132,7 @@ public class HiverExtractor implements ClothesExtractor {
     }
 
     /** 외부 이미지 URL을 다운로드하여 {@link MultipartFile}로 반환 */
-    private MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
+    protected MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
         URL url = new URL(imageUrl);
         String originalFilename = Paths.get(url.getPath()).getFileName().toString();
         String safeFilename = originalFilename.replaceAll("[^a-zA-Z0-9\\-_.]", "");

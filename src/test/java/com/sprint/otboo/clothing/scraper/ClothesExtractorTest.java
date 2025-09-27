@@ -2,8 +2,12 @@ package com.sprint.otboo.clothing.scraper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
@@ -14,6 +18,7 @@ import com.sprint.otboo.clothing.exception.ClothesExtractionException;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.util.ClothesAttributeExtractor;
 import com.sprint.otboo.clothing.util.ClothesAttributeExtractor.Attribute;
+import com.sprint.otboo.common.storage.FileStorageService;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -29,13 +34,15 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.springframework.web.multipart.MultipartFile;
 
 @DisplayName("ClothesExtractor 단위 테스트")
 public class ClothesExtractorTest {
 
     private MusinsaExtractor musinsaExtractor;
     private ZigzagExtractor zigzagExtractor;
-    private TwentynineCExtractor twentynineCmExtractor;
+    private TwentynineCMExtractor twentynineCmExtractor;
+    private HiverExtractor hiverExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -43,12 +50,17 @@ public class ClothesExtractorTest {
     @Mock
     private ClothesAttributeDefRepository defRepository;
 
+    @Mock
+    private FileStorageService fileStorageService;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         musinsaExtractor = new MusinsaExtractor(attributeExtractor, defRepository);
         zigzagExtractor = new ZigzagExtractor(attributeExtractor, defRepository);
-        twentynineCmExtractor = new TwentynineCExtractor(attributeExtractor, defRepository);
+        twentynineCmExtractor = new TwentynineCMExtractor(attributeExtractor, defRepository);
+        hiverExtractor = new HiverExtractor(attributeExtractor, defRepository, fileStorageService);
+
     }
 
     // ------------------ Musinsa ------------------
@@ -370,6 +382,121 @@ public class ClothesExtractorTest {
             // when & then: extract 호출 시 예외 변환 확인
             when(connWithUA.get()).thenThrow(new IOException("네트워크 오류"));
             assertThrows(ClothesExtractionException.class, () -> twentynineCmExtractor.extract(url));
+        }
+    }
+
+    // ------------------ Hiver ------------------
+
+    @Test
+    void Hiver_URL_지원_여부() {
+        // given: Hiver 상품 URL
+        String url = "https://www.hiver.co.kr/product/123";
+
+        // when: supports 호출
+        boolean result = hiverExtractor.supports(url);
+
+        // then: true 반환 확인
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void Hiver_의상정보_정상추출() throws IOException {
+        // given: 상품 URL, HTML 문서, 속성, DB 정의, 내부 이미지 URL
+        String url = "https://www.hiver.co.kr/product/123";
+        Document doc = mock(Document.class);
+
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("체크 셔츠");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+
+        Element imgEl = mock(Element.class);
+        when(imgEl.attr("content")).thenReturn("http://hiver-image.jpg");
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
+
+        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "체크 셔츠"))
+            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "BLUE")));
+
+        UUID defId = UUID.randomUUID();
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .id(defId)
+            .name("COLOR")
+            .selectValues("RED,BLUE,BLACK")
+            .build();
+        when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+
+        when(fileStorageService.upload(any(MultipartFile.class)))
+            .thenReturn("http://internal-server/hiver-image.jpg");
+
+        // HiverExtractor를 spy로 생성
+        HiverExtractor spyExtractor = spy(new HiverExtractor(attributeExtractor, defRepository, fileStorageService));
+
+        // downloadImageAsMultipartFile 호출 시 가짜 MultipartFile 반환
+        doReturn(mock(MultipartFile.class))
+            .when(spyExtractor).downloadImageAsMultipartFile(anyString());
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent("Mozilla/5.0")).thenReturn(conn);
+            when(conn.get()).thenReturn(doc);
+
+            // when: extract 호출
+            ClothesDto result = spyExtractor.extract(url);
+
+            // then: 의상 정보 정상 추출 확인
+            assertThat(result).isNotNull();
+            assertThat(result.name()).isEqualTo("체크 셔츠");
+            assertThat(result.imageUrl()).isEqualTo("http://internal-server/hiver-image.jpg");
+            assertThat(result.attributes()).hasSize(1);
+            assertThat(result.attributes().get(0).value()).isEqualTo("BLUE");
+        }
+    }
+
+    @Test
+    void Hiver_DB정의없는속성_건너뛰기() throws IOException {
+        // given: 상품 URL, HTML 문서, 정의 없는 속성
+        String url = "https://www.hiver.co.kr/product/123";
+        Document doc = mock(Document.class);
+
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("체크 셔츠");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(mock(Element.class));
+        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "체크 셔츠"))
+            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "UNKNOWN")));
+        when(defRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            when(conn.userAgent("Mozilla/5.0")).thenReturn(conn);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.get()).thenReturn(doc);
+
+            // when: extract 호출
+            ClothesDto result = hiverExtractor.extract(url);
+
+            // then: 정의 없는 속성 건너뛰기 확인
+            assertThat(result.attributes()).isEmpty();
+        }
+    }
+
+    @Test
+    void Hiver_IOException_발생시_예외변환() throws IOException {
+        // given: 상품 URL, Jsoup 연결에서 IOException 발생
+        String url = "https://www.hiver.co.kr/product/123";
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent("Mozilla/5.0")).thenReturn(conn);
+            when(conn.get()).thenThrow(new IOException("네트워크 오류"));
+
+            // when & then: extract 호출 시 예외 변환 확인
+            assertThrows(ClothesExtractionException.class, () -> hiverExtractor.extract(url));
         }
     }
 }
