@@ -9,7 +9,17 @@ import java.time.Instant;
 
 @Entity
 @Table(
-    name = "weathers"
+    name = "weathers",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uq_weathers_loc_forecast_at_forecasted_at",
+            columnNames = {"location_id", "forecast_at", "forecasted_at"}
+        )
+    },
+    indexes = {
+        @Index(name = "idx_weathers_loc_forecast_at", columnList = "location_id, forecast_at"),
+        @Index(name = "idx_weathers_loc_forecast_at_forecasted_at", columnList = "location_id, forecast_at, forecasted_at")
+    }
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
