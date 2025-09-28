@@ -2,12 +2,13 @@ package com.sprint.otboo.clothing.scraper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.entity.ClothesType;
@@ -42,6 +43,7 @@ public class ClothesExtractorTest {
     private TwentynineCMExtractor twentynineCmExtractor;
     private HiverExtractor hiverExtractor;
     private AblyExtractor ablyExtractor;
+    private FourNineTenExtractor fourNineTenExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -60,6 +62,7 @@ public class ClothesExtractorTest {
         twentynineCmExtractor = new TwentynineCMExtractor(attributeExtractor, defRepository);
         hiverExtractor = new HiverExtractor(attributeExtractor, defRepository, fileStorageService);
         ablyExtractor = new AblyExtractor(attributeExtractor, defRepository, fileStorageService);
+        fourNineTenExtractor = new FourNineTenExtractor(attributeExtractor, defRepository, fileStorageService);
 
     }
 
@@ -78,23 +81,20 @@ public class ClothesExtractorTest {
 
     @Test
     void Musinsa_의상정보_정상추출() throws IOException {
-        // given: 상품 URL과 문서, 속성, DB 정의
+        // given: 상품 URL, HTML 문서, 기본 정보, 속성, DB 정의
         String url = "https://www.musinsa.com/product/123";
-
         Document doc = mock(Document.class);
-        Element titleEl = mock(Element.class);
-        when(titleEl.attr("content")).thenReturn("후드 티셔츠");
-        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
 
-        Element imgEl = mock(Element.class);
-        when(imgEl.attr("content")).thenReturn("http://image.jpg");
-        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+            .thenReturn("후드 티셔츠");
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+            .thenReturn("http://image.jpg");
+        when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb a"), anyString()))
+            .thenReturn("상의");
 
-        when(doc.select(".breadcrumb a")).thenReturn(new Elements());
-
-        when(attributeExtractor.extractAttributes(doc, "후드 티셔츠"))
-            .thenReturn(
-                List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED")));
+        ClothesAttributeExtractor.Attribute colorAttr = new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED");
+        when(attributeExtractor.extractAttributes(eq(doc), eq("후드 티셔츠")))
+            .thenReturn(List.of(colorAttr));
 
         UUID defId = UUID.randomUUID();
         ClothesAttributeDef def = ClothesAttributeDef.builder()
@@ -102,8 +102,9 @@ public class ClothesExtractorTest {
             .name("COLOR")
             .selectValues("RED,BLUE,BLACK")
             .build();
-
         when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+
+        when(attributeExtractor.matchSelectableValue("RED", "RED,BLUE,BLACK")).thenReturn("RED");
 
         try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
             Connection conn = mock(Connection.class);
@@ -113,13 +114,16 @@ public class ClothesExtractorTest {
             // when: extract 호출
             ClothesDto result = musinsaExtractor.extract(url);
 
-            // then: 의상 정보 정상 추출 확인
+            // then: DTO 값 검증
             assertThat(result).isNotNull();
             assertThat(result.name()).isEqualTo("후드 티셔츠");
             assertThat(result.imageUrl()).isEqualTo("http://image.jpg");
             assertThat(result.type()).isEqualTo(ClothesType.TOP);
+
             assertThat(result.attributes()).hasSize(1);
-            assertThat(result.attributes().get(0).value()).isEqualTo("RED");
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("RED");
         }
     }
 
@@ -184,23 +188,20 @@ public class ClothesExtractorTest {
 
     @Test
     void Zigzag_의상정보_정상추출() throws IOException {
-        // given: 상품 URL, 문서, 속성, DB 정의
+        // given: 상품 URL, HTML 문서, 기본 정보, 속성, DB 정의
         String url = "https://www.zigzag.kr/product/123";
-
         Document doc = mock(Document.class);
-        Element titleEl = mock(Element.class);
-        when(titleEl.attr("content")).thenReturn("에브리띵모던 후드 티셔츠");
-        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
 
-        Element imgEl = mock(Element.class);
-        when(imgEl.attr("content")).thenReturn("http://zigzag-image.jpg");
-        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+            .thenReturn("에브리띵모던 후드 티셔츠");
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+            .thenReturn("http://zigzag-image.jpg");
+        when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+            .thenReturn("상의");
 
-        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
-
-        when(attributeExtractor.extractAttributes(doc, "에브리띵모던 후드 티셔츠"))
-            .thenReturn(
-                List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED")));
+        ClothesAttributeExtractor.Attribute colorAttr = new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED");
+        when(attributeExtractor.extractAttributes(eq(doc), eq("에브리띵모던 후드 티셔츠")))
+            .thenReturn(List.of(colorAttr));
 
         UUID defId = UUID.randomUUID();
         ClothesAttributeDef def = ClothesAttributeDef.builder()
@@ -208,8 +209,9 @@ public class ClothesExtractorTest {
             .name("COLOR")
             .selectValues("RED,BLUE,BLACK")
             .build();
-
         when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+
+        when(attributeExtractor.matchSelectableValue("RED", "RED,BLUE,BLACK")).thenReturn("RED");
 
         try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
             Connection conn = mock(Connection.class);
@@ -219,12 +221,16 @@ public class ClothesExtractorTest {
             // when: extract 호출
             ClothesDto result = zigzagExtractor.extract(url);
 
-            // then: 의상 정보 정상 추출 확인
+            // then: DTO 값 검증
             assertThat(result).isNotNull();
             assertThat(result.name()).isEqualTo("에브리띵모던 후드 티셔츠");
             assertThat(result.imageUrl()).isEqualTo("http://zigzag-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.TOP);
+
             assertThat(result.attributes()).hasSize(1);
-            assertThat(result.attributes().get(0).value()).isEqualTo("RED");
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("RED");
         }
     }
 
@@ -289,22 +295,20 @@ public class ClothesExtractorTest {
 
     @Test
     void Twenty_nine_Cm_의상정보_정상추출() throws IOException {
-        // given: 상품 URL, 문서, 속성, DB 정의
+        // given: URL, HTML 문서, 기본 정보, 속성, DB 정의, 내부 이미지 Mock
         String url = "https://www.29cm.co.kr/product/123";
-
         Document doc = mock(Document.class);
-        Element titleEl = mock(Element.class);
-        when(titleEl.attr("content")).thenReturn("슬림핏 셔츠");
-        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
 
-        Element imgEl = mock(Element.class);
-        when(imgEl.attr("content")).thenReturn("http://29cm-image.jpg");
-        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+            .thenReturn("슬림핏 셔츠");
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+            .thenReturn("http://29cm-image.jpg");
+        when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+            .thenReturn("상의");
 
-        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
-
+        ClothesAttributeExtractor.Attribute colorAttr = new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "WHITE");
         when(attributeExtractor.extractAttributes(doc, "슬림핏 셔츠"))
-            .thenReturn(List.of(new Attribute(AttributeType.COLOR, "WHITE")));
+            .thenReturn(List.of(colorAttr));
 
         UUID defId = UUID.randomUUID();
         ClothesAttributeDef def = ClothesAttributeDef.builder()
@@ -314,24 +318,29 @@ public class ClothesExtractorTest {
             .build();
         when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
 
+        when(attributeExtractor.matchSelectableValue("WHITE", "WHITE,BLACK,BLUE")).thenReturn("WHITE");
+
         try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
-            Connection conn = mock(Connection.class);       // Jsoup.connect 반환
-            Connection connWithUA = mock(Connection.class); // userAgent 반환용
+            Connection conn = mock(Connection.class);
+            Connection connWithUA = mock(Connection.class);
 
             jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
             when(conn.userAgent("Mozilla/5.0")).thenReturn(connWithUA);
-            when(connWithUA.get()).thenReturn(doc); // Document 반환
+            when(connWithUA.get()).thenReturn(doc);
 
             // when: extract 호출
             ClothesDto result = twentynineCmExtractor.extract(url);
 
-            // then: 의상 정보 정상 추출 확인
+            // then: DTO 값 검증
             assertThat(result).isNotNull();
             assertThat(result.name()).isEqualTo("슬림핏 셔츠");
             assertThat(result.imageUrl()).isEqualTo("http://29cm-image.jpg");
             assertThat(result.type()).isEqualTo(ClothesType.TOP);
+
             assertThat(result.attributes()).hasSize(1);
-            assertThat(result.attributes().get(0).value()).isEqualTo("WHITE");
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("WHITE");
         }
     }
 
@@ -401,22 +410,20 @@ public class ClothesExtractorTest {
 
     @Test
     void Hiver_의상정보_정상추출() throws IOException {
-        // given: 상품 URL, HTML 문서, 속성, DB 정의, 내부 이미지 URL 준비
+        // given: URL, HTML 문서, 기본 정보, 속성, DB 정의, 내부 이미지 업로드 Mock
         String url = "https://www.hiver.co.kr/product/123";
         Document doc = mock(Document.class);
 
-        Element titleEl = mock(Element.class);
-        when(titleEl.attr("content")).thenReturn("체크 셔츠");
-        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+            .thenReturn("체크 셔츠");
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+            .thenReturn("http://hiver-image.jpg");
+        when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+            .thenReturn("상의");
 
-        Element imgEl = mock(Element.class);
-        when(imgEl.attr("content")).thenReturn("http://hiver-image.jpg");
-        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
-
-        when(doc.select(".breadcrumb li a")).thenReturn(new Elements());
-
+        ClothesAttributeExtractor.Attribute colorAttr = new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "BLUE");
         when(attributeExtractor.extractAttributes(doc, "체크 셔츠"))
-            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "BLUE")));
+            .thenReturn(List.of(colorAttr));
 
         UUID defId = UUID.randomUUID();
         ClothesAttributeDef def = ClothesAttributeDef.builder()
@@ -425,8 +432,12 @@ public class ClothesExtractorTest {
             .selectValues("RED,BLUE,BLACK")
             .build();
         when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+        when(attributeExtractor.matchSelectableValue("BLUE", "RED,BLUE,BLACK")).thenReturn("BLUE");
 
-        when(fileStorageService.upload(any(MultipartFile.class)))
+        MultipartFile mockFile = mock(MultipartFile.class);
+        when(attributeExtractor.downloadImageAsMultipartFile("http://hiver-image.jpg"))
+            .thenReturn(mockFile);
+        when(fileStorageService.upload(mockFile))
             .thenReturn("http://internal-server/hiver-image.jpg");
 
         HiverExtractor extractor = new HiverExtractor(attributeExtractor, defRepository, fileStorageService);
@@ -440,12 +451,16 @@ public class ClothesExtractorTest {
             // when: extract 호출
             ClothesDto result = extractor.extract(url);
 
-            // then: 의상 정보 정상 추출 확인
+            // then: DTO 값 검증
             assertThat(result).isNotNull();
             assertThat(result.name()).isEqualTo("체크 셔츠");
             assertThat(result.imageUrl()).isEqualTo("http://internal-server/hiver-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.TOP);
+
             assertThat(result.attributes()).hasSize(1);
-            assertThat(result.attributes().get(0).value()).isEqualTo("BLUE");
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("BLUE");
         }
     }
 
@@ -511,22 +526,20 @@ public class ClothesExtractorTest {
 
     @Test
     void Ably_의상정보_정상추출() throws IOException {
-        // given: 상품 URL, HTML 문서, 속성, DB 정의, 내부 이미지 URL 준비
+        // given: URL, HTML 문서, 기본 정보, 속성, DB 정의, 내부 이미지 업로드 Mock
         String url = "https://www.a-bly.com/product/123";
         Document doc = mock(Document.class);
 
-        Element titleEl = mock(Element.class);
-        when(titleEl.attr("content")).thenReturn("플로럴 원피스");
-        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+            .thenReturn("플로럴 원피스");
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+            .thenReturn("http://ably-image.jpg");
+        when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb a"), anyString()))
+            .thenReturn("원피스");
 
-        Element imgEl = mock(Element.class);
-        when(imgEl.attr("content")).thenReturn("http://ably-image.jpg");
-        when(doc.selectFirst("meta[property=og:image]")).thenReturn(imgEl);
-
-        when(doc.select(".breadcrumb a")).thenReturn(new Elements());
-
+        ClothesAttributeExtractor.Attribute colorAttr = new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "PINK");
         when(attributeExtractor.extractAttributes(doc, "플로럴 원피스"))
-            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "PINK")));
+            .thenReturn(List.of(colorAttr));
 
         UUID defId = UUID.randomUUID();
         ClothesAttributeDef def = ClothesAttributeDef.builder()
@@ -535,8 +548,12 @@ public class ClothesExtractorTest {
             .selectValues("PINK,BLUE,WHITE")
             .build();
         when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+        when(attributeExtractor.matchSelectableValue("PINK", "PINK,BLUE,WHITE")).thenReturn("PINK");
 
-        when(fileStorageService.upload(any(MultipartFile.class)))
+        MultipartFile mockFile = mock(MultipartFile.class);
+        when(attributeExtractor.downloadImageAsMultipartFile("http://ably-image.jpg"))
+            .thenReturn(mockFile);
+        when(fileStorageService.upload(mockFile))
             .thenReturn("http://internal-server/ably-image.jpg");
 
         AblyExtractor extractor = new AblyExtractor(attributeExtractor, defRepository, fileStorageService);
@@ -551,14 +568,18 @@ public class ClothesExtractorTest {
             // when: extract 호출
             ClothesDto result = extractor.extract(url);
 
-            // then: 의상 정보 정상 추출 확인
+            // then: DTO 값 검증
             assertThat(result).isNotNull();
             assertThat(result.name()).isEqualTo("플로럴 원피스");
             assertThat(result.imageUrl()).isEqualTo("http://internal-server/ably-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.DRESS); // 원피스 카테고리 반영
             assertThat(result.attributes()).hasSize(1);
-            assertThat(result.attributes().get(0).value()).isEqualTo("PINK");
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("PINK");
         }
     }
+
 
     @Test
     void Ably_DB정의없는속성_건너뛰기() throws IOException {
@@ -605,6 +626,123 @@ public class ClothesExtractorTest {
 
             // when & then: extract 호출 시 예외 변환 확인
             assertThrows(ClothesExtractionException.class, () -> ablyExtractor.extract(url));
+        }
+    }
+
+    // ------------------ 4910 ------------------
+
+    @Test
+    void FourNineTen_URL_지원_여부() {
+        // given: 4910 상품 URL
+        String url = "https://www.4910.kr/product/123";
+
+        // when: supports 호출
+        boolean result = fourNineTenExtractor.supports(url);
+
+        // then: true 반환 확인
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void FourNineTen_의상정보_정상추출() throws IOException {
+        // given: URL, HTML 문서, 기본 정보, 속성, DB 정의, 내부 이미지 업로드 Mock
+        String url = "https://www.4910.kr/product/123";
+        Document doc = mock(Document.class);
+
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+            .thenReturn("오버핏 후드티");
+        when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+            .thenReturn("http://external-image.jpg");
+        when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb a"), anyString()))
+            .thenReturn("상의");
+
+        ClothesAttributeExtractor.Attribute colorAttr = new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED");
+        when(attributeExtractor.extractAttributes(doc, "오버핏 후드티"))
+            .thenReturn(List.of(colorAttr));
+
+        UUID defId = UUID.randomUUID();
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .id(defId)
+            .name("COLOR")
+            .selectValues("RED,BLUE,BLACK")
+            .build();
+        for (String dbName : ClothesAttributeExtractor.TYPE_TO_DB_NAMES.get(AttributeType.COLOR)) {
+            when(defRepository.findByName(dbName)).thenReturn(Optional.of(def));
+        }
+        when(attributeExtractor.matchSelectableValue("RED", "RED,BLUE,BLACK")).thenReturn("RED");
+
+        MultipartFile mockFile = mock(MultipartFile.class);
+        when(attributeExtractor.downloadImageAsMultipartFile("http://external-image.jpg"))
+            .thenReturn(mockFile);
+        when(fileStorageService.upload(mockFile))
+            .thenReturn("http://internal-server/4910-image.jpg");
+
+        FourNineTenExtractor extractor = new FourNineTenExtractor(attributeExtractor, defRepository, fileStorageService);
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
+            when(conn.get()).thenReturn(doc);
+
+            // when: extract 호출
+            ClothesDto result = extractor.extract(url);
+
+            // then: DTO 값 검증
+            assertThat(result).isNotNull();
+            assertThat(result.name()).isEqualTo("오버핏 후드티");
+            assertThat(result.imageUrl()).isEqualTo("http://internal-server/4910-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.TOP);
+            assertThat(result.attributes()).hasSize(1);
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("RED");
+        }
+    }
+
+    @Test
+    void FourNineTen_DB정의없는속성_건너뛰기() throws IOException {
+        // given: 상품 URL, HTML 문서, DB 정의 없는 속성 준비
+        String url = "https://www.4910.kr/product/123";
+        Document doc = mock(Document.class);
+
+        Element titleEl = mock(Element.class);
+        when(titleEl.attr("content")).thenReturn("오버핏 후드티");
+        when(doc.selectFirst("meta[property=og:title]")).thenReturn(titleEl);
+        when(doc.selectFirst("meta[property=og:image]")).thenReturn(mock(Element.class));
+        when(doc.select(".breadcrumb a")).thenReturn(new Elements());
+
+        when(attributeExtractor.extractAttributes(doc, "오버핏 후드티"))
+            .thenReturn(List.of(new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "UNKNOWN")));
+        when(defRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
+            when(conn.get()).thenReturn(doc);
+
+            // when: extract 호출
+            ClothesDto result = fourNineTenExtractor.extract(url);
+
+            // then: DB 정의 없는 속성 건너뛰기 확인
+            assertThat(result.attributes()).isEmpty();
+        }
+    }
+
+    @Test
+    void FourNineTen_IOException_발생시_예외변환() throws IOException {
+        // given: 상품 URL, Jsoup 연결에서 IOException 발생 준비
+        String url = "https://www.4910.kr/product/123";
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
+            when(conn.get()).thenThrow(new IOException("네트워크 오류"));
+
+            // when & then: extract 호출 시 예외 변환 확인
+            assertThrows(ClothesExtractionException.class, () -> fourNineTenExtractor.extract(url));
         }
     }
 }

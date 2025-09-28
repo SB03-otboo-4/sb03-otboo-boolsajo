@@ -89,7 +89,7 @@ public class AblyExtractor implements ClothesExtractor {
             String imageUrl = "";
             if (externalImageUrl != null && !externalImageUrl.isBlank()) {
                 try {
-                    MultipartFile downloaded = downloadImageAsMultipartFile(externalImageUrl);
+                    MultipartFile downloaded = extractor.downloadImageAsMultipartFile(externalImageUrl);
                     imageUrl = fileStorageService.upload(downloaded);
                     log.info("이미지 내부 저장 URL: {}", imageUrl);
                 } catch (IOException e) {
