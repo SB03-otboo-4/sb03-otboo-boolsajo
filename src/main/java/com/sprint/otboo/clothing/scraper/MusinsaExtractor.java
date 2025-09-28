@@ -105,7 +105,7 @@ public class MusinsaExtractor implements ClothesExtractor {
             // 5. 속성 추출
             List<ClothesAttributeExtractor.Attribute> attributes = extractor.extractAttributes(doc, name);
 
-            // 6. Dto 변환
+            // 6. DTO 변환: 추출 속성을 DB 정의 기반으로 selectable 값 매핑
             List<ClothesAttributeDto> finalAttributes = attributes.stream()
                 .flatMap(attr -> {
                     // DB 칼럼명 후보 가져오기
@@ -116,9 +116,11 @@ public class MusinsaExtractor implements ClothesExtractor {
                         var defOpt = defRepository.findByName(dbName);
                         if (defOpt.isPresent()) {
                             var def = defOpt.get();
+
+                            // 추출값을 DB 정의 selectable 값 기준으로 매칭
                             String matchedValue = extractor.matchSelectableValue(attr.value(), def.getSelectValues());
 
-                            log.info("최종 DTO 매핑: {} -> {} (DB 속성: {})", attr.type(), matchedValue, dbName);
+                            // 매핑된 DTO 반환
                             return Stream.of(new ClothesAttributeDto(def.getId(), matchedValue));
                         }
                     }

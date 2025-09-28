@@ -105,19 +105,29 @@ public class FourNineTenExtractor implements ClothesExtractor {
             }
             log.info("4910 ClothesType 매핑 결과: {}", type);
 
-            // 5. 속성 추출 및 DB 기반 selectable 값 보정
+            // 5. 속성 추출
             List<ClothesAttributeExtractor.Attribute> attributes = extractor.extractAttributes(doc, name);
+
+            // 6. DTO 변환: 추출 속성을 DB 정의 기반으로 selectable 값 매핑
             List<ClothesAttributeDto> finalAttributes = attributes.stream()
                 .flatMap(attr -> {
+                    // DB 칼럼명 후보 가져오기
                     List<String> dbNames = TYPE_TO_DB_NAMES.getOrDefault(attr.type(), List.of(attr.type().name()));
+
+                    // DB 조회 후 selectable 값 매핑
                     for (String dbName : dbNames) {
                         var defOpt = defRepository.findByName(dbName);
                         if (defOpt.isPresent()) {
                             var def = defOpt.get();
+
+                            // 추출값을 DB 정의 selectable 값 기준으로 매칭
                             String matchedValue = extractor.matchSelectableValue(attr.value(), def.getSelectValues());
+
+                            // DTO 반환
                             return Stream.of(new ClothesAttributeDto(def.getId(), matchedValue));
                         }
                     }
+                    // DB 정의 없는 속성은 건너뜀
                     log.warn("4910 DB 정의 없는 속성 건너뜀: {}", attr.type());
                     return Stream.empty();
                 })

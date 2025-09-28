@@ -45,9 +45,10 @@ public class ZigzagExtractor implements ClothesExtractor {
     @Override
     public ClothesDto extract(String url) {
         try {
+            // 1. HTML 문서 로드
             Document doc = Jsoup.connect(url).get();
 
-            // 1. 기본 정보 추출
+            // 2. 상품명, 이미지 URL, 카테고리 추출
             String name = extractor.getAttrOrDefault(doc, "meta[property=og:title]", "content", "이름없음");
             String imageUrl = extractor.getAttrOrDefault(doc, "meta[property=og:image]", "content", "");
             String category = extractor.getLastBreadcrumbOrDefault(doc, ".breadcrumb li a", "ETC");
@@ -55,29 +56,36 @@ public class ZigzagExtractor implements ClothesExtractor {
             log.info("상품명 추출: {}", name);
             log.info("이미지 URL 추출: {}", imageUrl);
 
-            // 2. ClothesType 결정
+            // 3. ClothesType 결정 ( 카테고리 우선, 상품명 보조 )
             ClothesType type = ClothesTypeMapper.mapToClothesType(category);
             if (type == ClothesType.ETC) {
                 type = ClothesTypeMapper.mapToClothesType(name);
             }
             log.info("ClothesType 결정: {}", type);
 
-            // 3. 속성 추출
+            // 4. 속성 추출
             List<ClothesAttributeExtractor.Attribute> attributes = extractor.extractAttributes(doc, name);
 
-            // 4. DB 기반 selectable 값 보정 후 DTO 변환
+            // 5. DTO 변환: 추출 속성을 DB 정의 기반으로 selectable 값 매핑
             List<ClothesAttributeDto> finalAttributes = attributes.stream()
                 .flatMap(attr -> {
+                    // DB 칼럼명 후보 가져오기
                     List<String> dbNames = ClothesAttributeExtractor.TYPE_TO_DB_NAMES.getOrDefault(attr.type(), List.of(attr.type().name()));
+
+                    // DB 조회 및 selectable 값 매핑
                     for (String dbName : dbNames) {
                         var defOpt = defRepository.findByName(dbName);
                         if (defOpt.isPresent()) {
                             var def = defOpt.get();
+
+                            // 추출값을 DB 정의 selectable 값 기준으로 매칭
                             String matchedValue = extractor.matchSelectableValue(attr.value(), def.getSelectValues());
-                            log.info("최종 DTO 매핑: {} -> {} (DB 속성: {})", attr.type(), matchedValue, dbName);
+
+                            // DTO 반환
                             return Stream.of(new ClothesAttributeDto(def.getId(), matchedValue));
                         }
                     }
+                    // DB 정의 없는 속성은 건너뜀
                     log.warn("DB 정의 없는 속성 건너뜀: {}", attr.type());
                     return Stream.empty();
                 })
