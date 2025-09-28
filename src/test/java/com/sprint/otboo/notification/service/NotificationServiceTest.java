@@ -302,6 +302,6 @@ public class NotificationServiceTest {
         assertThat(thrown)
             .isInstanceOf(CustomException.class)
             .extracting("errorCode")
-            .isEqualTo(ErrorCode.NOTIFICAITON_NOT_FOUND);
+            .isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
     }
 }

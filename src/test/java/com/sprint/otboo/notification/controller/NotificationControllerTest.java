@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -122,7 +123,8 @@ public class NotificationControllerTest {
 
         // when
         ResultActions result = mockMvc.perform(delete("/api/notifications/{notificationId}",notificationId)
-            .with(user(principal)));
+            .with(user(principal))
+            .with(csrf()));
 
         // then
         result.andExpect(status().isNoContent());
