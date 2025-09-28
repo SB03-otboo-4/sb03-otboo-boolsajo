@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -30,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(NotificationController.class)
 @DisplayName("NotificationController 테스트")
@@ -110,5 +112,20 @@ public class NotificationControllerTest {
 
         assertThat(idCaptor.getValue()).isEqualTo(receiverId);
         assertThat(paramCaptor.getValue().limit()).isEqualTo(10);
+    }
+
+    @Test
+    void 인증_사용자가_알림_읽음_처리_시_204_반환() throws Exception {
+        // given
+        UUID notificationId = UUID.randomUUID();
+        CustomUserDetails principal = userPrincipal(UUID.randomUUID());
+
+        // when
+        ResultActions result = mockMvc.perform(delete("/api/notifications/{notificationId}",notificationId)
+            .with(user(principal)));
+
+        // then
+        result.andExpect(status().isNoContent());
+        then(notificationService).should().deleteNotification(notificationId);
     }
 }
