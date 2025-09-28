@@ -3,6 +3,8 @@ package com.sprint.otboo.weather.integration.kma;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
+import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClientImpl;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastResponse;
 import java.io.IOException;
@@ -43,10 +45,10 @@ class KmaShortTermForecastClientTest {
         props.setReadTimeoutMs(1000);
         props.setRetryMaxAttempts(3);
         props.setRetryBackoffMs(10);
+        props.setNumOfRows(1000);
+        props.setDataType("JSON");
 
-        builder = new KmaRequestBuilder();
-
-        // RED: 아래 구현체는 아직 없음. GREEN 단계에서 WebClient 기반으로 구현 예정.
+        builder = new KmaRequestBuilder(props);
         client = new KmaShortTermForecastClientImpl(props);
     }
 
@@ -83,7 +85,7 @@ class KmaShortTermForecastClientTest {
             .setResponseCode(200));
 
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
-        KmaForecastResponse resp = client.getUltraSrtFcst(params);
+        KmaForecastResponse resp = client.getVilageFcst(params);
 
         // 계약: resultCode=00이고, 항목이 카테고리별로 파싱되어야 함
         assertThat(resp.getResultCode()).isEqualTo("00");
@@ -120,7 +122,7 @@ class KmaShortTermForecastClientTest {
             .setResponseCode(200));
 
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
-        KmaForecastResponse resp = client.getUltraSrtFcst(params);
+        KmaForecastResponse resp = client.getVilageFcst(params);
 
         assertThat(resp.getResultCode()).isEqualTo("00");
         assertThat(resp.getItems()).hasSize(1);
@@ -140,7 +142,7 @@ class KmaShortTermForecastClientTest {
             .setResponseCode(200));
 
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
-        KmaForecastResponse resp = client.getUltraSrtFcst(params);
+        KmaForecastResponse resp = client.getVilageFcst(params);
 
         assertThat(resp.getResultCode()).isEqualTo("00");
         assertThat(resp.getItems()).isEmpty();
@@ -155,7 +157,7 @@ class KmaShortTermForecastClientTest {
 
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
 
-        assertThrows(RuntimeException.class, () -> client.getUltraSrtFcst(params));
+        assertThrows(RuntimeException.class, () -> client.getVilageFcst(params));
     }
 
     @Test
@@ -168,6 +170,6 @@ class KmaShortTermForecastClientTest {
             .setResponseCode(200));
 
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
-        assertThrows(RuntimeException.class, () -> client.getUltraSrtFcst(params));
+        assertThrows(RuntimeException.class, () -> client.getVilageFcst(params));
     }
 }

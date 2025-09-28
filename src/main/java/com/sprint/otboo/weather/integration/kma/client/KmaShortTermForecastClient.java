@@ -1,9 +1,9 @@
-package com.sprint.otboo.weather.integration.kma;
+package com.sprint.otboo.weather.integration.kma.client;
 
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastResponse;
 import java.util.Map;
 
 public interface KmaShortTermForecastClient {
 
-    KmaForecastResponse getUltraSrtFcst(Map<String, String> params);
+    KmaForecastResponse getVilageFcst(Map<String, String> params);
 }

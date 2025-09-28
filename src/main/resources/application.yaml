@@ -33,7 +33,7 @@ logging:
 
 weather:
   kma:
-    base-url: https://apis.data.go.kr/1360000
+    base-url: https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst
     service-key: ${KMA_SERVICE_KEY:}
     connect-timeout-ms: 3000
     read-timeout-ms: 5000

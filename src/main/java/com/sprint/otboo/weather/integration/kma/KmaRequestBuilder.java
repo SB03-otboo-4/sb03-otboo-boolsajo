@@ -9,7 +9,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.stereotype.Component;
 
+@Component
 public class KmaRequestBuilder {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -17,10 +19,6 @@ public class KmaRequestBuilder {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.BASIC_ISO_DATE;
 
     private final WeatherKmaProperties props;
-
-    public KmaRequestBuilder() {
-        this(new WeatherKmaProperties());
-    }
 
     public KmaRequestBuilder(WeatherKmaProperties props) {
         this.props = props;
