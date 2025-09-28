@@ -8,6 +8,7 @@ import com.sprint.otboo.weather.integration.kma.KmaRequestBuilder;
 import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastResponse;
 import com.sprint.otboo.weather.mapper.KmaForecastAssembler;
+import com.sprint.otboo.weather.mapper.KmaForecastMapper.Slot;
 import com.sprint.otboo.weather.mapper.WeatherMapper;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
@@ -47,7 +48,7 @@ public class WeatherServiceImpl implements WeatherService {
 
         WeatherLocation location = resolveLocationEntity(locDto);
 
-        List<com.sprint.otboo.weather.mapper.KmaForecastMapper.Slot> slots = kmaAssembler.toSlots(response.getItems());
+        List<Slot> slots = kmaAssembler.toSlots(response.getItems());
         List<Weather> snapshots = kmaAssembler.toWeathers(slots, location);
 
         for (Weather w : snapshots) {

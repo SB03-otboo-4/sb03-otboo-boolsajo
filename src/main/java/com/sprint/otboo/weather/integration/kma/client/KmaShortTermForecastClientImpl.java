@@ -16,9 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 
-@Component
 public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClient {
 
     private final WeatherKmaProperties props;
