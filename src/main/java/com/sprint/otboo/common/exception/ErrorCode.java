@@ -39,6 +39,7 @@ public enum ErrorCode {
     CLOTHES_NOT_FOUND(HttpStatus.NOT_FOUND, "의상 정보를 찾을 수 없습니다."),
     USER_CLOTHES_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 사용자의 일부 의상을 찾을 수 없습니다"),
     FEED_NOT_FOUND(HttpStatus.NOT_FOUND, "피드를 찾을 수 없습니다."),
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND,"알림을 찾을 수 없습니다."),
 
     // 409 CONFLICT
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),

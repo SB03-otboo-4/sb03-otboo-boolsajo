@@ -1,6 +1,8 @@
 package com.sprint.otboo.notification.service.impl;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
@@ -129,5 +131,14 @@ public class NotificationServiceImpl implements NotificationService {
 
         Notification saved = notificationRepository.saveAndFlush(notification);
         return notificationMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteNotification(UUID notificationId) {
+        if (!notificationRepository.existsById(notificationId)) {
+            throw new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND);
+        }
+        notificationRepository.deleteById(notificationId);
     }
 }
