@@ -11,8 +11,6 @@ import com.sprint.otboo.clothing.mapper.scraper.ClothesTypeMapper;
 import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.util.ClothesAttributeExtractor;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -20,8 +18,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
 /**
@@ -90,9 +86,9 @@ public class MusinsaExtractor implements ClothesExtractor {
             Document doc = Jsoup.connect(url).get();
 
             // 2. 기본 정보 추출( 상품명, 이미지 URL, 카테고리 )
-            String name = getAttrOrDefault(doc, "meta[property=og:title]", "content", "이름없음");
-            String imageUrl = getAttrOrDefault(doc, "meta[property=og:image]", "content", "");
-            String category = getLastBreadcrumbOrDefault(doc, "ETC");
+            String name = extractor.getAttrOrDefault(doc, "meta[property=og:title]", "content", "이름없음");
+            String imageUrl = extractor.getAttrOrDefault(doc, "meta[property=og:image]", "content", "");
+            String category = extractor.getLastBreadcrumbOrDefault(doc, ".breadcrumb a", "ETC");
             log.info("상품명 추출: {}", name);
             log.info("이미지 URL 추출: {}", imageUrl);
 
@@ -120,7 +116,7 @@ public class MusinsaExtractor implements ClothesExtractor {
                         var defOpt = defRepository.findByName(dbName);
                         if (defOpt.isPresent()) {
                             var def = defOpt.get();
-                            String matchedValue = matchSelectableValue(attr.value(), def.getSelectValues());
+                            String matchedValue = extractor.matchSelectableValue(attr.value(), def.getSelectValues());
 
                             log.info("최종 DTO 매핑: {} -> {} (DB 속성: {})", attr.type(), matchedValue, dbName);
                             return Stream.of(new ClothesAttributeDto(def.getId(), matchedValue));
@@ -146,41 +142,5 @@ public class MusinsaExtractor implements ClothesExtractor {
         } catch (IOException e) {
             throw new ClothesExtractionException("무신사 URL에서 의상 정보를 추출하지 못했습니다.", e);
         }
-    }
-
-    /**
-     * selectable 값과 비교하여 DB 정의 값에 맞게 조정
-     *
-     * @param value 추출된 속성 값
-     * @param selectableValues DB 정의 selectable 값 ( 쉼표 구분 )
-     * @return 매칭된 값 또는 원래 값
-     */
-    private String matchSelectableValue(String value, String selectableValues) {
-        if (value == null || value.isBlank()) return value;
-
-        List<String> values = selectableValues == null || selectableValues.isBlank()
-            ? Collections.emptyList()
-            : Arrays.asList(selectableValues.split(","));
-
-        return values.stream()
-            .filter(sel -> sel.equalsIgnoreCase(value))
-            .findFirst()
-            .orElseGet(() -> {
-                // DB 정의에 없는 값 그대로 사용
-                log.warn("SelectableValues에 없는 값 발견, 그대로 사용: {}", value);
-                return value;
-            });
-    }
-
-    // Breadcrumb 마지막 항목 추출( 카테고리 : ex. 의류 > 상의 > '후드 티셔츠' ), 없으면 기본값 반환( ETC )
-    private String getLastBreadcrumbOrDefault(Document doc, String defaultValue) {
-        Elements crumbs = doc.select(".breadcrumb a");
-        return crumbs.isEmpty() ? defaultValue : crumbs.last().text();
-    }
-
-    // CSS 선택자 기반 요소 속성( 상품명, 이미지 URL ) 추출, 없으면 기본값 반환
-    private String getAttrOrDefault(Document doc, String cssQuery, String attr, String defaultValue) {
-        Element el = doc.selectFirst(cssQuery);
-        return el != null ? el.attr(attr) : defaultValue;
     }
 }

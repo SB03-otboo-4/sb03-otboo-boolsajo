@@ -4,10 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
@@ -403,7 +401,7 @@ public class ClothesExtractorTest {
 
     @Test
     void Hiver_의상정보_정상추출() throws IOException {
-        // given: 상품 URL, HTML 문서, 속성, DB 정의, 내부 이미지 URL
+        // given: 상품 URL, HTML 문서, 속성, DB 정의, 내부 이미지 URL 준비
         String url = "https://www.hiver.co.kr/product/123";
         Document doc = mock(Document.class);
 
@@ -431,21 +429,16 @@ public class ClothesExtractorTest {
         when(fileStorageService.upload(any(MultipartFile.class)))
             .thenReturn("http://internal-server/hiver-image.jpg");
 
-        // HiverExtractor를 spy로 생성
-        HiverExtractor spyExtractor = spy(new HiverExtractor(attributeExtractor, defRepository, fileStorageService));
-
-        // downloadImageAsMultipartFile 호출 시 가짜 MultipartFile 반환
-        doReturn(mock(MultipartFile.class))
-            .when(spyExtractor).downloadImageAsMultipartFile(anyString());
+        HiverExtractor extractor = new HiverExtractor(attributeExtractor, defRepository, fileStorageService);
 
         try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
             Connection conn = mock(Connection.class);
             jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
-            when(conn.userAgent("Mozilla/5.0")).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(conn);
             when(conn.get()).thenReturn(doc);
 
             // when: extract 호출
-            ClothesDto result = spyExtractor.extract(url);
+            ClothesDto result = extractor.extract(url);
 
             // then: 의상 정보 정상 추출 확인
             assertThat(result).isNotNull();
@@ -546,9 +539,7 @@ public class ClothesExtractorTest {
         when(fileStorageService.upload(any(MultipartFile.class)))
             .thenReturn("http://internal-server/ably-image.jpg");
 
-        // spy로 downloadImageAsMultipartFile 호출 제어
-        AblyExtractor spyExtractor = spy(new AblyExtractor(attributeExtractor, defRepository, fileStorageService));
-        doReturn(mock(MultipartFile.class)).when(spyExtractor).downloadImageAsMultipartFile(anyString());
+        AblyExtractor extractor = new AblyExtractor(attributeExtractor, defRepository, fileStorageService);
 
         try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
             Connection conn = mock(Connection.class);
@@ -558,7 +549,7 @@ public class ClothesExtractorTest {
             when(conn.get()).thenReturn(doc);
 
             // when: extract 호출
-            ClothesDto result = spyExtractor.extract(url);
+            ClothesDto result = extractor.extract(url);
 
             // then: 의상 정보 정상 추출 확인
             assertThat(result).isNotNull();

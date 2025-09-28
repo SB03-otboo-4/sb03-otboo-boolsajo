@@ -9,29 +9,37 @@ import com.sprint.otboo.clothing.mapper.scraper.MaterialMapper;
 import com.sprint.otboo.clothing.mapper.scraper.SeasonMapper;
 import com.sprint.otboo.clothing.mapper.scraper.SizeMapper;
 import com.sprint.otboo.clothing.mapper.scraper.ThicknessMapper;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 의상 정보를 추출하는 유틸 클래스
+ * 의상 속성을 HTML 문서, JSON-LD, 텍스트에서 추출하는 유틸 클래스.
  *
  * <p>동작 흐름:</p>
  * <ol>
  *   <li>JSoup으로 HTML 문서 로드</li>
- *   <li>상품명, 이미지, 카테고리 추출</li>
- *   <li>카테고리/상품명 기반 ClothesType 결정</li>
- *   <li>{@link ClothesAttributeExtractor}를 통해 속성 추출</li>
- *   <li>추출 속성을 DB 정의 기반 selectable 값으로 보정</li>
- *   <li>{@link ClothesDto} 반환</li>
+ *   <li>상품명, 설명, JSON-LD, HTML 요소에서 속성 추출</li>
+ *   <li>AttributeType별 Enum으로 매핑</li>
+ *   <li>DB 정의 기반 selectable 값으로 보정</li>
+ *   <li>{@link ClothesDto} 생성 시 사용 가능한 속성 반환</li>
  * </ol>
  *
  * <p>추출 속성:</p>
@@ -220,5 +228,67 @@ public class ClothesAttributeExtractor {
             if (!part.isBlank()) sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
         return sb.toString();
+    }
+
+    // 선택값 보정
+    public String matchSelectableValue(String value, String selectableValues) {
+        if (value == null || value.isBlank()) return value;
+
+        // selectableValues가 null/빈 문자열이면 빈 리스트로 처리
+        List<String> values = selectableValues == null || selectableValues.isBlank()
+            ? Collections.emptyList()
+            : Arrays.asList(selectableValues.split(","));
+
+        // 리스트 내에서 value와 대소문자 구분 없이 일치하는 값 반환
+        return values.stream()
+            .filter(sel -> sel.equalsIgnoreCase(value))
+            .findFirst()
+            .orElseGet(() -> {
+                log.warn("SelectableValues에 없는 값, 그대로 사용: {}", value);
+                return value;
+            });
+    }
+
+    // 마지막 Breadcrub( 카테고리: ex. 의류 > 상의 > 후드 집업 ) 반환, 없으면 기본값( ETC )
+    public String getLastBreadcrumbOrDefault(Document doc, String cssQuery, String defaultValue) {
+        Elements crumbs = doc.select(cssQuery);
+        return crumbs.isEmpty() ? defaultValue : crumbs.last().text();
+    }
+
+    // CSS 선택자 기반 속성 값 반환, 없으면 기본 값( ETC )
+    public String getAttrOrDefault(Document doc, String cssQuery, String attr, String defaultValue) {
+        Element el = doc.selectFirst(cssQuery);
+        return el != null ? el.attr(attr) : defaultValue;
+    }
+
+    // 외부 이미지 URL 다운로드 후 MultipartFile로 변환
+    public MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
+        URL url = new URL(imageUrl);
+
+        // URL 경로에서 확장자 추출
+        String extension = "";
+        String path = url.getPath();
+        int lastDot = path.lastIndexOf('.');
+        if (lastDot != -1) extension = path.substring(lastDot);
+
+        // 안전한 랜덤 파일명 생성
+        String finalFilename = UUID.randomUUID() + extension;
+        try (InputStream in = url.openStream()) {
+            byte[] bytes = in.readAllBytes();
+
+            // 익명 MultipartFile 구현체 반환
+            return new MultipartFile() {
+                @Override public String getName() { return finalFilename; }
+                @Override public String getOriginalFilename() { return finalFilename; }
+                @Override public String getContentType() { return "application/octet-stream"; }
+                @Override public boolean isEmpty() { return bytes.length == 0; }
+                @Override public long getSize() { return bytes.length; }
+                @Override public byte[] getBytes() { return bytes; }
+                @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
+
+                // 로컬 파일로 저장
+                @Override public void transferTo(File dest) throws IOException { Files.write(dest.toPath(), bytes); }
+            };
+        }
     }
 }

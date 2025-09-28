@@ -9,23 +9,13 @@ import com.sprint.otboo.clothing.repository.ClothesAttributeDefRepository;
 import com.sprint.otboo.clothing.util.ClothesAttributeExtractor;
 import com.sprint.otboo.clothing.util.ClothesAttributeExtractor.Attribute;
 import com.sprint.otboo.common.storage.FileStorageService;
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -76,9 +66,9 @@ public class HiverExtractor implements ClothesExtractor {
                 .get();
 
             // 2. 기본 정보 추출
-            String name = getAttrOrDefault(doc, "meta[property=og:title]", "content", "이름없음");
-            String externalImageUrl = getAttrOrDefault(doc, "meta[property=og:image]", "content", "");
-            String category = getLastBreadcrumbOrDefault(doc, ".breadcrumb li a", "ETC");
+            String name = extractor.getAttrOrDefault(doc, "meta[property=og:title]", "content", "이름없음");
+            String externalImageUrl = extractor.getAttrOrDefault(doc, "meta[property=og:image]", "content", "");
+            String category = extractor.getLastBreadcrumbOrDefault(doc, ".breadcrumb li a", "ETC");
 
             log.info("상품명 추출: {}", name);
             log.info("외부 이미지 URL 추출: {}", externalImageUrl);
@@ -87,7 +77,7 @@ public class HiverExtractor implements ClothesExtractor {
             String imageUrl = "";
             if (externalImageUrl != null && !externalImageUrl.isBlank()) {
                 try {
-                    MultipartFile downloaded = downloadImageAsMultipartFile(externalImageUrl);
+                    MultipartFile downloaded = extractor.downloadImageAsMultipartFile(externalImageUrl);
                     imageUrl = fileStorageService.upload(downloaded); // 내부 URL로 변환
                     log.info("이미지 서버 저장 완료, 내부 URL: {}", imageUrl);
                 } catch (IOException e) {
@@ -113,7 +103,7 @@ public class HiverExtractor implements ClothesExtractor {
                         var defOpt = defRepository.findByName(dbName);
                         if (defOpt.isPresent()) {
                             var def = defOpt.get();
-                            String matchedValue = matchSelectableValue(attr.value(), def.getSelectValues());
+                            String matchedValue = extractor.matchSelectableValue(attr.value(), def.getSelectValues());
                             log.info("최종 DTO 매핑: {} -> {} (DB 속성: {})", attr.type(), matchedValue, dbName);
                             return Stream.of(new ClothesAttributeDto(def.getId(), matchedValue));
                         }
@@ -129,54 +119,5 @@ public class HiverExtractor implements ClothesExtractor {
         } catch (IOException e) {
             throw new ClothesExtractionException("하이버 URL에서 의상 정보를 추출하지 못했습니다.", e);
         }
-    }
-
-    /** 외부 이미지 URL을 다운로드하여 {@link MultipartFile}로 반환 */
-    protected MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
-        URL url = new URL(imageUrl);
-        String originalFilename = Paths.get(url.getPath()).getFileName().toString();
-        String safeFilename = originalFilename.replaceAll("[^a-zA-Z0-9\\-_.]", "");
-        final String finalFilename = safeFilename;
-
-        try (InputStream in = url.openStream()) {
-            byte[] bytes = in.readAllBytes();
-            return new MultipartFile() {
-                @Override public String getName() { return finalFilename; }
-                @Override public String getOriginalFilename() { return finalFilename; }
-                @Override public String getContentType() { return "application/octet-stream"; }
-                @Override public boolean isEmpty() { return bytes.length == 0; }
-                @Override public long getSize() { return bytes.length; }
-                @Override public byte[] getBytes() { return bytes; }
-                @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
-                @Override public void transferTo(File dest) throws IOException { Files.write(dest.toPath(), bytes); }
-            };
-        }
-    }
-
-    // DB selectable 값과 매칭, 없으면 원래 값 반환
-    private String matchSelectableValue(String value, String selectableValues) {
-        if (value == null || value.isBlank()) return value;
-        List<String> values = selectableValues == null || selectableValues.isBlank()
-            ? Collections.emptyList()
-            : Arrays.asList(selectableValues.split(","));
-        return values.stream()
-            .filter(sel -> sel.equalsIgnoreCase(value))
-            .findFirst()
-            .orElseGet(() -> {
-                log.warn("SelectableValues에 없는 값, 그대로 사용: {}", value);
-                return value;
-            });
-    }
-
-    // 마지막 카테고리 텍스트 추출, 없으면 기본값 반환
-    private String getLastBreadcrumbOrDefault(Document doc, String cssQuery, String defaultValue) {
-        Elements crumbs = doc.select(cssQuery);
-        return crumbs.isEmpty() ? defaultValue : crumbs.last().text();
-    }
-
-    // CS 선택자로 속성 추출, 없으면 기본값 반환
-    private String getAttrOrDefault(Document doc, String cssQuery, String attr, String defaultValue) {
-        Element el = doc.selectFirst(cssQuery);
-        return el != null ? el.attr(attr) : defaultValue;
     }
 }
