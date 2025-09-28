@@ -22,4 +22,14 @@ public interface WeatherRepository extends JpaRepository<Weather, UUID> {
     List<Weather> findAllByLocationIdAndForecastAtBetweenOrderByForecastAtAscForecastedAtDesc(
         UUID locationId, Instant from, Instant to
     );
+
+    default List<Weather> findLatest2(UUID locationId, Instant forecastAt) {
+        return findTop2ByLocationIdAndForecastAtOrderByForecastedAtDesc(locationId, forecastAt);
+    }
+
+    default List<Weather> findRangeOrdered(UUID locationId, Instant from, Instant to) {
+        return findAllByLocationIdAndForecastAtBetweenOrderByForecastAtAscForecastedAtDesc(
+            locationId, from, to
+        );
+    }
 }
