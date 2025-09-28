@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 에이블리 상품 페이지에서 의상 정보를 추출하는 {@link ClothesExtractor} 구현체
  *
- * <p>지원 URL: ably.co.kr</p>
+ * <p>지원 URL: a-bly.com</p>
  *
  * <p>추출 방식:</p>
  * <ul>
@@ -63,11 +63,35 @@ public class AblyExtractor implements ClothesExtractor {
         this.fileStorageService = fileStorageService;
     }
 
+    /**
+     * 에이블리 URL 지원 여부
+     *
+     * @param url 요청 URL
+     * @return a-bly.com 포함 여부
+     */
     @Override
     public boolean supports(String url) {
         return url.contains("a-bly.com");
     }
 
+    /**
+     * URL에서 에이블리 의상 정보 추출
+     *
+     * <p>동작 흐름:</p>
+     * <ol>
+     *   <li>JSoup으로 HTML 문서 로드 (User-Agent, Referer 브라우저 흉내)</li>
+     *   <li>상품명, 외부 이미지, 카테고리 추출</li>
+     *   <li>외부 이미지 다운로드 후 내부 저장소 업로드</li>
+     *   <li>카테고리/상품명 기반 ClothesType 결정</li>
+     *   <li>HTML/텍스트 기반 속성 추출</li>
+     *   <li>추출 속성을 DB 정의 기반으로 selectable 값 보정 후 DTO 변환</li>
+     *   <li>ClothesDto 반환</li>
+     * </ol>
+     *
+     * @param url 에이블리 상품 URL
+     * @return {@link ClothesDto} 추출된 의상 정보
+     * @throws ClothesExtractionException 파싱 실패 시
+     */
     @Override
     public ClothesDto extract(String url) {
         try {
@@ -132,8 +156,15 @@ public class AblyExtractor implements ClothesExtractor {
                 })
                 .toList();
 
-            // 6. DTO 반환
-            return new ClothesDto(UUID.randomUUID(), UUID.randomUUID(), name, imageUrl, type, finalAttributes);
+            // 7. DTO 반환
+            return new ClothesDto(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                name,
+                imageUrl,
+                type,
+                finalAttributes
+            );
 
         } catch (IOException e) {
             throw new ClothesExtractionException("에이블리 URL에서 의상 정보를 추출하지 못했습니다.", e);

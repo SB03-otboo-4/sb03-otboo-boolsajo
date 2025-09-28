@@ -65,11 +65,35 @@ public class FourNineTenExtractor implements ClothesExtractor {
         this.fileStorageService = fileStorageService;
     }
 
+    /**
+     * 4910 URL 지원 여부
+     *
+     * @param url 요청 URL
+     * @return 4910.kr 포함 여부
+     */
     @Override
     public boolean supports(String url) {
         return url.contains("4910.kr");
     }
 
+    /**
+     * URL에서 4910 의상 정보 추출
+     *
+     * <p>동작 흐름:</p>
+     * <ol>
+     *   <li>JSoup으로 HTML 문서 로드 (User-Agent, Referer 브라우저 흉내)</li>
+     *   <li>상품명, 외부 이미지, 카테고리 추출</li>
+     *   <li>외부 이미지 다운로드 후 내부 저장소 업로드</li>
+     *   <li>카테고리/상품명 기반 ClothesType 결정</li>
+     *   <li>HTML/텍스트 기반 속성 추출</li>
+     *   <li>추출 속성을 DB 정의 기반으로 selectable 값 보정 후 DTO 변환</li>
+     *   <li>ClothesDto 반환</li>
+     * </ol>
+     *
+     * @param url 4910 상품 URL
+     * @return {@link ClothesDto} 추출된 의상 정보
+     * @throws ClothesExtractionException 파싱 실패 시
+     */
     @Override
     public ClothesDto extract(String url) {
         try {
@@ -133,8 +157,15 @@ public class FourNineTenExtractor implements ClothesExtractor {
                 })
                 .toList();
 
-            // 6. DTO 반환
-            return new ClothesDto(UUID.randomUUID(), UUID.randomUUID(), name, imageUrl, type, finalAttributes);
+            // 7. DTO 반환
+            return new ClothesDto(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                name,
+                imageUrl,
+                type,
+                finalAttributes
+            );
 
         } catch (IOException e) {
             throw new ClothesExtractionException("4910 URL에서 의상 정보를 추출하지 못했습니다.", e);
