@@ -33,7 +33,10 @@ class KmaForecastMapperTest {
         assertThat(mapper.mapPrecipitation("1")).isEqualTo(PrecipitationType.RAIN);
         assertThat(mapper.mapPrecipitation("2")).isEqualTo(PrecipitationType.RAIN_SNOW);
         assertThat(mapper.mapPrecipitation("3")).isEqualTo(PrecipitationType.SNOW);
-        // (초단기 추가 코드 5/6/7은 프로젝트 enum에 맞춰 후속 보강)
+        assertThat(mapper.mapPrecipitation("4")).isEqualTo(PrecipitationType.SHOWER);
+        assertThat(mapper.mapPrecipitation("5")).isEqualTo(PrecipitationType.RAIN);
+        assertThat(mapper.mapPrecipitation("6")).isEqualTo(PrecipitationType.RAIN_SNOW);
+        assertThat(mapper.mapPrecipitation("7")).isEqualTo(PrecipitationType.SNOW);
         assertThat(mapper.mapPrecipitation(null)).isEqualTo(PrecipitationType.NONE);
     }
 

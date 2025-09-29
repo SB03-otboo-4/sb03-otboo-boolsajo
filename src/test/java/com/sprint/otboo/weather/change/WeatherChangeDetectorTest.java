@@ -36,7 +36,7 @@ class WeatherChangeDetectorTest {
             .forecastAt(older.getForecastAt())
             .forecastedAt(Instant.parse("2025-09-28T02:00:00Z"))
             .skyStatus(SkyStatus.CLOUDY)
-            .type(PreciptationType.RAIN)
+            .type(PrecipitationType.RAIN)
             .currentC(21.0)
             .probability(60.0)
             .build();
@@ -63,7 +63,7 @@ class WeatherChangeDetectorTest {
             .forecastAt(Instant.parse("2025-09-28T03:00:00Z"))
             .forecastedAt(Instant.parse("2025-09-28T02:00:00Z"))
             .skyStatus(SkyStatus.CLEAR)
-            .type(PreciptationType.NONE)
+            .type(PrecipitationType.NONE)
             .currentC(20.0)
             .probability(0.0)
             .build();
@@ -73,7 +73,7 @@ class WeatherChangeDetectorTest {
             .forecastAt(older.getForecastAt())
             .forecastedAt(Instant.parse("2025-09-28T05:00:00Z"))
             .skyStatus(SkyStatus.CLEAR)
-            .type(PreciptationType.NONE)
+            .type(PrecipitationType.NONE)
             .currentC(24.9) // +4.9℃
             .probability(0.0)
             .build();

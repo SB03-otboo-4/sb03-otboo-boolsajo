@@ -30,6 +30,10 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
             case "1": return PrecipitationType.RAIN;
             case "2": return PrecipitationType.RAIN_SNOW;
             case "3": return PrecipitationType.SNOW;
+            case "4": return PrecipitationType.SHOWER;
+            case "5": return PrecipitationType.RAIN;
+            case "6": return PrecipitationType.RAIN_SNOW;
+            case "7": return PrecipitationType.SNOW;
             default:  return PrecipitationType.NONE;
         }
     }

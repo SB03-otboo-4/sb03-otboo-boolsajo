@@ -59,7 +59,7 @@ class WeatherChangeServiceIntegrationTest {
             .forecastAt(forecastAt)
             .forecastedAt(Instant.parse("2025-09-27T23:00:00Z"))
             .skyStatus(SkyStatus.CLEAR)
-            .type(PreciptationType.NONE)
+            .type(PrecipitationType.NONE)
             .currentC(22.0)
             .probability(10.0)
             .build();
@@ -69,7 +69,7 @@ class WeatherChangeServiceIntegrationTest {
             .forecastAt(forecastAt)
             .forecastedAt(Instant.parse("2025-09-28T02:00:00Z"))
             .skyStatus(SkyStatus.CLOUDY)
-            .type(PreciptationType.RAIN) // 변화
+            .type(PrecipitationType.RAIN) // 변화
             .currentC(21.0)
             .probability(60.0)
             .build();

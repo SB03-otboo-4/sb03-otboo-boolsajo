@@ -41,6 +41,9 @@ weather:
     retry-backoff-ms: 300
     num-of-rows: 1000
     data-type: JSON
+  change:
+    temp-jump-c: 5.0
+    pop-jump-pct: 30.0
 
 kakao:
   api:
