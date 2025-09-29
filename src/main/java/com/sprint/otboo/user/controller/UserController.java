@@ -135,6 +135,8 @@ public class UserController implements UserApi {
 
         CursorPageResponse<UserDto> response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
 
+        log.debug("[UserController] 계정 목록 조회 완료: returnedCount={}, hasNext={}, nextCursor={}",
+            response.data().size(), response.hasNext(), response.nextCursor());
         return ResponseEntity.ok(response);
     }
 
@@ -146,6 +148,8 @@ public class UserController implements UserApi {
         @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         verifyProfileOwnerOrAdmin(userId, currentUser);
+        log.info("[UserController] 프로필 수정 요청: userId={}, hasImage={}",
+            userId, image != null && !image.isEmpty());
 
         MultipartFile imageCopy = null;
         if (image != null && !image.isEmpty()) {
@@ -161,11 +165,14 @@ public class UserController implements UserApi {
         }
 
         ProfileDto profileDto = userService.updateUserProfile(userId, request, imageCopy);
+        log.debug("[UserController] 프로필 수정 성공: userId={}, name={}",
+            profileDto.userId(), profileDto.name());
         return ResponseEntity.ok(profileDto);
     }
 
     private void verifyProfileOwnerOrAdmin(UUID userId, CustomUserDetails currentUser) {
         if (currentUser == null) {
+            log.warn("[UserController] 인증 사용자 없음: targetUserId={}", userId);
             throw new AccessDeniedException("로그인이 필요합니다.");
         }
         boolean sameUser = userId.equals(currentUser.getUserId());
@@ -173,7 +180,12 @@ public class UserController implements UserApi {
             .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
 
         if (!sameUser && !isAdmin) {
+            log.warn("[UserController] 프로필 수정 권한 없음: targetUserId={}, requesterId={}, authorities={}",
+                userId, currentUser.getUserId(), currentUser.getAuthorities());
             throw new AccessDeniedException("해당 프로필을 수정할 권한이 없습니다.");
         }
+
+        log.debug("[UserController] 프로필 수정 권한 확인 완료: targetUserId={}, requesterId={}",
+            userId, currentUser.getUserId());
     }
 }
