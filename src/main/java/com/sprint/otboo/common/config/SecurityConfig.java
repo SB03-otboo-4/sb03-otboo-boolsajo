@@ -3,6 +3,9 @@ package com.sprint.otboo.common.config;
 import com.sprint.otboo.auth.CustomAuthenticationEntryPoint;
 import com.sprint.otboo.auth.SpaCsrfTokenRequestHandler;
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
+import com.sprint.otboo.auth.oauth.CustomOAuth2UserService;
+import com.sprint.otboo.auth.oauth.OAuth2LoginSuccessHandler;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -19,8 +22,11 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -92,6 +98,12 @@ public class SecurityConfig {
             .httpBasic(basic ->basic.disable())
             .exceptionHandling(handler -> handler
                 .authenticationEntryPoint(customAuthenticationEntryPoint)
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(customOAuth2UserService)
+                )
+                .successHandler(oAuth2LoginSuccessHandler)
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
