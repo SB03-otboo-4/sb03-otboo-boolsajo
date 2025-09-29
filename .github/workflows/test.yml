@@ -23,6 +23,10 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
           GRADLE_OPTS: -Dorg.gradle.daemon=false
+          GOOGLE_ID: ${{ secrets.GOOGLE_ID }}
+          GOOGLE_PASSWORD: ${{ secrets.GOOGLE_PASSWORD }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_API_BASE_URL: ${{ secrets.KAKAO_API_BASE_URL }}
 
       - run: ./gradlew jacocoTestReport
         if: success()
