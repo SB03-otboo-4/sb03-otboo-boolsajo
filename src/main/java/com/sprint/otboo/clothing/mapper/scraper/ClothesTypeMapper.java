@@ -32,7 +32,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 하의 BOTTOM =====
-        if (lower.matches(".*(바지|팬츠|청바지|슬랙스|레깅스|치마|스커트|쇼츠|카고|pants|jeans|skirt|shorts|leggings|jogger|slacks|culottes|\bbottom\b|bottoms|cargo).*")) {
+        if (lower.matches(".*(바지|팬츠|청바지|슬랙스|레깅스|치마|스커트|쇼츠|카고|pants|jeans|skirt|shorts|leggings|jogger|slacks|culottes|\\bbottom\\b|bottoms|cargo).*")) {
             return ClothesType.BOTTOM;
         }
 
@@ -57,12 +57,12 @@ public class ClothesTypeMapper {
         }
 
         // ===== 아우터 OUTER =====
-        if (lower.matches(".*(정장[- ]?마이|\b마의\b|블루종|구스다운|케이프|판초|우비|윈드[- ]?브레이커|저지|플리스|바람막이|카디건|가디건|자켓|재킷|코트|점퍼|패딩|아우터|집[- ]?업|트렌치|야상|무스탕|퍼|베스트|조끼|블레이저|jacket|coat|cardigan|outer|parka|zip[- ]?up|mustang|vest|wind[- ]?breaker|jersey|fleece|trench|fur|blouson|bomber|padding|cape|poncho|blazer).*")) {
+        if (lower.matches(".*(정장[- ]?마이|\\b마의\\b|블루종|구스다운|케이프|판초|우비|윈드[- ]?브레이커|저지|플리스|바람막이|카디건|가디건|자켓|재킷|코트|점퍼|패딩|아우터|집[- ]?업|트렌치|야상|무스탕|퍼|베스트|조끼|블레이저|jacket|coat|cardigan|outer|parka|zip[- ]?up|mustang|vest|wind[- ]?breaker|jersey|fleece|trench|fur|blouson|bomber|padding|cape|poncho|blazer).*")) {
             return ClothesType.OUTER;
         }
 
         // ===== 상의 TOP =====
-        if (lower.matches(".*(오프[- ]?숄더|민소매|셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|폴로|후디|sleeve|hoodie|hood|sweater|blouse|tank[- ]?top|crop[- ]?top|\btop\b|henley|polo|shirt|t[- ]?shirt|sweat[- ]?shirt|pullover|sleeveless[- ]?top|layering[- ]?top|sports[- ]?top|gym[- ]?top|bralette[- ]?top|long[- ]?top|tunic[- ]?top|high[- ]?neck[- ]?top|off[- ]?shoulder).*")) {
+        if (lower.matches(".*(오프[- ]?숄더|민소매|셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|폴로|후디|sleeve|hoodie|hood|sweater|blouse|tank[- ]?top|crop[- ]?top|\\btop\\b|henley|polo|shirt|t[- ]?shirt|sweat[- ]?shirt|pullover|sleeveless[- ]?top|layering[- ]?top|sports[- ]?top|gym[- ]?top|bralette[- ]?top|long[- ]?top|tunic[- ]?top|high[- ]?neck[- ]?top|off[- ]?shoulder).*")) {
             return ClothesType.TOP;
         }
 
