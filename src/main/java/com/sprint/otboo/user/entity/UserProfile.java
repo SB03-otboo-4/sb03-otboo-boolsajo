@@ -79,13 +79,11 @@ public class UserProfile {
      * */
     public void updateLocation(BigDecimal latitude, BigDecimal longitude,
         Integer x, Integer y, String locationNames) {
-
         this.latitude = latitude;
         this.longitude = longitude;
         this.x = x;
         this.y = y;
         this.locationNames = locationNames;
-
     }
 
     /**
@@ -95,4 +93,11 @@ public class UserProfile {
         this.temperatureSensitivity = temperatureSensitivity;
     }
 
+    public void updateGender(Gender gender) {
+        this.gender = gender;
+    }
+
+    public void updateBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
 }

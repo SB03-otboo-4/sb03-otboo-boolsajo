@@ -56,6 +56,11 @@ dependencies {
     implementation 'com.nimbusds:nimbus-jose-jwt:10.3'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // s3
+    implementation platform("software.amazon.awssdk:bom:2.25.25")
+    implementation "software.amazon.awssdk:s3"
+    implementation "software.amazon.awssdk:sts"
+
     // db
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'
@@ -85,6 +90,16 @@ dependencies {
 
     // configuration-processor
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+
+    // retry
+    implementation 'org.springframework.retry:spring-retry'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+    // SMTP
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

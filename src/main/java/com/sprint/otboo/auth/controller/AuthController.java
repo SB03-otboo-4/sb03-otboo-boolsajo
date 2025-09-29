@@ -2,6 +2,7 @@ package com.sprint.otboo.auth.controller;
 
 import com.sprint.otboo.auth.dto.AuthResultDto;
 import com.sprint.otboo.auth.dto.JwtDto;
+import com.sprint.otboo.auth.dto.ResetPasswordRequest;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.RefreshTokenCookieUtil;
 import com.sprint.otboo.auth.service.AuthService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -65,5 +67,26 @@ public class AuthController {
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(dto);
+    }
+
+    @PostMapping("/sign-out")
+    public ResponseEntity<Void> signOut(@CookieValue("REFRESH_TOKEN") String refreshToken, HttpServletResponse response)
+        throws ParseException {
+        authService.signOut(refreshToken);
+
+        response.addCookie(cookieUtil.createExpiredCookie());
+
+        return ResponseEntity
+            .status(HttpStatus.NO_CONTENT)
+            .build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest requestDto) {
+        authService.sendTemporaryPassword(requestDto.email());
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .build();
     }
 }

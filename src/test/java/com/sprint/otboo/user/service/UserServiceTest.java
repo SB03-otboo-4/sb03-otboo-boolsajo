@@ -11,9 +11,13 @@ import static org.mockito.Mockito.never;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.storage.FileStorageService;
 import com.sprint.otboo.user.dto.data.ProfileDto;
+import com.sprint.otboo.user.dto.data.ProfileLocationDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileLocationUpdateRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
@@ -22,10 +26,17 @@ import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
+import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.user.repository.query.UserQueryRepository;
+import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.impl.UserServiceImpl;
+import com.sprint.otboo.user.service.support.AsyncProfileImageUploader;
+import com.sprint.otboo.user.service.support.ProfileImageUploadTask;
+import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
+import com.sprint.otboo.weather.service.WeatherLocationQueryService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,13 +46,17 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.sprint.otboo.user.repository.query.UserQueryRepository;
-import com.sprint.otboo.user.repository.query.UserSlice;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService 테스트")
@@ -57,6 +72,16 @@ public class UserServiceTest {
     private UserMapper userMapper;
     @Mock
     private UserQueryRepository userQueryRepository;
+    @Mock
+    private FileStorageService fileStorageService;
+    @Mock
+    private WeatherLocationQueryService weatherLocationQueryService;
+    @Mock
+    private AsyncProfileImageUploader asyncProfileImageUploader;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private RetryTemplate profileImageStorageRetryTemplate = new RetryTemplate();
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -221,53 +246,77 @@ public class UserServiceTest {
         );
     }
 
-    private User createMockUserForProfile(UUID userId, String username, String email, String profileImageUrl) {
-        return User.builder()
-            .id(userId)
-            .username(username)
-            .email(email)
-            .profileImageUrl(profileImageUrl)
-            .role(Role.USER)
-            .locked(false)
-            .provider(LoginType.GENERAL)
-            .build();
+    private ProfileLocationUpdateRequest createLocationUpdateRequest() {
+        return new ProfileLocationUpdateRequest(
+            new BigDecimal("37.5253652"),
+            new BigDecimal("126.6849254"),
+            55,
+            126,
+            List.of("인천광역시", "서구", "가정2동")
+        );
     }
 
-    private UserProfile createCompleteUserProfile(UUID userId, User user) {
-        return UserProfile.builder()
-            .userId(userId)
-            .user(user)
-            .gender(Gender.MALE)
-            .birthDate(LocalDate.of(1998, 9, 21))
-            .latitude(new BigDecimal("37.509278"))
-            .longitude(new BigDecimal("126.671607"))
-            .x(55)
-            .y(125)
-            .locationNames("인천광역시,서구,석남1동")
-            .temperatureSensitivity(5)
-            .build();
-    }
-
-    private UserProfile createEmptyUserProfile(UUID userId, User user) {
-        return UserProfile.builder()
-            .userId(userId)
-            .user(user)
-            .build();
+    private ProfileUpdateRequest createProfileUpdateRequest() {
+        return new ProfileUpdateRequest(
+            "updatedName",
+            "FEMALE",
+            LocalDate.of(1998, 9, 21),
+            createLocationUpdateRequest(),
+            5
+        );
     }
 
     private ProfileDto createExpectedCompleteProfileDto(UUID userId) {
         return new ProfileDto(
             userId,
-            "testUser",
-            "http://example.com/profile.jpg",
-            Gender.MALE,
-            LocalDate.of(1998,9,21),
-            new BigDecimal("37.509278"),
-            new BigDecimal("126.671607"),
-            55,
-            125,
-            List.of("인천광역시","서구","석남1동"),
+            "updatedName",
+            "http://new.url/img.png",
+            Gender.FEMALE,
+            LocalDate.of(1998, 9, 21),
+            new ProfileLocationDto(
+                new BigDecimal("37.5253652"),
+                new BigDecimal("126.6849254"),
+                55,
+                126,
+                List.of("인천광역시", "서구", "가정2동")
+            ),
             5
+        );
+    }
+
+    private User createMockUserForProfile(UUID userId, String name, String email, String imageUrl) {
+        return User.builder()
+            .id(userId)
+            .username(name)
+            .email(email)
+            .profileImageUrl(imageUrl)
+            .role(Role.USER)
+            .provider(LoginType.GENERAL)
+            .locked(false)
+            .build();
+    }
+
+    private UserProfile createCompleteUserProfile(UUID userId, User user) {
+        return UserProfile.builder()
+            .user(user)
+            .gender(Gender.MALE)
+            .birthDate(LocalDate.of(1990, 1, 1))
+            .latitude(new BigDecimal("36.123456"))
+            .longitude(new BigDecimal("128.123456"))
+            .x(60)
+            .y(120)
+            .locationNames("기존 지역명")
+            .temperatureSensitivity(3)
+            .build();
+    }
+
+    private WeatherLocationResponse createResolvedLocation(ProfileLocationUpdateRequest request) {
+        return new WeatherLocationResponse(
+            request.latitude().doubleValue(),
+            request.longitude().doubleValue(),
+            request.x(),
+            request.y(),
+            request.locationNames()
         );
     }
 
@@ -278,12 +327,31 @@ public class UserServiceTest {
             null,
             null,
             null,
-            null,
-            null,
-            null,
-            null,
-            List.of(),
-            null
+            null,   // location
+            null    // temperatureSensitivity
+        );
+    }
+
+    private UserProfile createEmptyUserProfile(UUID userId, User user) {
+        return UserProfile.builder()
+            .user(user)
+            .gender(null)
+            .birthDate(null)
+            .latitude(null)
+            .longitude(null)
+            .x(null)
+            .y(null)
+            .locationNames(null)
+            .temperatureSensitivity(null)
+            .build();
+    }
+
+    private MockMultipartFile createImageFile() {
+        return new MockMultipartFile(
+            "image",
+            "profile.png",
+            "image/png",
+            "fake".getBytes()
         );
     }
 
@@ -616,17 +684,15 @@ public class UserServiceTest {
         ProfileDto result = userService.getUserProfile(userId);
 
         // then
-        assertThat(result).isNotNull();
         assertThat(result.userId()).isEqualTo(userId);
-        assertThat(result.name()).isEqualTo("testUser");
-        assertThat(result.gender()).isEqualTo(Gender.MALE);
-        assertThat(result.birthDate()).isEqualTo(LocalDate.of(1998,9,21));
-        assertThat(result.profileImageUrl()).isEqualTo("http://example.com/profile.jpg");
-        assertThat(result.latitude()).isEqualTo(new BigDecimal("37.509278"));
-        assertThat(result.longitude()).isEqualTo(new BigDecimal("126.671607"));
-        assertThat(result.x()).isEqualTo(55);
-        assertThat(result.y()).isEqualTo(125);
-        assertThat(result.locationNames()).containsExactly("인천광역시","서구","석남1동");
+        assertThat(result.name()).isEqualTo("updatedName");
+        assertThat(result.location()).isNotNull();
+        assertThat(result.location().latitude()).isEqualByComparingTo(new BigDecimal("37.5253652"));
+        assertThat(result.location().longitude()).isEqualByComparingTo(new BigDecimal("126.6849254"));
+        assertThat(result.location().x()).isEqualTo(55);
+        assertThat(result.location().y()).isEqualTo(126);
+        assertThat(result.location().locationNames())
+            .containsExactly("인천광역시", "서구", "가정2동");
         assertThat(result.temperatureSensitivity()).isEqualTo(5);
 
         then(userRepository).should().findById(userId);
@@ -673,15 +739,9 @@ public class UserServiceTest {
         ProfileDto result = userService.getUserProfile(userId);
 
         // then
-        assertThat(result).isNotNull();
         assertThat(result.userId()).isEqualTo(userId);
         assertThat(result.name()).isEqualTo("testUser");
-        assertThat(result.gender()).isNull();
-        assertThat(result.birthDate()).isNull();
-        assertThat(result.profileImageUrl()).isNull();
-        assertThat(result.latitude()).isNull();
-        assertThat(result.longitude()).isNull();
-        assertThat(result.locationNames()).isEmpty();
+        assertThat(result.location()).isNull();
         assertThat(result.temperatureSensitivity()).isNull();
 
         then(userRepository).should().findById(userId);
@@ -736,5 +796,119 @@ public class UserServiceTest {
                 ArgumentMatchers.any(), ArgumentMatchers.any(),ArgumentMatchers.any());
         then(userQueryRepository).should()
             .countAll(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any());
+    }
+
+    @Test
+    void 프로필_업데이트_성공_이미지_없음() {
+        // given
+        UUID userId = UUID.randomUUID();
+        ProfileUpdateRequest request = createProfileUpdateRequest();
+        WeatherLocationResponse resolved = createResolvedLocation(request.location());
+
+        User user = createMockUserForProfile(userId, "oldName", "test@test.com", "http://old.url/img.png");
+        UserProfile profile = createCompleteUserProfile(userId, user);
+        ProfileDto expected = createExpectedCompleteProfileDto(userId);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userProfileRepository.findById(userId)).willReturn(Optional.of(profile));
+        given(userMapper.toProfileDto(user, profile)).willReturn(expected);
+        given(weatherLocationQueryService.getWeatherLocation(
+            request.location().latitude().doubleValue(),
+            request.location().longitude().doubleValue()
+        )).willReturn(resolved);
+
+        // when
+        ProfileDto result = userService.updateUserProfile(userId, request, null);
+
+        // then
+        assertThat(result).isEqualTo(expected);
+        then(fileStorageService).should(never()).upload(any());
+        then(fileStorageService).should(never()).delete(anyString());
+        assertThat(user.getUsername()).isEqualTo("updatedName");
+        assertThat(profile.getGender()).isEqualTo(Gender.FEMALE);
+        assertThat(profile.getBirthDate()).isEqualTo(LocalDate.of(1998, 9, 21));
+        assertThat(profile.getLatitude()).isEqualByComparingTo(new BigDecimal("37.5253652"));
+        assertThat(profile.getLongitude()).isEqualByComparingTo(new BigDecimal("126.6849254"));
+        assertThat(profile.getX()).isEqualTo(55);
+        assertThat(profile.getY()).isEqualTo(126);
+        assertThat(profile.getLocationNames()).isEqualTo("인천광역시 서구 가정2동");
+        assertThat(profile.getTemperatureSensitivity()).isEqualTo(5);
+    }
+
+    @Test
+    void 프로필_업데이트_성공_이미지_교체() {
+        // given
+        UUID userId = UUID.randomUUID();
+        ProfileUpdateRequest request = createProfileUpdateRequest();
+        WeatherLocationResponse resolved = createResolvedLocation(request.location());
+        MockMultipartFile image = createImageFile();
+
+        User user = createMockUserForProfile(userId, "oldName", "test@test.com", "http://old.url/img.png");
+        UserProfile profile = createCompleteUserProfile(userId, user);
+        ProfileDto expected = createExpectedCompleteProfileDto(userId);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userProfileRepository.findById(userId)).willReturn(Optional.of(profile));
+        given(userMapper.toProfileDto(user, profile)).willReturn(expected);
+        given(fileStorageService.upload(image)).willReturn("http://new.url/img.png");
+        given(weatherLocationQueryService.getWeatherLocation(
+            request.location().latitude().doubleValue(),
+            request.location().longitude().doubleValue()
+        )).willReturn(resolved);
+
+        // when
+        ProfileDto result = userService.updateUserProfile(userId, request, image);
+
+        // then
+        assertThat(result).isEqualTo(expected);
+        then(fileStorageService).should().delete("http://old.url/img.png");
+        then(fileStorageService).should().upload(image);
+        then(asyncProfileImageUploader).should().upload(any(ProfileImageUploadTask.class));
+        assertThat(user.getProfileImageUrl()).isEqualTo("http://new.url/img.png");
+    }
+
+    @Test
+    void 프로필_업데이트_실패_사용자_없음() {
+        // given
+        UUID userId = UUID.randomUUID();
+        ProfileUpdateRequest request = createProfileUpdateRequest();
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        // when
+        Throwable thrown = catchThrowable(() -> userService.updateUserProfile(userId, request, null));
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.USER_NOT_FOUND);
+        then(userRepository).should().findById(userId);
+        then(userProfileRepository).should(never()).findById(userId);
+        then(fileStorageService).should(never()).upload(any());
+    }
+
+    @Test
+    void 권한_변경_시_이벤트를_발행한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        User user = createMockUser(createDefaultRequest());
+        ReflectionTestUtils.setField(user, "id", userId);
+        ReflectionTestUtils.setField(user, "createdAt", Instant.now());
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.save(any(User.class))).willReturn(user);
+        UserRoleUpdateRequest request = new UserRoleUpdateRequest("ADMIN");
+
+        // when
+        userService.updateUserRole(userId, request);
+
+        // then
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue())
+            .isInstanceOfSatisfying(UserRoleChangedEvent.class, event -> {
+                assertThat(event.userId()).isEqualTo(userId);
+                assertThat(event.newRole()).isEqualTo(Role.ADMIN);
+            });
     }
 }

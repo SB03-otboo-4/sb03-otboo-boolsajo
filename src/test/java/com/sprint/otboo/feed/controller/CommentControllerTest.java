@@ -1,28 +1,5 @@
 package com.sprint.otboo.feed.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sprint.otboo.auth.jwt.TokenProvider;
-import com.sprint.otboo.common.dto.CursorPageResponse;
-import com.sprint.otboo.feed.dto.data.CommentDto;
-import com.sprint.otboo.feed.dto.request.CommentCreateRequest;
-import com.sprint.otboo.feed.service.CommentService;
-import com.sprint.otboo.user.dto.data.AuthorDto;
-import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
-import com.sprint.otboo.common.exception.user.UserNotFoundException;
-import java.util.List;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.Instant;
-import java.util.UUID;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,9 +9,34 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
+import com.sprint.otboo.auth.jwt.TokenProvider;
+import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
+import com.sprint.otboo.feed.dto.data.CommentDto;
+import com.sprint.otboo.feed.dto.request.CommentCreateRequest;
+import com.sprint.otboo.feed.service.CommentService;
+import com.sprint.otboo.user.dto.data.AuthorDto;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = CommentController.class)
 @ActiveProfiles("test")
@@ -48,6 +50,9 @@ class CommentControllerTest {
 
     @MockitoBean
     TokenProvider tokenProvider;
+
+    @MockitoBean
+    JwtRegistry jwtRegistry;
 
     @MockitoBean
     private CommentService commentService;

@@ -3,6 +3,7 @@ package com.sprint.otboo.recommendation.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -16,6 +17,7 @@ import com.sprint.otboo.clothing.entity.attribute.Season;
 import com.sprint.otboo.clothing.repository.ClothesRepository;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.entity.Recommendation;
+import com.sprint.otboo.recommendation.entity.RecommendationClothes;
 import com.sprint.otboo.recommendation.entity.TemperatureCategory;
 import com.sprint.otboo.recommendation.mapper.RecommendationMapper;
 import com.sprint.otboo.recommendation.repository.RecommendationRepository;
@@ -104,7 +106,7 @@ public class RecommendationServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         // Engine 동작 : 의상 추천
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(clothes));
 
         RecommendationDto expected = new RecommendationDto(
@@ -166,7 +168,7 @@ public class RecommendationServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         // Engine: 조건 충족 -> 추천 반환
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(clothes));
 
         // Mapper Mock
@@ -214,7 +216,7 @@ public class RecommendationServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         // Engine: 의상이 없으므로 추천 결과도 빈 리스트
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of());
 
         when(recommendationMapper.toDto(any(Recommendation.class)))
@@ -255,7 +257,7 @@ public class RecommendationServiceTest {
             .build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        when(recommendationEngine.recommend(eq(List.of(thickOuter)), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(eq(List.of(thickOuter)), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(thickOuter));
 
         RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(
@@ -299,7 +301,7 @@ public class RecommendationServiceTest {
             .build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        when(recommendationEngine.recommend(eq(List.of(lightTop)), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(eq(List.of(lightTop)), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(lightTop));
 
         RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(
@@ -419,7 +421,7 @@ public class RecommendationServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         // Engine은 필터링 결과: 빈 리스트 반환
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of());
 
         when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId, List.of()));
@@ -446,7 +448,7 @@ public class RecommendationServiceTest {
         UserProfile profile = UserProfile.builder().userId(userId).temperatureSensitivity(0).build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(cardigan));
 
         when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId,
@@ -474,7 +476,7 @@ public class RecommendationServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         // Engine 필터링 결과 : 조건 불만족 -> 빈 리스트 반환
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of());
         when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId, List.of()));
 
@@ -498,7 +500,7 @@ public class RecommendationServiceTest {
         UserProfile profile = UserProfile.builder().userId(userId).temperatureSensitivity(0).build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(outer));
 
         when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId,
@@ -530,7 +532,7 @@ public class RecommendationServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
         // Engine 결과: 미상 두께 외투( noValueOuter ) 제외, 두꺼운 패팅( heavyOuter ) 추천
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather)))
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(heavyOuter));
         when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId,
             List.of(new ClothesDto(heavyOuter.getId(), userId, "두꺼운 패딩", "image.jpg", ClothesType.OUTER, List.of()))));
@@ -540,5 +542,135 @@ public class RecommendationServiceTest {
 
         // then: 두꺼운 패딩 추천
         assertThat(result.clothes()).extracting("name").contains("두꺼운 패딩");
+    }
+
+    @Test
+    void 이전추천_DRESS_있음_TopBottom_추천() {
+        // given: 사용자 의상, 이전 추천 정보, 날씨, 사용자 프로필 준비
+        Clothes dress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("원피스")
+            .type(ClothesType.DRESS)
+            .attributes(List.of(ClothesAttribute.create(null, null, "MEDIUM")))
+            .build();
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("셔츠")
+            .type(ClothesType.TOP)
+            .attributes(List.of(ClothesAttribute.create(null, null, "LIGHT")))
+            .build();
+
+        Clothes bottom = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("청바지")
+            .type(ClothesType.BOTTOM)
+            .attributes(List.of(ClothesAttribute.create(null, null, "MEDIUM")))
+            .build();
+
+        List<Clothes> userClothes = List.of(dress, top, bottom);
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .maxC(20.0)
+            .minC(15.0)
+            .speedMs(0.0)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        UserProfile profile = UserProfile.builder()
+            .userId(userId)
+            .temperatureSensitivity(0)
+            .build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(userClothes);
+
+        Recommendation prevRecommendation = Recommendation.builder().build();
+        prevRecommendation.addRecommendationClothes(
+            RecommendationClothes.builder().clothes(dress).build()
+        );
+        when(recommendationRepository.findTopByUser_IdOrderByCreatedAtDesc(userId))
+            .thenReturn(Optional.of(prevRecommendation));
+
+        when(recommendationEngine.recommend(eq(userClothes), anyDouble(), eq(weather), eq(true)))
+            .thenReturn(List.of(top, bottom));
+
+        RecommendationDto expected = new RecommendationDto(weatherId, userId,
+            List.of(
+                new ClothesDto(top.getId(), userId, top.getName(), "image.jpg", ClothesType.TOP, List.of()),
+                new ClothesDto(bottom.getId(), userId, bottom.getName(), "image.jpg", ClothesType.BOTTOM, List.of())
+            )
+        );
+        when(recommendationMapper.toDto(any())).thenReturn(expected);
+
+        // when: 추천 의상 생성
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then: 이전 추천 DRESS는 제외하고 TOP & BOTTOM 추천
+        assertThat(result.clothes()).extracting("type")
+            .containsExactlyInAnyOrder(ClothesType.TOP, ClothesType.BOTTOM);
+        assertThat(result.clothes()).extracting("name").doesNotContain("원피스");
+    }
+
+    @Test
+    void 이전추천_DRESS_없음_DRESS_추천() {
+        // given: 사용자 의상, 이전 추천 없음, 날씨, 사용자 프로필 준비
+        Clothes dress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("원피스")
+            .type(ClothesType.DRESS)
+            .attributes(List.of(ClothesAttribute.create(null, null, "MEDIUM")))
+            .build();
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("셔츠")
+            .type(ClothesType.TOP)
+            .build();
+
+        Clothes bottom = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("청바지")
+            .type(ClothesType.BOTTOM)
+            .build();
+
+        List<Clothes> userClothes = List.of(dress, top, bottom);
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .maxC(20.0)
+            .minC(15.0)
+            .speedMs(0.0)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        UserProfile profile = UserProfile.builder()
+            .userId(userId)
+            .temperatureSensitivity(0)
+            .build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(userClothes);
+
+        when(recommendationRepository.findTopByUser_IdOrderByCreatedAtDesc(userId))
+            .thenReturn(Optional.empty());
+
+        when(recommendationEngine.recommend(eq(userClothes), anyDouble(), eq(weather), eq(false)))
+            .thenReturn(List.of(dress));
+
+        RecommendationDto expected = new RecommendationDto(weatherId, userId,
+            List.of(
+                new ClothesDto(dress.getId(), userId, dress.getName(), "image.jpg", ClothesType.DRESS, List.of())
+            )
+        );
+        when(recommendationMapper.toDto(any())).thenReturn(expected);
+
+        // when: 추천 의상 생성
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then: 이전 추천 없으면 DRESS 단독 추천
+        assertThat(result.clothes()).extracting("type").containsExactly(ClothesType.DRESS);
+        assertThat(result.clothes()).extracting("name").contains("원피스");
     }
 }

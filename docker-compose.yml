@@ -1,0 +1,86 @@
+services:
+  # PostgreSQL 데이터베이스 서비스
+  postgres:
+    image: postgres:17-alpine
+    container_name: otboo-db
+    restart: unless-stopped
+    # 환경변수 설정
+    env_file:
+      - .env
+      - .env.docker
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # 포트 매핑 (호스트:컨테이너)
+    ports:
+      - "54321:5432"
+    # 볼륨 마운트 (데이터 영속화)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-init-data.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: otboo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # Spring Boot 애플리케이션 서비스
+  app:
+    # 로컬 Dockerfile 빌드 또는 이미지 지정
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: otboo-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+      - .env.docker
+    # 환경변수 설정
+    environment:
+      # Spring 프로파일
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      PROJECT_NAME: ${PROJECT_NAME}
+      JVM_OPTS: ${JVM_OPTS}
+
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA}
+
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      GOOGLE_ID: ${GOOGLE_ID}
+      GOOGLE_PASSWORD: ${GOOGLE_PASSWORD}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
+      KAKAO_API_BASE_URL: ${KAKAO_API_BASE_URL}
+
+    # 포트 매핑 (호스트:컨테이너)
+    ports:
+      - "8080:8080"
+
+volumes:
+  # PostgreSQL 데이터 볼륨
+  postgres_data:
