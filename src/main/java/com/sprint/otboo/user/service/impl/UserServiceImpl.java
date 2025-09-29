@@ -179,6 +179,9 @@ public class UserServiceImpl implements UserService {
     @Override
     public CursorPageResponse<UserDto> listUsers(String cursor, String idAfter, Integer limit, String sortByParam, String sortDirParam,
         String emailLike, String roleEqualParam, Boolean locked) {
+        log.debug("[UserServiceImpl] 사용자 목록 조회 파라미터: cursor={}, idAfter={}, limit={}, sortBy={}, sortDir={}, emailLike={}, roleEqual={}, locked={}",
+            cursor, idAfter, limit, sortByParam, sortDirParam, emailLike, roleEqualParam, locked);
+
         // 파라미터 -> enum/타입 변환
         SortBy sortBy = SortBy.fromParam(sortByParam);
         SortDirection sd = SortDirection.fromParam(sortDirParam);
@@ -194,7 +197,8 @@ public class UserServiceImpl implements UserService {
             .map(userMapper::toUserDto)
             .toList();
 
-
+        log.debug("[UserServiceImpl] 사용자 목록 조회 결과: returnedCount={}, hasNext={}, nextCursor={}",
+            data.size(), slice.hasNext(), slice.nextCursor());
         return new CursorPageResponse<>(
             data,
             slice.nextCursor(),
@@ -215,9 +219,15 @@ public class UserServiceImpl implements UserService {
         UserProfile profile = userProfileRepository.findById(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
+        log.debug("[UserServiceImpl] 프로필 업데이트 시작 : userId = {}, hasImage = {}, locationProvided = {} ",
+            userId, image != null && !image.isEmpty(), request.location() != null);
+
         user.updateUsername(request.name());
 
         if (image != null && !image.isEmpty()) {
+            log.debug("[UserServiceImpl] 프로필 이미지 업로드 요청: userId={}, originalFilename={}",
+                userId, image.getOriginalFilename());
+
             if (StringUtils.hasText(user.getProfileImageUrl())) {
                 profileImageStorageRetryTemplate.execute(context -> {
                     fileStorageService.delete(user.getProfileImageUrl());
@@ -239,6 +249,9 @@ public class UserServiceImpl implements UserService {
         profile.updateBirthDate(request.birthDate());
 
         if (request.location() != null) {
+            log.debug("[UserServiceImpl] 프로필 위치 갱신: userId={}, requestedLat={}, requestedLon={}",
+                userId, request.location().latitude(), request.location().longitude());
+
             WeatherLocationResponse resolved = weatherLocationQueryService.getWeatherLocation(
                 request.location().latitude().doubleValue(),
                 request.location().longitude().doubleValue()
@@ -277,6 +290,7 @@ public class UserServiceImpl implements UserService {
             }
         }
 
+        log.debug("[UserServiceImpl] 프로필 업데이트 완료 : userId = {} ", userId );
         return userMapper.toProfileDto(user, profile);
     }
 
