@@ -12,5 +12,5 @@ package com.sprint.otboo.clothing.entity.attribute;
  * </ul>
  */
 public enum Size {
-    XS, S, M, L, XL, XXL, XXXL, FREE, ONE_SIZE, UNKNOWN;
+    FREE, ONE_SIZE, XXXL, XXL, XL, XS, L, M, S, UNKNOWN;
 }

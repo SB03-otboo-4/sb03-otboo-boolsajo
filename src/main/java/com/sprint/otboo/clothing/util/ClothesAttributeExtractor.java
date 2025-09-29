@@ -1,9 +1,12 @@
 package com.sprint.otboo.clothing.util;
 
+import static com.sprint.otboo.clothing.mapper.scraper.SizeMapper.PRIORITY_ORDER;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.entity.attribute.AttributeType;
+import com.sprint.otboo.clothing.entity.attribute.Size;
 import com.sprint.otboo.clothing.mapper.scraper.ColorMapper;
 import com.sprint.otboo.clothing.mapper.scraper.MaterialMapper;
 import com.sprint.otboo.clothing.mapper.scraper.SeasonMapper;
@@ -21,6 +24,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -211,10 +215,34 @@ public class ClothesAttributeExtractor {
     // 유효한 Enum 타입의 속성( Color, Size, Material ) 추가
     private void addIfValidWithLog(List<Attribute> attributes, Set<String> existing, AttributeType type, Enum<?> value) {
         if (value == null || "UNKNOWN".equals(value.name())) return;
+
+        // SIZE 타입은 우선순위 비교 후 기존 값보다 크면 교체
+        if (type == AttributeType.SIZE) {
+            Size newSize = (Size) value;
+            Optional<Attribute> existingSizeAttr = attributes.stream()
+                .filter(attr -> attr.type == AttributeType.SIZE)
+                .findFirst();
+
+            if (existingSizeAttr.isEmpty()) {
+                attributes.add(new Attribute(type, newSize.name()));
+                log.info("Mapped Attribute (SIZE, first): {}", newSize.name());
+            } else {
+                Size existingSize = Size.valueOf(existingSizeAttr.get().value());
+
+                // PRIORITY_ORDER 순서 기준으로 큰 값 유지
+                if (PRIORITY_ORDER.indexOf(newSize) < PRIORITY_ORDER.indexOf(existingSize)) {
+                    attributes.remove(existingSizeAttr.get());
+                    attributes.add(new Attribute(type, newSize.name()));
+                    log.info("Mapped Attribute (SIZE, replaced by bigger): {}", newSize.name());
+                }
+            }
+            return;
+        }
+
         String key = type + ":" + value.name();
         if (!existing.add(key)) return;
 
-        String formatted = type == AttributeType.SIZE ? value.name().toUpperCase() : formatEnumValue(value.name());
+        String formatted = formatEnumValue(value.name());
         attributes.add(new Attribute(type, formatted));
         log.info("Mapped Attribute: {} -> {}", type, formatted);
     }

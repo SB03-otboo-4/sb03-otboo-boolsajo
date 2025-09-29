@@ -100,21 +100,21 @@ public class MaterialMapper {
             case COTTON_POLY -> List.of("cotton[- ]?poly", "면[- ]?폴리", "코튼[- ]?폴리");
 
             // 단일 키워드 ( 기본 소재 )
-            case COTTON -> List.of("cotton", "코튼", "면", "\\bco\\b", "ctn");
-            case POLYESTER -> List.of("polyester", "폴리에스터", "폴리", "\\bpe\\b", "poly");
-            case WOOL -> List.of("wool", "\\b울\\b", "양모", "\\bwl\\b");
+            case COTTON -> List.of("cotton", "코튼", "면", "ctn");
+            case POLYESTER -> List.of("polyester", "폴리에스터", "폴리", "poly");
+            case WOOL -> List.of("wool", "울", "양모");
             case NYLON -> List.of("nylon", "나일론");
             case LINEN -> List.of("linen", "린넨", "마", "리넨");
             case ACRYLIC -> List.of("acrylic", "아크릴");
             case SPANDEX -> List.of("spandex", "스판", "스판덱스");
             case RAYON -> List.of("rayon", "레이온");
             case SILK -> List.of("silk", "실크", "실키");
-            case DENIM -> List.of("denim", "데님", "\\b청\\b", "청지");
+            case DENIM -> List.of("denim", "데님", "청", "청지");
             case LEATHER -> List.of("leather", "가죽", "레더");
             case CASHMERE -> List.of("cashmere", "캐시미어", "캐시");
             case ANGORA -> List.of("angora", "앙고라");
             case LAMB_WOOL -> List.of("lambswool", "램스울", "램[- ]?울");
-            case FUR -> List.of("fur", "\\b퍼\\b", "모피");
+            case FUR -> List.of("fur", "퍼", "모피");
             case NYLON_BLEND -> List.of("nylon[- ]?blend", "나일론[- ]?혼방");
 
             // 특수 / 패턴 소재
@@ -131,7 +131,7 @@ public class MaterialMapper {
             // 신소재
             case MODAL -> List.of("modal", "모달");
             case TENCEL -> List.of("tencel", "텐셀", "리오셀");
-            case PU -> List.of("\\bpu\\b", "폴리우레탄");
+            case PU -> List.of("폴리우레탄");
 
             // 매핑 불가
             default -> List.of();

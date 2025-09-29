@@ -90,20 +90,20 @@ public class ColorMapper {
     private static List<String> getKeywords(Color color) {
         return switch (color) {
             case SKYBLUE -> List.of("skyblue", "스카이블루", "연청", "연파랑", "연블루", "light[- ]blue");
-            case BLUE -> List.of("blue", "블루", "파랑", "파란", "청색", "\\bblu\\b", "다크블루");
+            case BLUE -> List.of("blue", "블루", "파랑", "파란", "청색", "다크블루");
             case BLACK -> List.of("black", "다크", "블랙", "검정", "dark");
             case WHITE -> List.of("white", "화이트", "흰색", "순백", "진주색", "펄");
-            case RED -> List.of("red", "레드", "빨강", "빨간", "적색", "와인", "wine", "\\brd\\b", "burgundy", "maroon", "자주");
+            case RED -> List.of("red", "레드", "빨강", "빨간", "적색", "와인", "wine", "burgundy", "maroon", "자주");
             case CHARCOAL -> List.of("charcoal", "차콜", "챠콜", "차콜그레이");
             case GREY -> List.of("grey", "gray", "그레이", "멜란지", "회색", "애쉬", "아쉬");
-            case YELLOW -> List.of("yellow", "옐로우", "노랑", "노란", "황색", "\\bylw\\b", "mustard", "라임", "lime");
+            case YELLOW -> List.of("yellow", "옐로우", "노랑", "노란", "황색", "mustard", "라임", "lime");
             case MINT -> List.of("mint", "민트", "연두", "애플그린");
             case KHAKI -> List.of("khaki", "카키", "올리브그린");
             case GREEN -> List.of("green", "그린", "초록", "녹색", "카키그린");
-            case PINK -> List.of("pink", "핑크", "분홍", "\\bpnk\\b", "코랄핑크", "로즈", "장미색");
-            case BROWN -> List.of("brown", "브라운", "갈색", "밤색", "\\bbrn\\b", "chocolate");
+            case PINK -> List.of("pink", "핑크", "분홍", "코랄핑크", "로즈", "장미색");
+            case BROWN -> List.of("brown", "브라운", "갈색", "밤색", "chocolate");
             case BEIGE -> List.of("beige", "베이지", "샌드", "피치", "복숭아", "peach");
-            case ORANGE -> List.of("orange", "오렌지", "주황", "\\borg\\b");
+            case ORANGE -> List.of("orange", "오렌지", "주황");
             case PURPLE -> List.of("purple", "퍼플", "보라", "바이올렛", "violet");
             case NAVY -> List.of("navy", "네이비", "곤색", "진청");
             case LAVENDER -> List.of("lavender", "라벤더", "light[- ]?purple");
