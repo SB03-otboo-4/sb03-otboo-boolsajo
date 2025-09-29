@@ -124,6 +124,7 @@ class WeatherForecastJobIntegrationTest {
     }
 
     private KmaForecastResponse 더미_응답(String date, String[] times) {
+
         List<KmaForecastItem> items = new ArrayList<>();
         for (String t : times) {
             KmaForecastItem tmp = new KmaForecastItem();
@@ -161,6 +162,7 @@ class WeatherForecastJobIntegrationTest {
             sky.setFcstValue("3");
             items.add(sky);
         }
+
         KmaForecastResponse resp = new KmaForecastResponse();
         resp.setResultCode("00");
         resp.setItems(items);
