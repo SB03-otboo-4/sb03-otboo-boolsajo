@@ -19,14 +19,14 @@ import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
 
 /**
- * W Concept 상품 페이지에서 의상 정보를 추출하는 {@link ClothesExtractor} 구현체
+ * SSG 상품 페이지에서 의상 정보를 추출하는 {@link ClothesExtractor} 구현체
  *
- * <p>지원 URL: wconcept.co.kr</p>
+ * <p>지원 URL: ssg.com</p>
  *
  * <p>추출 방식:</p>
  * <ul>
+ *   <li>HTML meta 태그 기반 상품명/이미지 추출</li>
  *   <li>JSON-LD 스크립트 기반 속성 추출</li>
- *   <li>HTML 태그 기반 속성 추출</li>
  *   <li>상품명 및 텍스트 기반 간접 속성 추출</li>
  * </ul>
  *
@@ -44,24 +44,24 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WConceptExtractor implements ClothesExtractor {
+public class SsgExtractor implements ClothesExtractor {
 
     private final ClothesAttributeExtractor extractor;
     private final ClothesAttributeDefRepository defRepository;
 
     /**
-     * W Concept URL 지원 여부
+     * SSG URL 지원 여부
      *
      * @param url 요청 URL
-     * @return wconcept.co.kr 포함 여부
+     * @return ssg.com 포함 여부
      */
     @Override
     public boolean supports(String url) {
-        return url.contains("wconcept.co.kr");
+        return url.contains("ssg.com");
     }
 
     /**
-     * URL에서 W Concept 의상 정보 추출
+     * URL에서 SSG 의상 정보 추출
      *
      * <p>동작 흐름:</p>
      * <ol>
@@ -73,7 +73,7 @@ public class WConceptExtractor implements ClothesExtractor {
      *   <li>ClothesDto 반환</li>
      * </ol>
      *
-     * @param url W Concept 상품 URL
+     * @param url SSG 상품 URL
      * @return {@link ClothesDto} 추출된 의상 정보
      * @throws ClothesExtractionException 파싱 실패 시
      */
@@ -86,20 +86,19 @@ public class WConceptExtractor implements ClothesExtractor {
                 .get();
 
             // 2. 상품명, 이미지 URL, 카테고리 추출
-            // title이 아닌 description으로 조회하는 이유는, 해당 사이트는 Title 조회 시 [ W Concept ] 가 추출됩니다
-            String name = extractor.getAttrOrDefault(doc, "meta[name=description]", "content", "이름없음");
+            String name = extractor.getAttrOrDefault(doc, "meta[property=og:title]", "content", "이름없음");
             String imageUrl = extractor.getAttrOrDefault(doc, "meta[property=og:image]", "content", "");
             String category = extractor.getLastBreadcrumbOrDefault(doc, ".breadcrumb li a", "ETC");
 
-            log.info("W Concept 상품명: {}", name);
-            log.info("W Concept 이미지 URL: {}", imageUrl);
+            log.info("SSG 상품명: {}", name);
+            log.info("SSG 이미지 URL: {}", imageUrl);
 
-            // 3. ClothesType 결정
+            // 3. ClothesType 결정 (카테고리 우선, 상품명 보조)
             ClothesType type = ClothesTypeMapper.mapToClothesType(category);
             if (type == ClothesType.ETC) {
                 type = ClothesTypeMapper.mapToClothesType(name);
             }
-            log.info("W Concept ClothesType 결정: {}", type);
+            log.info("SSG ClothesType 결정: {}", type);
 
             // 4. 속성 추출
             List<ClothesAttributeExtractor.Attribute> attributes = extractor.extractAttributes(doc, name);
@@ -108,8 +107,7 @@ public class WConceptExtractor implements ClothesExtractor {
             List<ClothesAttributeDto> finalAttributes = attributes.stream()
                 .flatMap(attr -> {
                     List<String> dbNames = ClothesAttributeExtractor.TYPE_TO_DB_NAMES.getOrDefault(
-                        attr.type(), List.of(attr.type().name())
-                    );
+                        attr.type(), List.of(attr.type().name()));
 
                     for (String dbName : dbNames) {
                         var defOpt = defRepository.findByName(dbName);
@@ -119,7 +117,7 @@ public class WConceptExtractor implements ClothesExtractor {
                             return Stream.of(new ClothesAttributeDto(def.getId(), matchedValue));
                         }
                     }
-                    log.warn("W Concept DB 정의 없는 속성 건너뜀: {}", attr.type());
+                    log.warn("SSG DB 정의 없는 속성 건너뜀: {}", attr.type());
                     return Stream.empty();
                 })
                 .toList();
@@ -135,7 +133,7 @@ public class WConceptExtractor implements ClothesExtractor {
             );
 
         } catch (IOException e) {
-            throw new ClothesExtractionException("W Concept URL에서 의상 정보를 추출하지 못했습니다.", e);
+            throw new ClothesExtractionException("SSG URL에서 의상 정보를 추출하지 못했습니다.", e);
         }
     }
 }
