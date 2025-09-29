@@ -10,6 +10,7 @@ import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.weather.dto.data.PrecipitationDto;
 import com.sprint.otboo.weather.dto.data.TemperatureDto;
 import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
+import com.sprint.otboo.weather.service.WeatherLocationQueryService;
 import com.sprint.otboo.weather.service.WeatherService;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +31,9 @@ class WeatherControllerTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @MockitoBean
+    private WeatherLocationQueryService service;
 
     @MockitoBean
     private WeatherService weatherService;

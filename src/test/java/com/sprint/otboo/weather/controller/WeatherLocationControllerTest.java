@@ -12,6 +12,7 @@ import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.service.WeatherLocationQueryService;
+import com.sprint.otboo.weather.service.WeatherService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(WeatherLocationController.class)
+@WebMvcTest(WeatherController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
 @DisplayName("WeatherLocationController 테스트")
@@ -33,6 +34,9 @@ class WeatherLocationControllerTest {
 
     @MockitoBean
     private WeatherLocationQueryService service;
+
+    @MockitoBean
+    private WeatherService weatherService;
 
     @MockitoBean
     private TokenProvider tokenProvider;

@@ -52,4 +52,18 @@ class KmaRequestBuilderTest {
         assertThat(params.get("nx")).isNotBlank();
         assertThat(params.get("ny")).isNotBlank();
     }
+
+    @Test void 발표경계_1410은_1400() {
+        Instant at = LocalDateTime.of(2025,9,24,14,10).atZone(ZoneId.of("Asia/Seoul")).toInstant();
+        Map<String,String> p = new KmaRequestBuilder(new WeatherKmaProperties())
+            .toParams(37.5665,126.9780, at);
+        assertThat(p.get("base_time")).isEqualTo("1400");
+    }
+
+    @Test void 자정경계_0005는_전날_2300() {
+        Instant at = LocalDateTime.of(2025,9,24,0,5).atZone(ZoneId.of("Asia/Seoul")).toInstant();
+        Map<String,String> p = new KmaRequestBuilder(new WeatherKmaProperties())
+            .toParams(37.5665,126.9780, at);
+        assertThat(p.get("base_time")).isEqualTo("2300");
+    }
 }
