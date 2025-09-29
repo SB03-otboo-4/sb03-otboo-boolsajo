@@ -43,6 +43,7 @@ public class ClothesExtractorTest {
     private FourNineTenExtractor fourNineTenExtractor;
     private WConceptExtractor wConceptExtractor;
     private SsgExtractor ssgExtractor;
+    private BrandiExtractor brandiExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -64,6 +65,7 @@ public class ClothesExtractorTest {
         fourNineTenExtractor = new FourNineTenExtractor(attributeExtractor, defRepository, fileStorageService);
         wConceptExtractor = new WConceptExtractor(attributeExtractor, defRepository);
         ssgExtractor = new SsgExtractor(attributeExtractor, defRepository);
+        brandiExtractor = new BrandiExtractor(attributeExtractor, defRepository, fileStorageService);
     }
 
     // ------------------ 헬퍼 메서드 ------------------
@@ -132,7 +134,7 @@ public class ClothesExtractorTest {
             Connection conn = mock(Connection.class);
             jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
             when(conn.userAgent(anyString())).thenReturn(conn);
-            if (extractor instanceof AblyExtractor) {
+            if (extractor instanceof AblyExtractor || extractor instanceof BrandiExtractor) {
                 when(conn.header(anyString(), anyString())).thenReturn(conn);
             }
             when(conn.get()).thenReturn(doc);
@@ -175,7 +177,7 @@ public class ClothesExtractorTest {
             Connection conn = mock(Connection.class);
             jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
             when(conn.userAgent(anyString())).thenReturn(conn);
-            if (extractor instanceof AblyExtractor) {
+            if (extractor instanceof AblyExtractor || extractor instanceof BrandiExtractor) {
                 when(conn.header(anyString(), anyString())).thenReturn(conn);
             }
             when(conn.get()).thenReturn(doc);
@@ -200,7 +202,7 @@ public class ClothesExtractorTest {
             Connection conn = mock(Connection.class);
             jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
             when(conn.userAgent(anyString())).thenReturn(conn);
-            if (extractor instanceof AblyExtractor) {
+            if (extractor instanceof AblyExtractor || extractor instanceof BrandiExtractor) {
                 when(conn.header(anyString(), anyString())).thenReturn(conn);
             }
             try {
@@ -405,5 +407,30 @@ public class ClothesExtractorTest {
     @Test
     void Ssg_IOException_발생시_예외변환() {
         assertIOExceptionExtractor(ssgExtractor, "https://www.ssg.com/product/123");
+    }
+
+    // ------------------ Brandi ------------------
+
+    @Test
+    void Brandi_URL_지원_여부() {
+        assertSupports(brandiExtractor, "https://www.brandi.co.kr/product/123");
+    }
+
+    @Test
+    void Brandi_의상정보_정상추출() throws IOException {
+        assertExtractWithOptionalImage(brandiExtractor, "https://www.brandi.co.kr/product/123",
+            "린넨 셔츠", "http://brandi-image.jpg", "http://internal-server/brandi-image.jpg",
+            ClothesType.TOP, AttributeType.COLOR, "WHITE", "WHITE,BEIGE,BLACK");
+    }
+
+    @Test
+    void Brandi_DB정의없는속성_건너뛰기() throws IOException {
+        assertSkipUndefinedAttributesWithOptionalImage(brandiExtractor, "https://www.brandi.co.kr/product/123",
+            "린넨 셔츠", "http://brandi-image.jpg", "http://internal-server/brandi-image.jpg");
+    }
+
+    @Test
+    void Brandi_IOException_발생시_예외변환() throws IOException {
+        assertIOExceptionExtractor(brandiExtractor, "https://www.brandi.co.kr/product/123");
     }
 }
