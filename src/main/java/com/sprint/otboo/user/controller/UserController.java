@@ -5,6 +5,7 @@ import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.storage.InMemoryMultipartFile;
+import com.sprint.otboo.user.controller.api.UserApi;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
@@ -43,7 +44,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 @Slf4j
 @Validated
-public class UserController {
+public class UserController implements UserApi {
 
     private final UserService userService;
 
