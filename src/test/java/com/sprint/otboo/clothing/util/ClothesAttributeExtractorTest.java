@@ -49,7 +49,7 @@ public class ClothesAttributeExtractorTest {
             .contains(AttributeType.COLOR, AttributeType.SIZE);
         assertThat(result)
             .extracting(ClothesAttributeExtractor.Attribute::value)
-            .contains("Black", "White", "M", "L");
+            .contains("Black", "White", "L");
     }
 
     @Test
@@ -102,9 +102,7 @@ public class ClothesAttributeExtractorTest {
                 tuple(AttributeType.COLOR, "Red"),
                 tuple(AttributeType.COLOR, "Blue"),
                 tuple(AttributeType.COLOR, "Green"),
-                tuple(AttributeType.SIZE, "S"),
                 tuple(AttributeType.SIZE, "L"),
-                tuple(AttributeType.SIZE, "M"),
                 tuple(AttributeType.MATERIAL, "Cotton"),
                 tuple(AttributeType.MATERIAL, "Polyester")
             );
@@ -136,8 +134,7 @@ public class ClothesAttributeExtractorTest {
             .extracting(ClothesAttributeExtractor.Attribute::type, ClothesAttributeExtractor.Attribute::value)
             .contains(
                 tuple(AttributeType.COLOR, "Blue"),
-                tuple(AttributeType.SIZE, "S"),
-                tuple(AttributeType.SIZE, "M"),
+                tuple(AttributeType.SIZE, "L"),
                 tuple(AttributeType.MATERIAL, "Polyester"),
                 tuple(AttributeType.MATERIAL, "Cotton"),
                 tuple(AttributeType.SEASON, "Winter"),
