@@ -2,8 +2,10 @@ package com.sprint.otboo.auth.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -13,8 +15,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.CustomAuthenticationEntryPoint;
 import com.sprint.otboo.auth.dto.AuthResultDto;
+import com.sprint.otboo.auth.dto.ResetPasswordRequest;
 import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import com.sprint.otboo.auth.jwt.RefreshTokenCookieUtil;
@@ -25,6 +29,7 @@ import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.common.exception.auth.InvalidCredentialsException;
 import com.sprint.otboo.common.exception.auth.InvalidTokenException;
 import com.sprint.otboo.common.exception.auth.TokenExpiredException;
+import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
@@ -58,6 +63,9 @@ public class AuthControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockitoBean
     AuthService authService;
@@ -331,6 +339,57 @@ public class AuthControllerTest {
 
         // then
         resultActions.andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 비밀번호_초기화_성공() throws Exception {
+        // given
+        ResetPasswordRequest requestDto = new ResetPasswordRequest("test@abc.com");
+        String requestBody = objectMapper.writeValueAsString(requestDto);
+
+        doNothing().when(authService).sendTemporaryPassword(anyString());
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/reset-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isOk());
+    }
+
+    @Test
+    void 비밀번호_초기화_실패_유효하지_않은_이메일_형식() throws Exception {
+        // given
+        ResetPasswordRequest requestDto = new ResetPasswordRequest("invalid-email");
+        String requestBody = objectMapper.writeValueAsString(requestDto);
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/reset-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 비밀번호_초기화_실패_가입되지_않은_이메일() throws Exception {
+        // given
+        String unregisteredEmail = "none@abc.com";
+        ResetPasswordRequest requestDto = new ResetPasswordRequest(unregisteredEmail);
+        String requestBody = objectMapper.writeValueAsString(requestDto);
+
+        doThrow(UserNotFoundException.withEmail(unregisteredEmail))
+            .when(authService).sendTemporaryPassword(unregisteredEmail);
+
+        // when
+        ResultActions resultActions = mockMvc.perform(post("/api/auth/reset-password")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(requestBody));
+
+        // then
+        resultActions.andExpect(status().isNotFound());
     }
 
 }

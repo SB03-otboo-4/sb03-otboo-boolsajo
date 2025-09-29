@@ -25,3 +25,7 @@ spring:
       root: INFO
       com.sprint.otboo: DEBUG
       org.hibernate.SQL: DEBUG
+management:
+  health:
+    redis:
+      enabled: false

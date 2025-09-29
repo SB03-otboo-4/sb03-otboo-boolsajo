@@ -95,6 +95,12 @@ dependencies {
     implementation 'org.springframework.retry:spring-retry'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
 
+    // SMTP
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
