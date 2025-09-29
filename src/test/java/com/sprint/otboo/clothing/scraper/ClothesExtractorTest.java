@@ -45,6 +45,7 @@ public class ClothesExtractorTest {
     private AblyExtractor ablyExtractor;
     private FourNineTenExtractor fourNineTenExtractor;
     private WConceptExtractor wConceptExtractor;
+    private SsgExtractor ssgExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -65,10 +66,11 @@ public class ClothesExtractorTest {
         ablyExtractor = new AblyExtractor(attributeExtractor, defRepository, fileStorageService);
         fourNineTenExtractor = new FourNineTenExtractor(attributeExtractor, defRepository, fileStorageService);
         wConceptExtractor = new WConceptExtractor(attributeExtractor, defRepository);
-
+        ssgExtractor = new SsgExtractor(attributeExtractor, defRepository);
     }
 
     // ------------------ Musinsa ------------------
+
     @Test
     void 무신사_URL_지원_여부() {
         // given: 무신사 상품 URL
@@ -873,6 +875,128 @@ public class ClothesExtractorTest {
 
             // when & then: extract 호출 시 ClothesExtractionException 확인
             assertThrows(ClothesExtractionException.class, () -> wConceptExtractor.extract(url));
+        }
+    }
+
+    // ------------------ SSG ------------------
+
+    @Test
+    void Ssg_URL_지원_여부() {
+        // given: SSG 상품 URL
+        String url = "https://www.ssg.com/product/123";
+
+        // when: supports 호출
+        boolean result = ssgExtractor.supports(url);
+
+        // then: true 반환 확인
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void Ssg_의상정보_정상추출() throws IOException {
+        // given
+        String url = "https://www.ssg.com/product/123";
+        Document doc = mock(Document.class);
+
+        ClothesAttributeExtractor.Attribute colorAttr =
+            new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED");
+
+        UUID defId = UUID.randomUUID();
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .id(defId)
+            .name("COLOR")
+            .selectValues("RED,BLUE,BLACK")
+            .build();
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection userAgentConn = mock(Connection.class);
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(userAgentConn);
+            when(userAgentConn.get()).thenReturn(doc);
+
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+                .thenReturn("SSG 후드티");
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+                .thenReturn("http://ssg-image.jpg");
+            when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+                .thenReturn("상의");
+            when(attributeExtractor.extractAttributes(eq(doc), eq("SSG 후드티")))
+                .thenReturn(List.of(colorAttr));
+            when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+            when(attributeExtractor.matchSelectableValue("RED", "RED,BLUE,BLACK")).thenReturn("RED");
+
+            // when
+            ClothesDto result = ssgExtractor.extract(url);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.name()).isEqualTo("SSG 후드티");
+            assertThat(result.imageUrl()).isEqualTo("http://ssg-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.TOP);
+
+            assertThat(result.attributes()).hasSize(1);
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("RED");
+        }
+    }
+
+    @Test
+    void Ssg_DB정의없는속성_건너뛰기() throws IOException {
+        // given
+        String url = "https://www.ssg.com/product/123";
+        Document doc = mock(Document.class);
+
+        ClothesAttributeExtractor.Attribute unknownAttr =
+            new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "UNKNOWN");
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection userAgentConn = mock(Connection.class);
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(userAgentConn);
+            when(userAgentConn.get()).thenReturn(doc);
+
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:title]"), eq("content"), anyString()))
+                .thenReturn("SSG 후드티");
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+                .thenReturn("http://ssg-image.jpg");
+            when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+                .thenReturn("상의");
+            when(attributeExtractor.extractAttributes(eq(doc), eq("SSG 후드티")))
+                .thenReturn(List.of(unknownAttr));
+            when(defRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
+
+            // when
+            ClothesDto result = ssgExtractor.extract(url);
+
+            // then
+            assertThat(result.attributes()).isEmpty();
+        }
+    }
+
+    @Test
+    void Ssg_IOException_발생시_예외변환() {
+        // given
+        String url = "https://www.ssg.com/product/123";
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection userAgentConn = mock(Connection.class);
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(userAgentConn);
+            try {
+                when(userAgentConn.get()).thenThrow(new IOException("네트워크 오류"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            // when & then
+            assertThrows(ClothesExtractionException.class, () -> ssgExtractor.extract(url));
         }
     }
 }
