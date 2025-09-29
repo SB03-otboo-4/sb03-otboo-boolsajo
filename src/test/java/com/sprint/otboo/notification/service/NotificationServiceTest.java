@@ -1,6 +1,7 @@
 package com.sprint.otboo.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -8,6 +9,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
@@ -268,5 +271,37 @@ public class NotificationServiceTest {
         // then
         assertThat(result).isEqualTo(expected);
         then(notificationRepository).should().saveAndFlush(any(Notification.class));
+    }
+
+    @Test
+    void 알림_삭제_시_Repository에서_제거() {
+        // given
+        UUID notificationId = UUID.randomUUID();
+        given(notificationRepository.existsById(notificationId)).willReturn(true);
+
+        // when
+        notificationService.deleteNotification(notificationId);
+
+        // then
+        then(notificationRepository).should().existsById(notificationId);
+        then(notificationRepository).should().deleteById(notificationId);
+    }
+
+    @Test
+    void 존재하지_않는_알림_삭제_시_예외_발생() {
+        // given
+        UUID notificationId = UUID.randomUUID();
+        given(notificationRepository.existsById(notificationId)).willReturn(false);
+
+        // when
+        Throwable thrown = catchThrowable(() ->
+            notificationService.deleteNotification(notificationId)
+        );
+
+        // then
+        assertThat(thrown)
+            .isInstanceOf(CustomException.class)
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
     }
 }

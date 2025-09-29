@@ -99,6 +99,12 @@ dependencies {
     // Jsoup : HTML 파싱
     implementation 'org.jsoup:jsoup:1.16.1'
 
+    // SMTP
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     // test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
