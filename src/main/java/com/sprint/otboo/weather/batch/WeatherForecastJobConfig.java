@@ -1,33 +1,34 @@
 package com.sprint.otboo.weather.batch;
 
 import com.sprint.otboo.weather.batch.task.WeatherCollectTasklet;
+import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
+@RequiredArgsConstructor
 public class WeatherForecastJobConfig {
 
-    @Bean
-    public Job weatherForecastJob(
-        JobBuilderFactory jobs,
-        Step weatherCollectStep
-    ) {
-        return jobs.get("weatherForecastJob")
-            .start(weatherCollectStep)
+    private final JobRepository jobRepository;
+    private final PlatformTransactionManager transactionManager;
+
+    @Bean(name = "weatherForecastJob")
+    public Job weatherForecastJob(Step collectForecastStep) {
+        return new JobBuilder("weatherForecastJob", jobRepository)
+            .start(collectForecastStep)
             .build();
     }
 
     @Bean
-    public Step weatherCollectStep(
-        StepBuilderFactory steps,
-        WeatherCollectTasklet tasklet
-    ) {
-        return steps.get("weatherCollectStep")
-            .tasklet(tasklet)
+    public Step collectForecastStep(WeatherCollectTasklet tasklet) {
+        return new StepBuilder("collectForecastStep", jobRepository)
+            .tasklet(tasklet, transactionManager)
             .build();
     }
 }
