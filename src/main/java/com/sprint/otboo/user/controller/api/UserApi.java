@@ -23,7 +23,7 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "Users", description = "프로필 관리 API")
+@Tag(name = "프로필 관리", description = "프로필 관리 API")
 public interface UserApi {
 
     @Operation(summary = "계정 목록 조회", description = "계정 목록 조회 API")
