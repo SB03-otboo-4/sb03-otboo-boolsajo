@@ -34,16 +34,13 @@ logging:
 weather:
   kma:
     base-url: https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst
-    service-key: ${KMA_SERVICE_KEY:}
+    service-key: ${KMA_SERVICE_KEY}
     connect-timeout-ms: 3000
     read-timeout-ms: 5000
     retry-max-attempts: 3
     retry-backoff-ms: 300
     num-of-rows: 1000
     data-type: JSON
-  change:
-    temp-jump-c: 5.0
-    pop-jump-pct: 30.0
 
 kakao:
   api:

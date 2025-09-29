@@ -1,6 +1,5 @@
 package com.sprint.otboo.weather.batch.task;
 
-import com.sprint.otboo.weather.change.WeatherChangeService;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.integration.kma.KmaRequestBuilder;
@@ -37,7 +36,6 @@ public class WeatherCollectTasklet implements Tasklet {
     private final KmaShortTermForecastClient kmaClient;
     private final KmaForecastAssembler kmaAssembler;
     private final RetryTemplate weatherRetryTemplate;
-    private final WeatherChangeService changeService;
 
     @Override
     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
@@ -83,21 +81,6 @@ public class WeatherCollectTasklet implements Tasklet {
                     if (exists.isEmpty()) {
                         weatherRepository.save(w);
                         saved++;
-                    }
-                }
-
-                if (!snapshots.isEmpty()) {
-                    java.util.Set<Instant> affectedForecastAts = snapshots.stream()
-                        .map(Weather::getForecastAt)
-                        .collect(java.util.stream.Collectors.toSet());
-
-                    for (Instant fa : affectedForecastAts) {
-                        try {
-                            changeService.process(loc.getId(), fa);
-                        } catch (Exception detectEx) {
-                            log.warn("[weather-batch] change detection failed for loc={}, forecastAt={}, err={}",
-                                loc.getId(), fa, detectEx.toString());
-                        }
                     }
                 }
 
