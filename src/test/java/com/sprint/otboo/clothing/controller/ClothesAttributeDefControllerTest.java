@@ -32,15 +32,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(controllers = ClothesAttributeDefController.class)
 @DisplayName("의상 속성 정의 컨트롤러 테스트( ADMIN )")
 public class ClothesAttributeDefControllerTest {
 
@@ -304,9 +305,13 @@ public class ClothesAttributeDefControllerTest {
     @WithMockUser(username = "user1", roles = {"USER"})
     void 의상속성정의_삭제_실패_USER권한() throws Exception {
         // given: USER 권한
+        UUID definitionId = UUID.randomUUID();
+
+        doThrow(new AccessDeniedException("권한 없음"))
+            .when(service).deleteAttributeDef(definitionId);
 
         // when: DELETE 요청 실행
-        mockMvc.perform(delete("/api/clothes/attribute-defs/{definitionId}", UUID.randomUUID())
+        mockMvc.perform(delete("/api/clothes/attribute-defs/{definitionId}", definitionId)
                 .with(csrf())
             )
             // then: 403 Forbidden 확인

@@ -14,17 +14,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
 @DisplayName("RecommendationEngine + WeatherUtils 통합 테스트")
 public class RecommendationUtilTest {
 
-    @Autowired
     private RecommendationEngine recommendationEngine;
+
+    @BeforeEach
+    void setUp() {
+        recommendationEngine = new RecommendationEngineImpl();
+    }
 
     @Test
     void 계절과_체감_온도에_따른_추천_의상() {

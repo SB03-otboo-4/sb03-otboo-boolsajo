@@ -112,11 +112,12 @@ public class CommentRepositoryTest {
     void 같은_createdAt에서는_id가_타이브레이커로_동작한다() {
         // Given
         Instant fixed = Instant.now().truncatedTo(MICROS);
+        Instant now = Instant.now().truncatedTo(MICROS);
 
         Comment a = Comment.builder()
-            .feed(feed).author(author).content("A").build();
+            .feed(feed).author(author).content("A").createdAt(now).build();
         Comment b = Comment.builder()
-            .feed(feed).author(author).content("B").build();
+            .feed(feed).author(author).content("B").createdAt(now).build();
 
         em.persist(a);
         em.persist(b);
