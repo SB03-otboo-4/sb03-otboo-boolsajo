@@ -2,6 +2,7 @@ package com.sprint.otboo.notification.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.notification.controller.api.NotificationApi;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.service.NotificationService;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/notifications")
-public class NotificationController {
+public class NotificationController implements NotificationApi {
 
     private final NotificationService notificationService;
 
