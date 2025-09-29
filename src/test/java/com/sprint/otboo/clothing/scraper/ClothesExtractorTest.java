@@ -44,6 +44,7 @@ public class ClothesExtractorTest {
     private HiverExtractor hiverExtractor;
     private AblyExtractor ablyExtractor;
     private FourNineTenExtractor fourNineTenExtractor;
+    private WConceptExtractor wConceptExtractor;
 
     @Mock
     private ClothesAttributeExtractor attributeExtractor;
@@ -63,6 +64,7 @@ public class ClothesExtractorTest {
         hiverExtractor = new HiverExtractor(attributeExtractor, defRepository, fileStorageService);
         ablyExtractor = new AblyExtractor(attributeExtractor, defRepository, fileStorageService);
         fourNineTenExtractor = new FourNineTenExtractor(attributeExtractor, defRepository, fileStorageService);
+        wConceptExtractor = new WConceptExtractor(attributeExtractor, defRepository);
 
     }
 
@@ -743,6 +745,134 @@ public class ClothesExtractorTest {
 
             // when & then: extract 호출 시 예외 변환 확인
             assertThrows(ClothesExtractionException.class, () -> fourNineTenExtractor.extract(url));
+        }
+    }
+
+    // ------------------ W Concept ------------------
+
+    @Test
+    void WConcept_URL_지원_여부() {
+        // given: W Concept 상품 URL
+        String url = "https://www.wconcept.co.kr/product/123";
+
+        // when: supports 호출
+        boolean result = wConceptExtractor.supports(url);
+
+        // then: true 반환 확인
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void WConcept_의상정보_정상추출() throws IOException {
+        // given: 상품 URL, HTML 문서, 기본 정보, 속성, DB 정의
+        String url = "https://www.wconcept.co.kr/product/123";
+        Document doc = mock(Document.class);
+
+        ClothesAttributeExtractor.Attribute colorAttr =
+            new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "RED");
+
+        UUID defId = UUID.randomUUID();
+        ClothesAttributeDef def = ClothesAttributeDef.builder()
+            .id(defId)
+            .name("COLOR")
+            .selectValues("RED,BLUE,BLACK")
+            .build();
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection userAgentConn = mock(Connection.class);
+
+            // Jsoup.connect(url) -> conn 반환
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+
+            // conn.userAgent(...) -> userAgentConn 반환
+            when(conn.userAgent(anyString())).thenReturn(userAgentConn);
+
+            // userAgentConn.get() -> doc 반환
+            when(userAgentConn.get()).thenReturn(doc);
+
+            // doc 기반 attributeExtractor stubbing
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[name=description]"), eq("content"), anyString()))
+                .thenReturn("W Concept 후드 티셔츠");
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+                .thenReturn("http://wconcept-image.jpg");
+            when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+                .thenReturn("상의");
+            when(attributeExtractor.extractAttributes(eq(doc), eq("W Concept 후드 티셔츠")))
+                .thenReturn(List.of(colorAttr));
+            when(defRepository.findByName("COLOR")).thenReturn(Optional.of(def));
+            when(attributeExtractor.matchSelectableValue("RED", "RED,BLUE,BLACK")).thenReturn("RED");
+
+            // when: extract 호출
+            ClothesDto result = wConceptExtractor.extract(url);
+
+            // then: DTO 값 검증
+            assertThat(result).isNotNull();
+            assertThat(result.name()).isEqualTo("W Concept 후드 티셔츠");
+            assertThat(result.imageUrl()).isEqualTo("http://wconcept-image.jpg");
+            assertThat(result.type()).isEqualTo(ClothesType.TOP);
+
+            assertThat(result.attributes()).hasSize(1);
+            ClothesAttributeDto attrDto = result.attributes().get(0);
+            assertThat(attrDto.definitionId()).isEqualTo(defId);
+            assertThat(attrDto.value()).isEqualTo("RED");
+        }
+    }
+
+    @Test
+    void WConcept_DB정의없는속성_건너뛰기() throws IOException {
+        // given: 상품 URL, 문서, 정의 없는 속성
+        String url = "https://www.wconcept.co.kr/product/123";
+        Document doc = mock(Document.class);
+
+        ClothesAttributeExtractor.Attribute unknownAttr =
+            new ClothesAttributeExtractor.Attribute(AttributeType.COLOR, "UNKNOWN");
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection userAgentConn = mock(Connection.class);
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(userAgentConn);
+            when(userAgentConn.get()).thenReturn(doc);
+
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[name=description]"), eq("content"), anyString()))
+                .thenReturn("W Concept 후드 티셔츠");
+            when(attributeExtractor.getAttrOrDefault(eq(doc), eq("meta[property=og:image]"), eq("content"), anyString()))
+                .thenReturn("http://wconcept-image.jpg");
+            when(attributeExtractor.getLastBreadcrumbOrDefault(eq(doc), eq(".breadcrumb li a"), anyString()))
+                .thenReturn("상의");
+            when(attributeExtractor.extractAttributes(eq(doc), eq("W Concept 후드 티셔츠")))
+                .thenReturn(List.of(unknownAttr));
+            when(defRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
+
+            // when: extract 호출
+            ClothesDto result = wConceptExtractor.extract(url);
+
+            // then: 정의 없는 속성 건너뛰기 확인
+            assertThat(result.attributes()).isEmpty();
+        }
+    }
+
+    @Test
+    void WConcept_IOException_발생시_예외변환() {
+        // given: 상품 URL, Jsoup 연결에서 IOException 발생
+        String url = "https://www.wconcept.co.kr/product/123";
+
+        try (MockedStatic<Jsoup> jsoupStatic = mockStatic(Jsoup.class)) {
+            Connection conn = mock(Connection.class);
+            Connection userAgentConn = mock(Connection.class);
+
+            jsoupStatic.when(() -> Jsoup.connect(url)).thenReturn(conn);
+            when(conn.userAgent(anyString())).thenReturn(userAgentConn);
+            try {
+                when(userAgentConn.get()).thenThrow(new IOException("네트워크 오류"));
+            } catch (IOException e) {
+                throw new RuntimeException(e); // checked exception 처리
+            }
+
+            // when & then: extract 호출 시 ClothesExtractionException 확인
+            assertThrows(ClothesExtractionException.class, () -> wConceptExtractor.extract(url));
         }
     }
 }
