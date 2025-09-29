@@ -84,7 +84,8 @@ class WeatherForecastJobIntegrationTest {
 
         // when: executionTime 파라미터로 고정 시각 주입
         JobParametersBuilder params = new JobParametersBuilder()
-            .addLong("executionTime", Instant.parse("2025-09-28T00:00:00Z").toEpochMilli());
+            .addLong("executionTime", Instant.parse("2025-09-28T00:00:00Z").toEpochMilli())
+            .addLong("ts", System.nanoTime());
         JobExecution execution = jobLauncher.run(weatherForecastJob, params.toJobParameters());
 
         // then
@@ -115,7 +116,8 @@ class WeatherForecastJobIntegrationTest {
 
         // when
         JobParametersBuilder params = new JobParametersBuilder()
-            .addLong("executionTime", Instant.parse("2025-09-28T00:00:00Z").toEpochMilli());
+            .addLong("executionTime", Instant.parse("2025-09-28T00:00:00Z").toEpochMilli())
+            .addLong("ts", System.nanoTime());
         JobExecution execution = jobLauncher.run(weatherForecastJob, params.toJobParameters());
 
         // then

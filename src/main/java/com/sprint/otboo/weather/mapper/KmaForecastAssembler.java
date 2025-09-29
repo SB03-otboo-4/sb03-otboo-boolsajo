@@ -2,6 +2,7 @@ package com.sprint.otboo.weather.mapper;
 
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
+import com.sprint.otboo.weather.entity.WindStrength;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -48,7 +49,10 @@ public class KmaForecastAssembler {
                 .skyStatus(s.getSky())
                 .type(s.getPrecipitation())
                 .currentC((double) s.getTemperature())
-                .probability((double) s.getPrecipitationProbability())
+                .probability(((double) s.getPrecipitationProbability()) / 100.0)
+                .asWord(WindStrength.MODERATE)
+                .currentPct((double) s.getHumidity())
+                .speedMs(0.0)
                 .build();
             list.add(w);
         }

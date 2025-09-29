@@ -1,8 +1,11 @@
 package com.sprint.otboo.weather.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.weather.dto.data.PrecipitationDto;
 import com.sprint.otboo.weather.dto.data.TemperatureDto;
@@ -67,10 +70,11 @@ class WeatherServiceTest {
 
         Map<String, String> params = new LinkedHashMap<>();
         params.put("nx", "60"); params.put("ny", "127");
-        when(kmaRequestBuilder.toParams(eq(60), eq(127), any(Instant.class))).thenReturn(params);
+
+        when(kmaRequestBuilder.toParams(eq(latitude), eq(longitude), any(Instant.class))).thenReturn(params);
 
         KmaForecastResponse resp = new KmaForecastResponse();
-        resp.setItems(List.of(new KmaForecastItem())); // 더미
+        resp.setItems(List.of(new KmaForecastItem()));
         when(kmaClient.getVilageFcst(params)).thenReturn(resp);
 
         KmaForecastMapper.Slot slot = new KmaForecastMapper.Slot(
@@ -126,7 +130,8 @@ class WeatherServiceTest {
         when(locationRepository.findFirstByXAndY(98, 76)).thenReturn(Optional.of(location));
 
         Map<String, String> params = new LinkedHashMap<>();
-        when(kmaRequestBuilder.toParams(eq(98), eq(76), any(Instant.class))).thenReturn(params);
+
+        when(kmaRequestBuilder.toParams(eq(latitude), eq(longitude), any(Instant.class))).thenReturn(params);
 
         KmaForecastResponse resp = new KmaForecastResponse();
         resp.setItems(List.of(new KmaForecastItem()));
