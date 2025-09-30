@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.repository;
 
+import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.User;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
     Optional<User> findByUsername(String username);
+
+    Optional<User> findByProviderAndProviderUserId(LoginType provider, String providerUserId);
 }

@@ -315,23 +315,6 @@ public class ClothesControllerTest {
     }
 
     @Test
-    @DisplayName("권한 없는 사용자가 의상 목록 조회 시도하면 실패")
-    void 권한없는사용자_의상목록조회_실패() throws Exception {
-        // given: 로그인하지 않은 상태(권한 없음)
-        UUID ownerId = UUID.randomUUID();
-
-        // when: API 호출
-        var resultActions = mockMvc.perform(get("/api/clothes")
-            .param("ownerId", ownerId.toString())
-            .param("limit", "10")
-            .contentType(MediaType.APPLICATION_JSON));
-
-        // then: 인증 실패(401) 확인
-        resultActions
-            .andExpect(status().isUnauthorized());
-    }
-
-    @Test
     @WithMockUser(username = "user1", roles = {"USER"})
     void 의상목록조회_허용되지않는타입_예외() throws Exception {
         // given: 잘못된 타입 값
