@@ -62,7 +62,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 상의 TOP =====
-        if (lower.matches(".*(오프[- ]?숄더|민소매|셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|폴로|후디|sleeve|hoodie|hood|sweater|blouse|tank[- ]?top|crop[- ]?top|\\btop\\b|henley|polo|shirt|t[- ]?shirt|sweat[- ]?shirt|pullover|sleeveless[- ]?top|layering[- ]?top|sports[- ]?top|gym[- ]?top|bralette[- ]?top|long[- ]?top|tunic[- ]?top|high[- ]?neck[- ]?top|off[- ]?shoulder).*")) {
+        if (lower.matches(".*(오프[- ]?숄더|민소매|셔츠|티셔츠|후드|맨투맨|니트|블라우스|탑|나시|탱크탑|크롭탑|크롭나시|스웨터|스웨트|폴로|후디|반팔|sleeve|hoodie|hood|sweater|blouse|tank[- ]?top|crop[- ]?top|\\btop\\b|henley|polo|shirt|t[- ]?shirt|sweat[- ]?shirt|pullover|sleeveless[- ]?top|layering[- ]?top|sports[- ]?top|gym[- ]?top|bralette[- ]?top|long[- ]?top|tunic[- ]?top|high[- ]?neck[- ]?top|off[- ]?shoulder).*")) {
             return ClothesType.TOP;
         }
 
