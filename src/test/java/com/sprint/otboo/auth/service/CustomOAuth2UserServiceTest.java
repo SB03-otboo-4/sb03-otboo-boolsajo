@@ -15,7 +15,9 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.entity.UserProfile;
 import com.sprint.otboo.user.mapper.UserMapper;
+import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.Collections;
@@ -26,6 +28,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -42,6 +45,9 @@ class CustomOAuth2UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private UserProfileRepository userProfileRepository;
 
     @Mock
     private UserMapper userMapper;
@@ -120,7 +126,15 @@ class CustomOAuth2UserServiceTest {
         assertThat(resultUserDto.email()).isEqualTo("테스트유저@kakao.com");
         assertThat(resultUserDto.name()).isEqualTo("테스트유저");
         assertThat(resultUserDto.role()).isEqualTo(Role.USER);
-        verify(userRepository, times(1)).save(any(User.class));
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+
+        verify(userRepository, times(1)).save(userCaptor.capture());
+        verify(userProfileRepository, times(1)).save(profileCaptor.capture());
+        User savedUser = userCaptor.getValue();
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.getUser()).isEqualTo(savedUser);
     }
 
     @Test
@@ -167,6 +181,7 @@ class CustomOAuth2UserServiceTest {
         assertThat(resultUserDto.email()).isEqualTo("googleuser@gmail.com");
         assertThat(resultUserDto.id()).isEqualTo(existingUser.getId());
         verify(userRepository, never()).save(any(User.class));
+        verify(userProfileRepository, never()).save(any(UserProfile.class));
     }
 
     @Test
@@ -190,5 +205,6 @@ class CustomOAuth2UserServiceTest {
         assertThat(thrown)
             .isNotNull()
             .isInstanceOf(NullPointerException.class);
+        verify(userProfileRepository, never()).save(any(UserProfile.class));
     }
 }

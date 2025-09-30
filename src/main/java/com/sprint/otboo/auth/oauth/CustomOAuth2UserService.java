@@ -4,7 +4,9 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
+import com.sprint.otboo.user.entity.UserProfile;
 import com.sprint.otboo.user.mapper.UserMapper;
+import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final UserMapper userMapper;
     private final DefaultOAuth2UserService delegate;
 
@@ -56,7 +59,14 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     .provider(provider)
                     .providerUserId(providerUserId)
                     .build();
-                return userRepository.save(newUser);
+                User savedUser = userRepository.save(newUser);
+
+                UserProfile profile = UserProfile.builder()
+                    .user(savedUser)
+                    .build();
+                userProfileRepository.save(profile);
+
+                return savedUser;
             });
 
         UserDto userDto = userMapper.toUserDto(user);
