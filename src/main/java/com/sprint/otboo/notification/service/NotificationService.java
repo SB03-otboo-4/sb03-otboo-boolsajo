@@ -10,6 +10,8 @@ public interface NotificationService {
 
     CursorPageResponse<NotificationDto> getNotifications(UUID receiverId, NotificationQueryParams query);
 
+    void deleteNotification(UUID notificationId);
+
     NotificationDto notifyRoleChanged(UUID receiverId, Role newRole);
 
     void notifyClothesAttributeCreatedForAllUsers(String attributeName);
