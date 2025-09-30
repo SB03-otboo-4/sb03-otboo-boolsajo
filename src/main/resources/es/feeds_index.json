@@ -1,0 +1,66 @@
+{
+  "settings": {
+    "index.number_of_shards": 1,
+    "index.number_of_replicas": 0,
+
+    "index.max_ngram_diff": 20,
+    "analysis": {
+      "filter": {
+        "shingle_2_3": { "type": "shingle", "min_shingle_size": 2, "max_shingle_size": 3, "output_unigrams": false },
+        "edge_2_20":   { "type": "edge_ngram", "min_gram": 2, "max_gram": 20 }
+      },
+      "tokenizer": {
+        "ngram_2_20": { "type": "ngram", "min_gram": 2, "max_gram": 20 }
+      },
+      "analyzer": {
+        "ko_nori":   { "type": "custom", "tokenizer": "nori_tokenizer", "filter": [ "lowercase" ] },
+        "ko_shingle":{ "type": "custom", "tokenizer": "nori_tokenizer", "filter": [ "lowercase", "shingle_2_3" ] },
+        "ko_edge":   { "type": "custom", "tokenizer": "ngram_2_20",     "filter": [ "lowercase" ] },
+        "ko_nospace":{ "type": "custom", "tokenizer": "keyword",        "filter": [ "lowercase" ] }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": false,
+    "properties": {
+      "id":         { "type": "keyword" },
+      "author": {
+        "properties": {
+          "id":   { "type": "keyword" },
+          "name": {
+            "type": "text",
+            "analyzer": "ko_nori",
+            "fields": {
+              "raw": { "type": "keyword", "ignore_above": 256 }
+            }
+          }
+        }
+      },
+      "weather": { "type": "object", "enabled": true },
+      "ootds":   { "type": "object", "enabled": true },
+
+      "content": {
+        "type": "text",
+        "analyzer": "ko_nori",
+        "fields": {
+          "kw":      { "type": "keyword", "ignore_above": 2048 },
+          "shingle": { "type": "text", "analyzer": "ko_shingle" },
+          "ngram":   { "type": "text", "analyzer": "ko_edge" },
+          "nospace": { "type": "text", "analyzer": "ko_nospace" }
+        }
+      },
+
+      "likeCount":    { "type": "long" },
+      "commentCount": { "type": "integer" },
+      "likedByMe":    { "type": "boolean" },
+
+      "createdAt": { "type": "date", "format": "strict_date_optional_time||epoch_millis" },
+      "updatedAt": { "type": "date", "format": "strict_date_optional_time||epoch_millis" }
+    }
+  },
+  "aliases": {
+    "feeds":      {},
+    "feed-read":  {},
+    "feed-write": { "is_write_index": true }
+  }
+}

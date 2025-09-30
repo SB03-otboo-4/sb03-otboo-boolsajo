@@ -2,6 +2,7 @@ package com.sprint.otboo.feedsearch.batch;
 
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
+import com.sprint.otboo.feedsearch.bootstrap.EsIndexBootstrapper;
 import com.sprint.otboo.feedsearch.dto.FeedDoc;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -12,13 +13,12 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 @RequiredArgsConstructor
@@ -30,6 +30,7 @@ public class FeedIndexBatchService {
     private final FeedMapper feedMapper;
     private final FeedIndexer feedIndexer;
     private final TransactionTemplate txTemplate;
+    private final EsIndexBootstrapper esIndexBootstrapper;
 
     @PersistenceContext
     private EntityManager em;
@@ -44,42 +45,65 @@ public class FeedIndexBatchService {
 
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     public void scheduledReindex() {
-        runSafely("scheduled", false);
+        runSafely("scheduled", false, true);
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void runOnceOnStartup() {
         if (!runOnStartup) {
-            log.info("앱 기동 시 색인 비활성화되어 있습니다. (app.index.run-on-startup=false)");
+            log.info("[FeedIndexBatchService] 앱 기동 시 색인 비활성화됨 (app.index.run-on-startup=false)");
             return;
         }
-        runSafely("startup", false);
+        runSafely("startup", false, true);
     }
 
-    private void runSafely(String reason, boolean fullReindex) {
+    /**
+     * [FeedIndexBatchService] 안전 실행 래퍼
+     * - 동시 실행 방지
+     * - 필요 시 커서 초기화(풀 리인덱스)
+     * - 필요 시 프리플라이트(인덱스 보장) 수행
+     */
+    private void runSafely(String reason, boolean fullReindex, boolean preflight) {
         if (!running.compareAndSet(false, true)) {
-            log.warn("피드 색인이 이미 실행 중입니다. 건너뜁니다. (reason={})", reason);
+            log.warn("[FeedIndexBatchService] 색인이 이미 실행 중이어서 건너뜀 (reason={})", reason);
             return;
         }
         try {
+            if (preflight) {
+                preflightEnsure();
+            }
             if (fullReindex) {
                 resetCursor();
             }
             reindex();
         } catch (Exception e) {
-            log.error("색인 실패 (reason={})", reason, e);
+            log.error("[FeedIndexBatchService] 색인 실패 (reason={})", reason, e);
         } finally {
             running.set(false);
+        }
+    }
+
+    /**
+     * [FeedIndexBatchService] 프리플라이트: 인덱스 보장
+     * - 부트스트랩퍼를 통해 인덱스가 없으면 생성한다.
+     * - 도커 재기동 등 초기 상태에서도 안전하게 동작.
+     */
+    private void preflightEnsure() {
+        try {
+            esIndexBootstrapper.ensure();
+            log.debug("[FeedIndexBatchService] 프리플라이트 완료 (인덱스 보장)");
+        } catch (Exception e) {
+            throw new IllegalStateException("[FeedIndexBatchService] 프리플라이트 실패: 인덱스가 준비되지 않음", e);
         }
     }
 
     private void resetCursor() {
         this.cursorUpdatedAt = Instant.EPOCH;
         this.cursorId = new UUID(0, 0);
-        log.info("커서를 초기화했습니다. (full reindex)");
+        log.info("[FeedIndexBatchService] 커서를 초기화했습니다. (full reindex)");
     }
 
-    public void reindex() throws IOException {
+    public void reindex() {
         txTemplate.executeWithoutResult(status -> {
             try {
                 long totalDone = 0L;
@@ -96,11 +120,11 @@ public class FeedIndexBatchService {
                     em.clear();
 
                     totalDone += docs.size();
-                    log.info("피드 색인 진행건수: {}", totalDone);
+                    log.info("[FeedIndexBatchService] 피드 색인 진행건수: {}", totalDone);
                 }
                 feedIndexer.refresh();
-                log.info("피드 색인 완료. total={}", totalDone);
-            } catch (IOException e) {
+                log.info("[FeedIndexBatchService] 피드 색인 완료. total={}", totalDone);
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
