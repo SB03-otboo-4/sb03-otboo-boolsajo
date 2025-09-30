@@ -59,7 +59,7 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
 
     // ====== 필드 상수 (인덱스 템플릿과 일치해야 함) ======
     private static final String F_CONTENT = "content";
-    private static final String F_CONTENT_KW = "content.kw";        // 템플릿의 정확일치 서브필드
+    private static final String F_CONTENT_KW = "content.kw";
     private static final String F_CONTENT_NGRAM = "content.ngram";
     private static final String F_CONTENT_NOSPACE = "content.nospace";
     private static final String F_CONTENT_SHINGLE = "content.shingle";
@@ -308,7 +308,7 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
 
         if (authorId != null) {
             filters.add(new Query.Builder()
-                .term(t -> t.field("author.id").value(authorId.toString()))
+                .term(t -> t.field("author.userId").value(authorId.toString()))
                 .build());
         }
         if (skyStatus != null) {

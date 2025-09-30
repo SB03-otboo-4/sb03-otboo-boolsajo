@@ -19,6 +19,8 @@ spring:
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
+  elasticsearch:
+    uris: http://localhost:9200
 
   # Spring Actuator
   management:
@@ -36,14 +38,7 @@ spring:
         enabled: true
       java:
         enabled: true
-  elasticsearch:
-    uris: http://localhost:9200
-  # Spring Batch
-  batch:
-    job:
-      enabled: true   # 앱 시작 시 배치 Job 자동 실행(테스트/개발 편의)
-    jdbc:
-      initialize-schema: always
+
 logging:
   level:
     root: info

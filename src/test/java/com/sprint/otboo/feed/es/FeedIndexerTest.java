@@ -74,7 +74,7 @@ class FeedIndexerTest {
     @Autowired
     FeedIndexer indexer;
 
-    private static final String WRITE_ALIAS = "feeds";
+    private static final String WRITE_ALIAS = "feed-write";
 
 
     @BeforeEach
