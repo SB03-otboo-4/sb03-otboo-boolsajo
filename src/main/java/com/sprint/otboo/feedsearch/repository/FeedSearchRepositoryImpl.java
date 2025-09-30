@@ -73,15 +73,15 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
     /**
      * 피드 ID 목록을 커서 페이지네이션으로 조회한다.
      *
-     * @param cursor         직전 페이지의 1차 정렬 필드 값(문자열). likeCount/createdAt 값이 들어온다.
-     * @param idAfter        직전 페이지의 마지막 문서 id(UUID). search_after의 2번째 키
-     * @param limit          페이지 크기(최대 100)
-     * @param sortBy         정렬 기준: "likeCount" 또는 "createdAt"
-     * @param sortDirection  "ASCENDING" 또는 "DESCENDING" (기본: DESC)
-     * @param keywordLike    검색어(가중치 검색). null/blank면 전체조회
-     * @param skyStatus      하늘 상태 필터 (선택)
+     * @param cursor            직전 페이지의 1차 정렬 필드 값(문자열). likeCount/createdAt 값이 들어온다.
+     * @param idAfter           직전 페이지의 마지막 문서 id(UUID). search_after의 2번째 키
+     * @param limit             페이지 크기(최대 100)
+     * @param sortBy            정렬 기준: "likeCount" 또는 "createdAt"
+     * @param sortDirection     "ASCENDING" 또는 "DESCENDING" (기본: DESC)
+     * @param keywordLike       검색어(가중치 검색). null/blank면 전체조회
+     * @param skyStatus         하늘 상태 필터 (선택)
      * @param precipitationType 강수 유형 필터 (선택)
-     * @param authorId       작성자 ID 필터 (선택)
+     * @param authorId          작성자 ID 필터 (선택)
      * @return ID 목록과 다음 커서 정보가 포함된 {@link CursorPageResponse}
      */
     @Override
@@ -155,7 +155,7 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
     }
 
     /**
-     * search_after 값을 구성한다. [primarySortValue, idAfter] 형태.
+     * search_after 값을 구성한다. [primarySortValue, idAfter] 형태
      */
     private List<Object> buildSearchAfter(String primary, String cursor, UUID idAfter) {
         if (cursor == null || idAfter == null) {
@@ -166,7 +166,7 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
     }
 
     /**
-     * 다음 페이지 커서 구성을 위해 마지막 히트의 sort_values 를 파싱한다.
+     * 다음 페이지 커서 구성을 위해 마지막 히트의 sort_values 를 파싱한다
      */
     private NextCursor buildNextCursor(List<SearchHit<FeedDoc>> page) {
         List<Object> sv = page.get(page.size() - 1).getSortValues();
@@ -177,12 +177,16 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
         return new NextCursor(cursor, idAfter);
     }
 
-    /** 커서 DTO. */
-    private record NextCursor(String cursor, String idAfter) {}
+    /**
+     * 커서 DTO
+     */
+    private record NextCursor(String cursor, String idAfter) {
+
+    }
 
     /**
      * 커서 문자열을 정렬 기준 타입에 맞게 파싱한다.
-     * likeCount → long, createdAt → long(에포크밀리) 또는 문자열(ES가 반환한 값 그대로) 허용.
+     * likeCount → long, createdAt → long(에포크밀리) 또는 문자열(ES가 반환한 값 그대로) 허용
      */
     private Object parseCursorValue(String primary, String cursor) {
         if (cursor == null) {
@@ -195,7 +199,9 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
         return numeric ? Long.parseLong(cursor) : cursor;
     }
 
-    /** 공백 제거 유틸. */
+    /**
+     * 공백 제거 유틸
+     */
     private static String noSpace(String s) {
         return (s == null) ? null : s.replaceAll("\\s+", "");
     }

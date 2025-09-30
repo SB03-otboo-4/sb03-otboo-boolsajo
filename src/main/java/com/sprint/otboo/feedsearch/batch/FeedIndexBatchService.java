@@ -109,7 +109,9 @@ public class FeedIndexBatchService {
                 long totalDone = 0L;
                 while (true) {
                     List<Feed> chunk = fetchNextChunk(PAGE_SIZE);
-                    if (chunk.isEmpty()) break;
+                    if (chunk.isEmpty()) {
+                        break;
+                    }
 
                     List<FeedDoc> docs = chunk.stream()
                         .map(feedMapper::toDoc)

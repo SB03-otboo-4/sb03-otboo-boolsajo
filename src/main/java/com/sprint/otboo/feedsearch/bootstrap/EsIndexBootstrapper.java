@@ -13,8 +13,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 
 /**
- * [EsIndexBootstrapper]
- * - 앱 기동 시 ES 인덱스가 없으면 생성한다.
+ * [EsIndexBootstrapper] - 앱 기동 시 ES 인덱스가 없으면 생성한다.
  */
 @Component
 @RequiredArgsConstructor
@@ -24,8 +23,8 @@ public class EsIndexBootstrapper {
     private final ElasticsearchClient es;
 
     // 인덱스 이름과 매핑/세팅 JSON 경로는 여기서 관리
-    private static final String INDEX_NAME  = "feeds_v1-000001";
-    private static final String INDEX_JSON  = "es/feeds_index.json";
+    private static final String INDEX_NAME = "feeds_v1-000001";
+    private static final String INDEX_JSON = "es/feeds_index.json";
 
     /**
      * [EsIndexBootstrapper] 인덱스 보장(없으면 생성)
@@ -57,7 +56,8 @@ public class EsIndexBootstrapper {
      */
     private void createIndexFromJson(String indexName, String classpathJson) throws IOException {
         ClassPathResource resource = new ClassPathResource(classpathJson);
-        try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)) {
+        try (Reader reader = new InputStreamReader(resource.getInputStream(),
+            StandardCharsets.UTF_8)) {
             es.indices().create(c -> c.index(indexName).withJson(reader));
         }
     }

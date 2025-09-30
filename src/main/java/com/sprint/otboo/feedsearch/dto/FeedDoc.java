@@ -12,9 +12,9 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 
 public record FeedDoc(
     UUID id,
-    @Field(type = FieldType.Date, format = { DateFormat.date_time, DateFormat.epoch_millis })
+    @Field(type = FieldType.Date, format = {DateFormat.date_time, DateFormat.epoch_millis})
     Instant createdAt,
-    @Field(type = FieldType.Date, format = { DateFormat.date_time, DateFormat.epoch_millis })
+    @Field(type = FieldType.Date, format = {DateFormat.date_time, DateFormat.epoch_millis})
     Instant updatedAt,
     AuthorDto author,
     WeatherSummaryDto weather,

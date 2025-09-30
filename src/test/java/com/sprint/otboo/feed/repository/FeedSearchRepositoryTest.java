@@ -75,9 +75,9 @@ class FeedSearchRepositoryTest {
                 .properties("likeCount", p -> p.long_(l -> l))
                 .properties("content",
                     p -> p.text(t -> t.fields("ngram", f -> f.searchAsYouType(s -> s))))
-                .properties("author",    p -> p.object(o -> o
+                .properties("author", p -> p.object(o -> o
                     .properties("userId", pp -> pp.keyword(k -> k))
-                    .properties("name",   pp -> pp.text(t -> t))
+                    .properties("name", pp -> pp.text(t -> t))
                 ))
                 .properties("weather", p -> p.object(o -> o
                     .properties("skyStatus", pp -> pp.keyword(k -> k))
