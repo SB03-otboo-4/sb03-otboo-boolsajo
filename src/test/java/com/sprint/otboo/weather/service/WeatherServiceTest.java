@@ -78,7 +78,14 @@ class WeatherServiceTest {
         when(kmaClient.getVilageFcst(params)).thenReturn(resp);
 
         KmaForecastMapper.Slot slot = new KmaForecastMapper.Slot(
-            "20250928","0900", SkyStatus.CLEAR, PrecipitationType.NONE, 22, 60, 10
+            "20250928", "0900",
+            SkyStatus.CLEAR,
+            PrecipitationType.NONE,
+            22,  // temperature
+            60,  // humidity
+            10,  // precipitationProbability
+            null, // windSpeedMs
+            null  // windQualCode
         );
         when(kmaAssembler.toSlots(resp.getItems())).thenReturn(List.of(slot));
 
@@ -121,7 +128,7 @@ class WeatherServiceTest {
         Double latitude = 35.1796;
         Double longitude = 129.0756;
 
-        WeatherLocationResponse locDto = new WeatherLocationResponse(35.1796,129.0756,98,76, java.util.List.of());
+        WeatherLocationResponse locDto = new WeatherLocationResponse(35.1796, 129.0756, 98, 76, java.util.List.of());
         when(locationQueryService.getWeatherLocation(latitude, longitude)).thenReturn(locDto);
 
         WeatherLocation location = WeatherLocation.builder().build();
@@ -138,7 +145,14 @@ class WeatherServiceTest {
         when(kmaClient.getVilageFcst(params)).thenReturn(resp);
 
         KmaForecastMapper.Slot slot = new KmaForecastMapper.Slot(
-            "20250928","1200", SkyStatus.MOSTLY_CLOUDY, PrecipitationType.NONE, 24, 55, 0
+            "20250928", "1200",
+            SkyStatus.MOSTLY_CLOUDY,
+            PrecipitationType.NONE,
+            24,  // temperature
+            55,  // humidity
+            0,   // precipitationProbability
+            null, // windSpeedMs
+            null  // windQualCode
         );
         when(kmaAssembler.toSlots(resp.getItems())).thenReturn(List.of(slot));
 
