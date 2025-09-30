@@ -10,9 +10,12 @@ import com.sprint.otboo.user.repository.query.UserQueryRepository;
 import com.sprint.otboo.user.repository.query.UserQueryRepositoryImpl;
 import com.sprint.otboo.user.repository.query.UserSlice;
 import com.sprint.otboo.user.service.support.UserListEnums;
+import com.sprint.otboo.user.service.support.UserListEnums.SortBy;
+import com.sprint.otboo.user.service.support.UserListEnums.SortDirection;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -267,6 +270,123 @@ public class UserRepositoryTest {
         // then
         assertThat(second.rows()).isNotEmpty();
         assertThat(second.rows()).noneMatch(user -> first.rows().contains(user));
+    }
+
+    @Test
+    void findSlice_email_ASC_filter_가_적용되어_조건에_맞는_사용자만_반환() {
+        // given
+        entityManager.persistAndFlush(User.builder()
+            .username("testUser")
+            .email("test@test.com")
+            .password("encodedPassword")
+            .role(Role.USER)
+            .provider(LoginType.GENERAL)
+            .locked(false)
+            .build());
+
+        // when
+        UserSlice slice = userQueryRepository.findSlice(
+            null,
+            null,
+            10,
+            SortBy.EMAIL,
+            SortDirection.ASCENDING,
+            "test",
+            Role.USER,
+            false
+        );
+
+        // then
+        assertThat(slice.rows())
+            .hasSize(3)
+            .allMatch(user -> user.getEmail().contains("test"))
+            .allMatch(user -> user.getRole() == Role.USER)
+            .allMatch(user -> Boolean.FALSE.equals(user.getLocked()));
+    }
+
+    @Test
+    void findSlice_cursor를_사용하면_중복없이_다음_페이지를_조회() {
+        // given
+        UserSlice firstPage = userQueryRepository.findSlice(
+            null,
+            null,
+            2,
+            SortBy.CREATED_AT,
+            SortDirection.ASCENDING,
+            null,
+            null,
+            null
+        );
+
+        // when
+        UserSlice secondPage = userQueryRepository.findSlice(
+            firstPage.nextCursor(),
+            null,
+            2,
+            SortBy.CREATED_AT,
+            SortDirection.ASCENDING,
+            null,
+            null,
+            null
+        );
+
+        // then
+        assertThat(firstPage.rows()).hasSize(2);
+        assertThat(secondPage.rows()).hasSize(2);
+        assertThat(secondPage.rows())
+            .noneMatch(firstPage.rows()::contains);
+        assertThat(secondPage.hasNext()).isTrue();
+    }
+
+    @Test
+    void countAll_역할과_잠금상태_핉터로_개수를_집계() {
+        // given
+        // seedForCursorList 메서드 데이터 사용
+
+        // when
+        long count = userQueryRepository.countAll(
+            null,
+            Role.USER,
+            true
+        );
+
+        // then
+        assertThat(count).isEqualTo(1L);
+    }
+
+    @Test
+    void findSlice_idAfter_지정_시_해당_아이디_이후만_조회() {
+        // given
+        UserSlice firstPage = userQueryRepository.findSlice(
+            null,
+            null,
+            2,
+            SortBy.CREATED_AT,
+            SortDirection.DESCENDING,
+            null,
+            null,
+            null
+        );
+        UUID idAfter = firstPage.nextIdAfter();
+
+        // when
+        UserSlice secondPage = userQueryRepository.findSlice(
+            null,
+            idAfter,
+            2,
+            SortBy.CREATED_AT,
+            SortDirection.DESCENDING,
+            null,
+            null,
+            null
+        );
+
+        // then
+        assertThat(secondPage.rows()).isNotEmpty();
+        assertThat(secondPage.rows())
+            .allMatch(user -> user.getCreatedAt().isBefore(firstPage.rows().get(0).getCreatedAt())
+            || user.getCreatedAt().equals(firstPage.rows().get(0).getCreatedAt())
+            && user.getId().compareTo(idAfter) < 0);
     }
 
     /**

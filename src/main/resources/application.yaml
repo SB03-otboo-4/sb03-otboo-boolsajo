@@ -97,3 +97,8 @@ storage:
     prefixes:
       profile: binary-content/profiles
       clothing: binary-content/clothing
+
+# defaultPassword
+admin:
+  default:
+    password: ${ADMIN_DEFAULT_PASSWORD}
