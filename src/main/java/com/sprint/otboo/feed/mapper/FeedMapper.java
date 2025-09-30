@@ -8,6 +8,7 @@ import com.sprint.otboo.feed.entity.FeedClothes;
 import com.sprint.otboo.feedsearch.dto.FeedDoc;
 import com.sprint.otboo.user.mapper.AuthorMapper;
 import com.sprint.otboo.weather.mapper.WeatherMapper;
+import java.time.Instant;
 import org.mapstruct.*;
 
 @Mapper(
@@ -35,7 +36,14 @@ public interface FeedMapper {
 
     @Mappings({
         @Mapping(target = "ootds", source = "feedClothes"),
-        @Mapping(target = "likedByMe", constant = "false")
+        @Mapping(target = "likedByMe", constant = "false"),
+        @Mapping(target = "createdAt", source = "createdAt", qualifiedByName = "toMillis"),
+        @Mapping(target = "updatedAt", source = "updatedAt", qualifiedByName = "toMillis")
     })
     FeedDoc toDoc(Feed feed);
+
+    @Named("toMillis")
+    public static Instant toMillis(Instant t) {
+        return (t == null) ? null : Instant.ofEpochMilli(t.toEpochMilli());
+    }
 }

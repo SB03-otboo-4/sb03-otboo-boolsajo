@@ -31,6 +31,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
 
+    private static final String F_CONTENT = "content";
+    private static final String F_CONTENT_KW = "content.keyword";
+    private static final String F_CONTENT_NGRAM = "content.ngram";
+    private static final String F_CONTENT_NOSPACE = "content.nospace";
+    private static final String F_CONTENT_SHINGLE = "content.shingle";
+    private static final String F_AUTHOR_NAME = "author.name";
+
     private final ElasticsearchOperations es;
     private static final IndexCoordinates INDEX = IndexCoordinates.of("feeds");
 
@@ -134,6 +141,10 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
         return numeric ? Long.parseLong(cursor) : cursor;
     }
 
+    private static String noSpace(String s) {
+        return (s == null) ? null : s.replaceAll("\\s+", "");
+    }
+
     @Override
     @Transactional(readOnly = true)
     public long countByFilters(
@@ -166,20 +177,69 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
         PrecipitationType precipitationType,
         UUID authorId
     ) {
-        List<Query> must = new ArrayList<>();
-        if (keywordLike != null && !keywordLike.isBlank()) {
-            must.add(new Query.Builder().multiMatch(mb -> mb
-                .query(keywordLike.trim())
-                .fields("content^2", "author.name")
+        final List<Query> must = new ArrayList<>();
+        final List<Query> should = new ArrayList<>();
+        final List<Query> filters = new ArrayList<>();
+
+        final String q = (keywordLike == null) ? "" : keywordLike.trim();
+        final boolean hasQ = !q.isBlank();
+        final String qNoSpace = hasQ ? noSpace(q) : null;
+
+        if (!hasQ) {
+            // 검색어 없으면 전체 조회
+            must.add(MatchAllQuery.of(m -> m)._toQuery());
+        } else {
+            // 1) 정확 일치 (가중치 최상)
+            should.add(new Query.Builder().term(t -> t
+                .field(F_CONTENT_KW)
+                .value(q)
+                .boost(8.0f)
+            ).build());
+
+            // 2) 형태소 기본 매치 (AND, best_fields)
+            should.add(new Query.Builder().multiMatch(mm -> mm
+                .query(q)
+                .fields(F_CONTENT + "^3", F_AUTHOR_NAME + "^1.2")
                 .operator(Operator.And)
                 .type(TextQueryType.BestFields)
-                .fuzziness("AUTO")
+                .boost(3.0f)
             ).build());
-        } else {
-            must.add(MatchAllQuery.of(m -> m)._toQuery());
+
+            // 3) 문구(shingle) — 띄어쓰기 변형/연속어 보조
+            should.add(new Query.Builder().matchPhrase(mp -> mp
+                .field(F_CONTENT_SHINGLE)
+                .query(q)
+                .slop(2)
+                .boost(2.5f)
+            ).build());
+
+            // 4) 오타 허용(fuzzy) — 한국어 과확장 방지용 낮은 가중치
+            should.add(new Query.Builder().multiMatch(mm -> mm
+                .query(q)
+                .fields(F_CONTENT, F_AUTHOR_NAME)
+                .fuzziness("AUTO")
+                .prefixLength(1)
+                .maxExpansions(30)
+                .boost(1.5f)
+            ).build());
+
+            // 5) 부분일치(edge n-gram)
+            should.add(new Query.Builder().multiMatch(mm -> mm
+                .query(q)
+                .fields(F_CONTENT_NGRAM + "^1.3")
+                .boost(1.3f)
+            ).build());
+
+            // 6) 띄어쓰기 오류(no-space) 보정
+            if (qNoSpace != null && !qNoSpace.isBlank()) {
+                should.add(new Query.Builder().multiMatch(mm -> mm
+                    .query(qNoSpace)
+                    .fields(F_CONTENT_NOSPACE + "^1.6")
+                    .boost(1.6f)
+                ).build());
+            }
         }
 
-        List<Query> filters = new ArrayList<>();
         if (authorId != null) {
             filters.add(new Query.Builder()
                 .term(t -> t.field("author.userId").value(authorId.toString()))
@@ -195,6 +255,11 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
                 .term(t -> t.field("weather.precipitation.type").value(precipitationType.name()))
                 .build());
         }
-        return new Query.Builder().bool(b -> b.must(must).filter(filters)).build();
+        return new Query.Builder().bool(b -> b
+            .must(must)
+            .should(should)
+            .filter(filters)
+            .minimumShouldMatch(hasQ ? "1" : null)
+        ).build();
     }
 }

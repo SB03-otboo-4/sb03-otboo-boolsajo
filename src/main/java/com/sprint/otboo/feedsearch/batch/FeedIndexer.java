@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FeedIndexer {
 
-    private static final String INDEX_ALIAS = "feeds";
+    private static final String INDEX_ALIAS = "feed-write";
 
     private final ElasticsearchClient es;
 
