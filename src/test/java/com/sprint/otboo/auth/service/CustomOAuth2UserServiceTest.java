@@ -3,6 +3,7 @@ package com.sprint.otboo.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -17,6 +18,8 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,9 +30,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 @ExtendWith(MockitoExtension.class)
 class CustomOAuth2UserServiceTest {
@@ -39,6 +45,9 @@ class CustomOAuth2UserServiceTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private DefaultOAuth2UserService delegate;
 
     @InjectMocks
     private CustomOAuth2UserService customOAuth2UserService;
@@ -78,13 +87,16 @@ class CustomOAuth2UserServiceTest {
     @Test
     void 카카오소셜로그인_신규가입() {
         // given
+        Map<String, Object> kakaoAccount = new HashMap<>();
+        kakaoAccount.put("email", null);
         Map<String, Object> attributes = Map.of(
             "id", "123456789",
             "properties", Map.of("nickname", "테스트유저"),
-            "kakao_account", Map.of("email", null)
-        );
+            "kakao_account", kakaoAccount);
         OAuth2UserRequest userRequest = createOAuth2UserRequest(kakaoClientRegistration, attributes);
+        OAuth2User mockOAuth2User = new DefaultOAuth2User(Collections.emptyList(), attributes, "id");
 
+        when(delegate.loadUser(userRequest)).thenReturn(mockOAuth2User);
         when(userRepository.findByProviderAndProviderUserId(LoginType.KAKAO, "123456789")).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userMapper.toUserDto(any(User.class))).thenAnswer(inv -> {
@@ -92,8 +104,8 @@ class CustomOAuth2UserServiceTest {
             return new UserDto(
                 UUID.randomUUID(),
                 user.getCreatedAt(),
-                user.getUsername(),
                 user.getEmail(),
+                user.getUsername(),
                 user.getRole(),
                 user.getProvider(),
                 user.getLocked());
@@ -121,6 +133,9 @@ class CustomOAuth2UserServiceTest {
         );
         OAuth2UserRequest userRequest = createOAuth2UserRequest(googleClientRegistration, attributes);
 
+        OAuth2User mockOAuth2User = new DefaultOAuth2User(Collections.emptyList(), attributes, "sub");
+        when(delegate.loadUser(userRequest)).thenReturn(mockOAuth2User);
+
         User existingUser = User.builder()
             .id(UUID.randomUUID())
             .username("기존유저")
@@ -130,7 +145,14 @@ class CustomOAuth2UserServiceTest {
             .role(Role.USER)
             .build();
 
-        UserDto existingUserDto = new UserDto(existingUser.getId(), existingUser.getCreatedAt(), existingUser.getUsername(), existingUser.getEmail(), existingUser.getRole(), existingUser.getProvider(), existingUser.getLocked());
+        UserDto existingUserDto = new UserDto(
+            existingUser.getId(),
+            existingUser.getCreatedAt(),
+            existingUser.getEmail(),
+            existingUser.getUsername(),
+            existingUser.getRole(),
+            existingUser.getProvider(),
+            existingUser.getLocked());
 
         when(userRepository.findByProviderAndProviderUserId(LoginType.GOOGLE, "987654321")).thenReturn(Optional.of(existingUser));
         when(userMapper.toUserDto(existingUser)).thenReturn(existingUserDto);
@@ -154,6 +176,10 @@ class CustomOAuth2UserServiceTest {
             "properties", Map.of("nickname", "테스트유저")
         );
         OAuth2UserRequest userRequest = createOAuth2UserRequest(kakaoClientRegistration, attributes);
+
+        OAuth2User mockOAuth2User = mock(OAuth2User.class);
+        when(mockOAuth2User.getAttributes()).thenReturn(attributes);
+        when(delegate.loadUser(userRequest)).thenReturn(mockOAuth2User);
 
         // when
         Throwable thrown = catchThrowable(() -> {

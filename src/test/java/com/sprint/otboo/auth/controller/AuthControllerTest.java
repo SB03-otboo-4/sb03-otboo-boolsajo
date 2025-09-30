@@ -23,6 +23,8 @@ import com.sprint.otboo.auth.dto.SignInRequest;
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import com.sprint.otboo.auth.jwt.RefreshTokenCookieUtil;
 import com.sprint.otboo.auth.jwt.TokenProvider;
+import com.sprint.otboo.auth.oauth.CustomOAuth2UserService;
+import com.sprint.otboo.auth.oauth.OAuth2LoginSuccessHandler;
 import com.sprint.otboo.auth.service.AuthService;
 import com.sprint.otboo.common.config.SecurityConfig;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
@@ -78,6 +80,12 @@ public class AuthControllerTest {
 
     @MockitoBean
     CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+    @MockitoBean
+    CustomOAuth2UserService customOAuth2UserService;
+
+    @MockitoBean
+    OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
     @BeforeEach
     void setUp() throws ServletException, IOException {
