@@ -42,8 +42,7 @@ public class FeedIndexEventListener {
     private final FeedRepository feedRepository;
     private final FeedMapper feedMapper;
 
-    @Value("${search.index.write-alias:feeds}")
-    private String writeAlias;
+    private static final String INDEX_ALIAS = "feed-write";
 
     @Value("${search.index.refresh-policy:WAIT_FOR}")
     private String refreshPolicy;
@@ -82,13 +81,13 @@ public class FeedIndexEventListener {
 
             FeedDoc doc = feedMapper.toDoc(f);
 
-            es.index(i -> i.index(writeAlias)
+            es.index(i -> i.index(INDEX_ALIAS)
                 .id(doc.id().toString())
                 .document(doc)
                 .refresh(refresh())
                 .timeout(t -> t.time("2s")));
 
-            log.debug("[FeedIndexEventListener] upsert 성공: feedId={}, index={}", e.feedId(), writeAlias);
+            log.debug("[FeedIndexEventListener] upsert 성공: feedId={}, index={}", e.feedId(), INDEX_ALIAS);
         } catch (Exception ex) {
             log.error("[FeedIndexEventListener] upsert 실패: feedId={}", e.feedId(), ex);
         }
@@ -104,11 +103,11 @@ public class FeedIndexEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onDeleted(FeedDeletedEvent e) {
         try {
-            es.delete(d -> d.index(writeAlias)
+            es.delete(d -> d.index(INDEX_ALIAS)
                 .id(e.feedId().toString())
                 .refresh(refresh()));
 
-            log.debug("[FeedIndexEventListener] delete 성공: feedId={}, index={}", e.feedId(), writeAlias);
+            log.debug("[FeedIndexEventListener] delete 성공: feedId={}, index={}", e.feedId(), INDEX_ALIAS);
         } catch (Exception ex) {
             log.error("[FeedIndexEventListener] delete 실패: feedId={}", e.feedId(), ex);
         }
