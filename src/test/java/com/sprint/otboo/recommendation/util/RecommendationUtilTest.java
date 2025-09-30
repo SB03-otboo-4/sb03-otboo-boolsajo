@@ -63,7 +63,7 @@ public class RecommendationUtilTest {
 
         // when: 추천 실행
         RecommendationEngine engine = new RecommendationEngineImpl();
-        List<Clothes> recommended = engine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함되는지 검증
         assertThat(recommended).contains(springTop);
@@ -96,7 +96,7 @@ public class RecommendationUtilTest {
         RecommendationEngine engine = new RecommendationEngineImpl();
 
         // when: 체감 온도 계산 및 추천 실행
-        List<Clothes> recommended = engine.recommend(List.of(springTop), perceivedTemp, weather);
+        List<Clothes> recommended = engine.recommend(List.of(springTop), perceivedTemp, weather, true);
 
         // then: 추천 목록에 의상 포함
         assertThat(recommended).contains(springTop);
@@ -127,7 +127,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
             weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 3);
         RecommendationEngine engine = new RecommendationEngineImpl();
-        List<Clothes> recommended = engine.recommend(List.of(summerTop), perceivedTemp, weather);
+        List<Clothes> recommended = engine.recommend(List.of(summerTop), perceivedTemp, weather, true);
 
         // then: 추천 목록에 의상 포함
         assertThat(recommended).contains(summerTop);
@@ -163,7 +163,7 @@ public class RecommendationUtilTest {
             weather.getSpeedMs(), 0.8,
             2
         );
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 외투가 추천 목록에 포함
         assertThat(recommended).contains(fallOuter);
@@ -195,7 +195,7 @@ public class RecommendationUtilTest {
             weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2);
 
         RecommendationEngine engine = new RecommendationEngineImpl();
-        List<Clothes> recommended = engine.recommend(List.of(winterScarf), perceivedTemp, weather);
+        List<Clothes> recommended = engine.recommend(List.of(winterScarf), perceivedTemp, weather, true);
 
         // then: 스카프가 추천 목록에 포함
         assertThat(recommended).contains(winterScarf);
@@ -226,7 +226,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
             weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
         );
-        List<Clothes> recommended = recommendationEngine.recommend(List.of(fallOuterHeavy), perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(fallOuterHeavy), perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함되지 않음
         assertThat(recommended).doesNotContain(fallOuterHeavy);
@@ -257,7 +257,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
             weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
         );
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 외투가 추천 목록에 포함되어야 함
         assertThat(recommended).contains(outer);
@@ -285,7 +285,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = 16.0; // SPRING 범위 강제
 
         // when: 추천 실행
-        List<Clothes> recommended = recommendationEngine.recommend(List.of(springTop), perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springTop), perceivedTemp, weather,true);
 
         // then: 의상이 추천 목록에 포함
         assertThat(recommended).extracting(Clothes::getId).contains(springTop.getId());
@@ -313,7 +313,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = 16.0; // SPRING으로 분류
 
         // when: 추천 실행
-        List<Clothes> recommended = recommendationEngine.recommend(List.of(springTop), perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springTop), perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함
         assertThat(recommended).extracting(Clothes::getId).contains(springTop.getId());
@@ -344,7 +344,7 @@ public class RecommendationUtilTest {
         );
 
         // when: 추천 실행
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함
         assertThat(recommended).contains(topWithThickness);
@@ -372,7 +372,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = 16.0;
 
         // when: 추천 실행
-        List<Clothes> recommended = recommendationEngine.recommend(List.of(mediumTop), perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(mediumTop), perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함
         assertThat(recommended).extracting(Clothes::getId).contains(mediumTop.getId());
@@ -403,7 +403,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = 16.0;
 
         // when: 추천 실행
-        List<Clothes> recommended = recommendationEngine.recommend(List.of(springMediumTop), perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springMediumTop), perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함
         assertThat(recommended).extracting(Clothes::getId).contains(springMediumTop.getId());
@@ -431,7 +431,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = 16.0; // SPRING 범위
 
         // when: 추천 실행
-        List<Clothes> recommended = recommendationEngine.recommend(List.of(summerTop), perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(summerTop), perceivedTemp, weather, true);
 
         // then: 의상이 추천 목록에 포함되지 않음
         assertThat(recommended).extracting(Clothes::getId).doesNotContain(summerTop.getId());
@@ -463,7 +463,7 @@ public class RecommendationUtilTest {
         );
 
         // when: 추천 알고리즘 실행
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 외투가 추천 목록에 포함되어야 함 (OUTER 규칙)
         assertThat(recommended).contains(outer);
@@ -494,7 +494,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
             weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 1.0, 0
         );
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 기본 추천 규칙 통과 확인
         assertThat(recommended).contains(outer);
@@ -525,10 +525,203 @@ public class RecommendationUtilTest {
         double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
             weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 1.0, 0
         );
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 기본 추천 규칙 통과 확인
         assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void 봄낮은체감온도_맑은날_드레스추천() {
+        // given: SPRING LOW 체감온도용 DRESS
+        Clothes springDress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "MEDIUM"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "SPRING")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(18.0)
+            .minC(16.0)
+            .speedMs(0.5)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 수행
+        List<Clothes> recommended = recommendationEngine.recommend(
+            List.of(springDress),
+            perceivedTemp,
+            weather,
+            false
+        );
+
+        // then: 추천 결과에 SPRING LOW 드레스 포함
+        assertThat(recommended)
+            .usingRecursiveFieldByFieldElementComparator()
+            .contains(springDress);
+    }
+
+    @Test
+    void 봄높은체감온도_강풍제외() {
+        // given: SPRING HIGH 체감온도용 DRESS
+        Clothes springDress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "LIGHT"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "SPRING")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(22.0)
+            .minC(20.0)
+            .speedMs(5.5) // 풍속 > 5 -> 제외
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 수행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(springDress), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함되지 않음
+        assertThat(recommended).doesNotContain(springDress);
+    }
+
+    @Test
+    void 여름비_풍속제외() {
+        // given: SUMMER DRESS
+        Clothes summerDress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "LIGHT"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "SUMMER")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(28.0)
+            .minC(25.0)
+            .speedMs(3.0) // 풍속 3
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.RAIN)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 수행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(summerDress), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함되지 않음
+        assertThat(recommended).doesNotContain(summerDress);
+    }
+
+    @Test
+    void 가을낮은체감온도_눈제외() {
+        // given: FALL LOW 체감온도 DRESS
+        Clothes fallDress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "HEAVY"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "FALL")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(12.0)
+            .minC(7.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.SNOW)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 수행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(fallDress), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함되지 않음
+        assertThat(recommended).doesNotContain(fallDress);
+    }
+
+    @Test
+    void 겨울_눈제외() {
+        // given: WINTER DRESS
+        Clothes winterDress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "HEAVY"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "WINTER")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(-2.0)
+            .minC(-6.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.SNOW)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 수행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(winterDress), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함되지 않음
+        assertThat(recommended).doesNotContain(winterDress);
+    }
+
+    @Test
+    void 여름맑은날_드레스추천() {
+        // given: SUMMER DRESS
+        Clothes summerDress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "LIGHT"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "SUMMER")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(30.0)
+            .minC(25.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 수행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(summerDress), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함
+        assertThat(recommended).contains(summerDress);
     }
 
     @Test
@@ -552,7 +745,7 @@ public class RecommendationUtilTest {
         double perceivedTemp = 19.0; // 봄 HIGH 구간
 
         // when: 추천 알고리즘 실행
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: HAT 규칙에 따라 추천되어야 함
         assertThat(recommended).contains(hat);
@@ -584,7 +777,7 @@ public class RecommendationUtilTest {
         );
 
         // when: 추천 알고리즘 실행
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: SCARF 규칙에 따라 추천되어야 함
         assertThat(recommended).contains(scarf);
@@ -613,7 +806,7 @@ public class RecommendationUtilTest {
         );
 
         // when: 추천 알고리즘 실행
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 모든 타입이 규칙에 따라 추천되어야 함
         assertThat(recommended).containsExactlyInAnyOrder(outer, hat, scarf);
@@ -737,7 +930,7 @@ public class RecommendationUtilTest {
         RecommendationEngine engine = new RecommendationEngineImpl();
 
         // when: 추천 실행
-        List<Clothes> recommended = engine.recommend(userClothes, perceivedTemp, weather);
+        List<Clothes> recommended = engine.recommend(userClothes, perceivedTemp, weather, true);
 
         // then: 필터링 결과 확인
         Set<UUID> recommendedIds = recommended.stream()

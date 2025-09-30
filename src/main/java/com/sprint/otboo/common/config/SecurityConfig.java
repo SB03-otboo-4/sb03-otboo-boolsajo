@@ -34,25 +34,40 @@ public class SecurityConfig {
     ) throws Exception {
         http
             .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                .ignoringRequestMatchers(
+                    "/api/auth/sign-in",      // 로그인
+                    "/api/users/*/password",  // 비밀번호 변경
+                    "/api/users/*/lock",       // 계정 잠금 상태 변경
+                    "/api/users/*/role", // 권한 변경
+                    "/api/reindex/**", // 색인
+                    "/ws/**"
+                )
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                     .ignoringRequestMatchers(
                                   "/api/auth/sign-in",      // 로그인
+                                  "/api/auth/reset-password", // 비밀번호 초기화
                                   "/api/users/*/password",  // 비밀번호 변경
                                   "/api/users/*/lock",       // 계정 잠금 상태 변경
-                                  "/api/users/*/role" // 권한 변경
+                                  "/api/users/*/role", // 권한 변경
+                                  "/api/users/*/profiles" // 프로필 변경
                     )
             )
             .sessionManagement(s ->
-                    s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
                 // 정적 리소스 전체 허용
-                .requestMatchers("/", "/index.html", "/*.html", "/*.css", "/*.js", "/*.png", "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.ico").permitAll()
-                .requestMatchers("/static/**", "/assets/**", "/public/**", "/resources/**", "/webjars/**").permitAll()
+                .requestMatchers("/", "/index.html", "/*.html", "/*.css", "/*.js", "/*.png",
+                    "/*.jpg", "/*.jpeg", "/*.gif", "/*.svg", "/*.ico").permitAll()
+                .requestMatchers("/static/**", "/assets/**", "/public/**", "/resources/**",
+                    "/webjars/**").permitAll()
 
                 // API 문서 관련 (Swagger UI)
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**")
+                .permitAll()
 
                 // Actuator
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
@@ -65,27 +80,47 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/lock").permitAll()    // 계정 잠금
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/role").permitAll()    // 권한 변경
                 .requestMatchers(HttpMethod.GET, "/api/users/*/profiles").permitAll()   // 프로필 조회
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/profiles").authenticated() // 프로필 변경
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll() // 업로드 된 파일
 
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
 
                 // 의상 관련 API
-                .requestMatchers(HttpMethod.POST, "/api/clothes").hasAnyRole("USER", "ADMIN")  // 의상 등록( 공용 )
-                .requestMatchers(HttpMethod.PATCH, "/api/clothes/{clothesId}").hasAnyRole("USER", "ADMIN") // 의상 수정( 공용 )
-                .requestMatchers(HttpMethod.DELETE, "/api/clothes/{clothesId}").hasAnyRole("USER", "ADMIN") // 의상 삭제( 공용 )
+                .requestMatchers(HttpMethod.POST, "/api/clothes")
+                .hasAnyRole("USER", "ADMIN")  // 의상 등록( 공용 )
+                .requestMatchers(HttpMethod.PATCH, "/api/clothes/{clothesId}")
+                .hasAnyRole("USER", "ADMIN") // 의상 수정( 공용 )
+                .requestMatchers(HttpMethod.DELETE, "/api/clothes/{clothesId}")
+                .hasAnyRole("USER", "ADMIN") // 의상 삭제( 공용 )
 
-                .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs").hasRole("ADMIN")  // 의상 속성 등록( ADMIN )
-                .requestMatchers(HttpMethod.PATCH, "/api/clothes/attribute-defs/**").hasRole("ADMIN") // 의상 속성 수정( ADMIN )
-                .requestMatchers(HttpMethod.DELETE, "/api/clothes/attribute-defs/{definitionId}").hasRole("ADMIN") // 의상 속성 삭제( ADMIN )
+                .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs")
+                .hasRole("ADMIN")  // 의상 속성 등록( ADMIN )
+                .requestMatchers(HttpMethod.PATCH, "/api/clothes/attribute-defs/**")
+                .hasRole("ADMIN") // 의상 속성 수정( ADMIN )
+                .requestMatchers(HttpMethod.DELETE, "/api/clothes/attribute-defs/{definitionId}")
+                .hasRole("ADMIN") // 의상 속성 삭제( ADMIN )
+
+                // elastic search 색인
+                .requestMatchers(HttpMethod.OPTIONS, "/api/reindex/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "api/reindex/**").permitAll()
+
+
+                .requestMatchers(HttpMethod.GET, "/ws/info/**").permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/ws/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
+
+                // ✅ (선택) 업로드 파일 정적 서빙을 쓰면 열어두기
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 
                 // 나머지 인증 필요
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.deny())
             )
-            .formLogin(form ->form.disable()
+            .formLogin(form -> form.disable()
             )
-            .httpBasic(basic ->basic.disable())
+            .httpBasic(basic -> basic.disable())
             .exceptionHandling(handler -> handler
                 .authenticationEntryPoint(customAuthenticationEntryPoint)
             )

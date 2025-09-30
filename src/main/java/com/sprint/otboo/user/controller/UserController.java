@@ -1,9 +1,14 @@
 package com.sprint.otboo.user.controller;
 
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.storage.InMemoryMultipartFile;
 import com.sprint.otboo.user.dto.data.ProfileDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
@@ -11,12 +16,16 @@ import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import java.io.IOException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -25,7 +34,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
@@ -124,5 +135,44 @@ public class UserController {
         CursorPageResponse<UserDto> response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping(value = "/{userId}/profiles", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProfileDto> updateUserProfile(
+        @PathVariable UUID userId,
+        @AuthenticationPrincipal CustomUserDetails currentUser,
+        @RequestPart("request") @Valid ProfileUpdateRequest request,
+        @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        verifyProfileOwnerOrAdmin(userId, currentUser);
+
+        MultipartFile imageCopy = null;
+        if (image != null && !image.isEmpty()) {
+            try {
+                imageCopy = new InMemoryMultipartFile(
+                    image.getOriginalFilename(),
+                    image.getContentType(),
+                    image.getBytes()
+                );
+            } catch (IOException ex) {
+                throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED, ex);
+            }
+        }
+
+        ProfileDto profileDto = userService.updateUserProfile(userId, request, imageCopy);
+        return ResponseEntity.ok(profileDto);
+    }
+
+    private void verifyProfileOwnerOrAdmin(UUID userId, CustomUserDetails currentUser) {
+        if (currentUser == null) {
+            throw new AccessDeniedException("로그인이 필요합니다.");
+        }
+        boolean sameUser = userId.equals(currentUser.getUserId());
+        boolean isAdmin = currentUser.getAuthorities().stream()
+            .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+
+        if (!sameUser && !isAdmin) {
+            throw new AccessDeniedException("해당 프로필을 수정할 권한이 없습니다.");
+        }
     }
 }

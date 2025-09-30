@@ -35,11 +35,9 @@ public interface WeatherMapper {
     default PrecipitationDto toPrecipitationDto(Weather w) {
         if (w == null) return null;
         String type = w.getType() != null ? mapType(w.getType()) : null;
-        return new PrecipitationDto(
-            type,
-            w.getAmountMm(),
-            w.getProbability()
-        );
+        double amount = w.getAmountMm() != null ? w.getAmountMm() : 0.0;
+        int prob = w.getProbability() != null ? w.getProbability().intValue() : 0;
+        return new PrecipitationDto(type, amount, prob);
     }
     default String mapType(PrecipitationType type) {
         return type.name();

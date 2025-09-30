@@ -9,7 +9,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -17,13 +19,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.dto.data.ProfileDto;
+import com.sprint.otboo.user.dto.data.ProfileLocationDto;
 import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
+import com.sprint.otboo.user.dto.request.ProfileLocationUpdateRequest;
+import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
@@ -43,10 +50,12 @@ import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @WebMvcTest(UserController.class)
 @DisplayName("UserController 테스트")
@@ -60,6 +69,9 @@ public class UserControllerTest {
 
     @MockitoBean
     TokenProvider tokenProvider;
+
+    @MockitoBean
+    JwtRegistry jwtRegistry;
 
     @MockitoBean
     private UserService userService;
@@ -134,12 +146,14 @@ public class UserControllerTest {
             "testUser",
             "http://example.com/profile.jpg",
             Gender.MALE,
-            LocalDate.of(1998,9,21),
-            new BigDecimal("37.509278"),
-            new BigDecimal("126.671607"),
-            55,
-            125,
-            List.of("인천광역시", "서구", "석남1동"),
+            LocalDate.of(1998, 9, 21),
+            new ProfileLocationDto(
+                new BigDecimal("37.509278"),
+                new BigDecimal("126.671607"),
+                55,
+                125,
+                List.of("인천광역시", "서구", "가정1동")
+            ),
             5
         );
     }
@@ -152,10 +166,6 @@ public class UserControllerTest {
             null,
             null,
             null,
-            null,
-            null,
-            null,
-            List.of(),
             null
         );
     }
@@ -175,6 +185,46 @@ public class UserControllerTest {
             LoginType.GENERAL,
             locked
         );
+    }
+
+    private MockMultipartFile createProfileUpdatePart() throws Exception {
+        ProfileUpdateRequest request = new ProfileUpdateRequest(
+            "updatedName",
+            "FEMALE",
+            LocalDate.of(1998, 9, 21),
+            new ProfileLocationUpdateRequest(
+                new BigDecimal("37.5253652"),
+                new BigDecimal("126.6849254"),
+                55,
+                126,
+                List.of("인천광역시", "서구", "가정2동")
+            ),
+            5
+        );
+
+        return new MockMultipartFile(
+            "request",
+            "",
+            "application/json",
+            objectMapper.writeValueAsBytes(request)
+        );
+    }
+
+    private RequestPostProcessor authenticatedUser(UUID userId, Role role) {
+        UserDto dto = new UserDto(
+            userId,
+            Instant.now(),
+            "tester@example.com",
+            "tester",
+            role,
+            LoginType.GENERAL,
+            false
+        );
+        CustomUserDetails principal = CustomUserDetails.builder()
+            .userDto(dto)
+            .password("password")
+            .build();
+        return user(principal);
     }
 
     @Test
@@ -502,14 +552,13 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.profileImageUrl").value("http://example.com/profile.jpg"))
             .andExpect(jsonPath("$.gender").value("MALE"))
             .andExpect(jsonPath("$.birthDate").value("1998-09-21"))
-            .andExpect(jsonPath("$.latitude").value(37.509278))
-            .andExpect(jsonPath("$.longitude").value(126.671607))
-            .andExpect(jsonPath("$.x").value(55))
-            .andExpect(jsonPath("$.y").value(125))
-            .andExpect(jsonPath("$.locationNames").isArray())
-            .andExpect(jsonPath("$.locationNames[0]").value("인천광역시"))
-            .andExpect(jsonPath("$.locationNames[1]").value("서구"))
-            .andExpect(jsonPath("$.locationNames[2]").value("석남1동"))
+            .andExpect(jsonPath("$.location.latitude").value(37.509278))
+            .andExpect(jsonPath("$.location.longitude").value(126.671607))
+            .andExpect(jsonPath("$.location.x").value(55))
+            .andExpect(jsonPath("$.location.y").value(125))
+            .andExpect(jsonPath("$.location.locationNames[0]").value("인천광역시"))
+            .andExpect(jsonPath("$.location.locationNames[1]").value("서구"))
+            .andExpect(jsonPath("$.location.locationNames[2]").value("가정1동"))
             .andExpect(jsonPath("$.temperatureSensitivity").value(5));
 
         then(userService).should().getUserProfile(userId);
@@ -531,16 +580,11 @@ public class UserControllerTest {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.userId").value(userId.toString()))
             .andExpect(jsonPath("$.name").value("testUser"))
-            .andExpect(jsonPath("$.profileImageUrl").isEmpty())
-            .andExpect(jsonPath("$.gender").isEmpty())
-            .andExpect(jsonPath("$.birthDate").isEmpty())
-            .andExpect(jsonPath("$.latitude").isEmpty())
-            .andExpect(jsonPath("$.longitude").isEmpty())
-            .andExpect(jsonPath("$.x").isEmpty())
-            .andExpect(jsonPath("$.y").isEmpty())
-            .andExpect(jsonPath("$.locationNames").isArray())
-            .andExpect(jsonPath("$.locationNames").isEmpty())
-            .andExpect(jsonPath("$.temperatureSensitivity").isEmpty());
+            .andExpect(jsonPath("$.profileImageUrl").doesNotExist())
+            .andExpect(jsonPath("$.gender").doesNotExist())
+            .andExpect(jsonPath("$.birthDate").doesNotExist())
+            .andExpect(jsonPath("$.location").doesNotExist())
+            .andExpect(jsonPath("$.temperatureSensitivity").doesNotExist());
 
         then(userService).should().getUserProfile(userId);
     }
@@ -738,5 +782,62 @@ public class UserControllerTest {
             .andExpect(res -> assertThat(res.getResolvedException())
                 .isInstanceOf(ConstraintViolationException.class));
         verifyNoInteractions(userService);
+    }
+
+    @Test
+    @WithMockUser
+    void 프로필_업데이트_성공() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        ProfileDto profileDto = createCompleteProfileDto(userId);
+        given(userService.updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class),any()))
+            .willReturn(profileDto);
+
+        MockMultipartFile requestPart = createProfileUpdatePart();
+        MockMultipartFile imagePart = new MockMultipartFile(
+            "image", "profile.png", "image/png", "fake".getBytes()
+        );
+
+        // when
+        ResultActions result = mockMvc.perform(
+            multipart("/api/users/{userId}/profiles",userId)
+                .file(requestPart)
+                .file(imagePart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+                .with(authenticatedUser(userId, Role.USER))
+        );
+
+        // then
+        result.andExpect(status().isOk())
+            .andExpect(jsonPath("$.userId").value(profileDto.userId().toString()))
+            .andExpect(jsonPath("$.name").value(profileDto.name()))
+            .andExpect(jsonPath("$.temperatureSensitivity").value(profileDto.temperatureSensitivity()));
+        then(userService).should().updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class), any());
+    }
+
+    @Test
+    @WithMockUser
+    void 프로필_업데이트_실패_서비스_예외_전파() throws Exception {
+       // given
+       UUID userId = UUID.randomUUID();
+       CustomException exception = new CustomException(ErrorCode.USER_NOT_FOUND);
+       given(userService.updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class), any()))
+           .willThrow(exception);
+
+       MockMultipartFile requestPart = createProfileUpdatePart();
+
+       // when
+        ResultActions result = mockMvc.perform(
+            multipart("/api/users/{userId}/profiles",userId)
+                .file(requestPart)
+                .with(request -> { request.setMethod("PATCH"); return request; })
+                .with(csrf())
+                .with(authenticatedUser(userId, Role.USER))
+        );
+
+        // then
+        result.andExpect(status().isNotFound());
+        then(userService).should().updateUserProfile(any(UUID.class), any(ProfileUpdateRequest.class), any());
     }
 }

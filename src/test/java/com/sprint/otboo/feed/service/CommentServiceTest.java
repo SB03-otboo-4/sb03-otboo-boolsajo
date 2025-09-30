@@ -11,6 +11,7 @@ import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.entity.Comment;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.mapper.CommentMapper;
 import com.sprint.otboo.feed.repository.CommentRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
@@ -18,9 +19,12 @@ import com.sprint.otboo.feed.dto.data.CommentDto;
 import com.sprint.otboo.fixture.CommentFixture;
 import com.sprint.otboo.fixture.UserFixture;
 import com.sprint.otboo.fixture.FeedFixture;
+import com.sprint.otboo.fixture.WeatherFixture;
+import com.sprint.otboo.fixture.WeatherLocationFixture;
 import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.weather.entity.Weather;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +36,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CommentService 테스트")
@@ -45,6 +51,8 @@ public class CommentServiceTest {
     UserRepository userRepository;
     @Mock
     FeedRepository feedRepository;
+    @Mock
+    ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     CommentServiceImpl commentService;
@@ -55,44 +63,49 @@ public class CommentServiceTest {
 
         @Test
         void 댓글을_등록하면_DTO가_반환된다() {
-            // Given
-            UUID authorId = UUID.randomUUID();
+            // given
+            UUID commentAuthorId = UUID.randomUUID();
+            UUID feedAuthorId = UUID.randomUUID();
             UUID feedId = UUID.randomUUID();
             UUID commentId = UUID.randomUUID();
             String content = "첫 댓글";
 
-            User author = UserFixture.create(authorId, "홍길동", "profile.png");
+            User commentAuthor = UserFixture.create(commentAuthorId, "홍길동", "commenter.png");
+            User feedAuthor = UserFixture.create(feedAuthorId, "피드작성자", "author.png");
+            Weather weather = WeatherFixture.createWeatherWithDefault(
+                WeatherLocationFixture.createLocationWithDefault()
+            );
 
             Feed feed = FeedFixture.createWithId(feedId);
+            ReflectionTestUtils.setField(feed, "author", feedAuthor);
+            ReflectionTestUtils.setField(feed, "weather", weather);
 
-            Comment saved = CommentFixture.create(commentId, author, feed, "댓글", Instant.now());
-
+            Comment saved = CommentFixture.create(commentId, commentAuthor, feed, content, Instant.now());
             CommentDto expected = new CommentDto(
                 saved.getId(),
                 saved.getCreatedAt(),
                 feedId,
-                new AuthorDto(authorId, "홍길동", "profile.png"),
+                new AuthorDto(commentAuthorId, "홍길동", "commenter.png"),
                 content
             );
 
-            given(userRepository.findById(authorId)).willReturn(Optional.of(author));
+            given(userRepository.findById(commentAuthorId)).willReturn(Optional.of(commentAuthor));
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
             given(commentRepository.save(any(Comment.class))).willReturn(saved);
             given(commentMapper.toDto(saved)).willReturn(expected);
 
-            // When
-            CommentDto result = commentService.create(authorId, feedId, content);
+            // when
+            CommentDto result = commentService.create(commentAuthorId, feedId, content);
 
-            // Then
+            // then
             assertThat(result).isSameAs(expected);
-            then(userRepository).should().findById(authorId);
+            then(userRepository).should().findById(commentAuthorId);
             then(feedRepository).should().findById(feedId);
             then(commentRepository).should().save(any(Comment.class));
             then(commentMapper).should().toDto(saved);
-            then(userRepository).shouldHaveNoMoreInteractions();
-            then(feedRepository).shouldHaveNoMoreInteractions();
-            then(commentRepository).shouldHaveNoMoreInteractions();
-            then(commentMapper).shouldHaveNoMoreInteractions();
+            then(eventPublisher).should().publishEvent(new FeedCommentedEvent(
+                feedAuthorId, commentAuthorId, commentId
+            ));
         }
 
         @Test
