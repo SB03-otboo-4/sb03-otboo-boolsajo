@@ -21,9 +21,12 @@ public interface KmaForecastMapper {
         private final int humidity;
         private final int precipitationProbability;
 
+        private final Double windSpeedMs;
+        private final Integer windQualCode;
+
         public Slot(String fcstDate, String fcstTime, SkyStatus sky,
             PrecipitationType precipitation, int temperature,
-            int humidity, int precipitationProbability) {
+            int humidity, int precipitationProbability, Double windSpeedMs, Integer windQualCode) {
             this.fcstDate = fcstDate;
             this.fcstTime = fcstTime;
             this.sky = sky;
@@ -31,6 +34,8 @@ public interface KmaForecastMapper {
             this.temperature = temperature;
             this.humidity = humidity;
             this.precipitationProbability = precipitationProbability;
+            this.windSpeedMs = windSpeedMs;
+            this.windQualCode = windQualCode;
         }
 
         public String getFcstDate() { return fcstDate; }
@@ -40,5 +45,7 @@ public interface KmaForecastMapper {
         public int getTemperature() { return temperature; }
         public int getHumidity() { return humidity; }
         public int getPrecipitationProbability() { return precipitationProbability; }
+        public Double getWindSpeedMs() { return windSpeedMs; }
+        public Integer getWindQualCode() { return windQualCode; }
     }
 }

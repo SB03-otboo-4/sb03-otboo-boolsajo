@@ -34,22 +34,19 @@ public interface WeatherMapper {
 
     default PrecipitationDto toPrecipitationDto(Weather w) {
         if (w == null) return null;
-        String type = w.getType() != null ? mapType(w.getType()) : null;
 
-        Double amount = w.getAmountMm();
-        Double probPct = null;
-        if (w.getProbability() != null) {
-            probPct = w.getProbability() * 100.0;
-        } else {
-            probPct = 0.0;
-        }
+        // 타입: null이면 NONE으로 치환
+        String type = (w.getType() != null) ? mapType(w.getType()) : "NONE";
 
-        return new PrecipitationDto(
-            type,
-            amount,
-            probPct
-        );
+        // 강수량: null이면 0.0
+        double amount = (w.getAmountMm() != null) ? w.getAmountMm() : 0.0;
+
+        // 강수확률: 저장이 0~1이면 %로 변환, null이면 0.0
+        double probPct = (w.getProbability() != null) ? (w.getProbability() * 100.0) : 0.0;
+
+        return new PrecipitationDto(type, amount, probPct);
     }
+
     default String mapType(PrecipitationType type) {
         return type.name();
     }

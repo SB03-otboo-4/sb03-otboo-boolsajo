@@ -1,5 +1,6 @@
-package com.sprint.otboo.weather.integration.kma;
+package com.sprint.otboo.common.config;
 
+import com.sprint.otboo.weather.integration.kma.WeatherKmaProperties;
 import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
 import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClientImpl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

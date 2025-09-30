@@ -1,4 +1,4 @@
-package com.sprint.otboo.weather.batch;
+package com.sprint.otboo.common.config;
 
 import com.sprint.otboo.weather.batch.task.WeatherCollectTasklet;
 import lombok.RequiredArgsConstructor;

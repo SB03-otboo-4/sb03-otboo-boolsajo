@@ -51,6 +51,7 @@ public class KmaRequestBuilder {
         params.put("base_time", baseTime);
         params.put("nx", nx);
         params.put("ny", ny);
+        params.put("pageNo", "1");
         params.put("numOfRows", String.valueOf(props.getNumOfRows()));
         params.put("dataType", props.getDataType());
         return params;

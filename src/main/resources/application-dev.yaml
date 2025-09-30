@@ -11,6 +11,8 @@ spring:
       connection-init-sql: SET search_path TO ${POSTGRES_SCHEMA:otboo_schema}, public;
       schema: ${POSTGRES_SCHEMA:otboo_schema}
   batch:
+    job:
+      enabled: false
     jdbc:
       initialize-schema: always
   jpa:

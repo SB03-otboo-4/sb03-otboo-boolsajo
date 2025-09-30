@@ -45,12 +45,10 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
             .filter(Objects::nonNull)
             .filter(i -> category.equals(i.getCategory()))
             .findFirst();
-        if (!found.isPresent()) return defaultValue;
+        if (found.isEmpty()) return defaultValue;
 
         String val = found.get().getFcstValue();
-        if (val == null || val.isBlank()) return defaultValue;
-        try { return Integer.parseInt(val.trim()); }
-        catch (NumberFormatException nfe) { return defaultValue; }
+        return parseIntOrDefault(val, defaultValue);
     }
 
     @Override
@@ -63,11 +61,22 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
 
         SkyStatus sky = mapSky(findValue(sameTs, "SKY").orElse(null));
         PrecipitationType precipitation = mapPrecipitation(findValue(sameTs, "PTY").orElse(null));
+
         int temperature = parseIntOrDefault(findValue(sameTs, "TMP").orElse(null), 999);
         int humidity = parseIntOrDefault(findValue(sameTs, "REH").orElse(null), 999);
         int precipitationProbability = parseIntOrDefault(findValue(sameTs, "POP").orElse(null), 0);
 
-        return new Slot(fcstDate, fcstTime, sky, precipitation, temperature, humidity, precipitationProbability);
+        // WSD는 -999 같은 센티넬이 들어오므로 가드 추가된 Double 파서 사용
+        Double windSpeedMs = parseDoubleOrNull(findValue(sameTs, "WSD").orElse(null));
+
+        Integer windQualCode = null; // 정성 바람 등급 코드(필요 시 카테고리 추가)
+
+        return new Slot(
+            fcstDate, fcstTime,
+            sky, precipitation,
+            temperature, humidity, precipitationProbability,
+            windSpeedMs, windQualCode
+        );
     }
 
     private Optional<String> findValue(List<KmaForecastItem> items, String category) {
@@ -77,9 +86,29 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
             .findFirst();
     }
 
+    private static boolean isMissingNumeric(double d) {
+        // KMA 결측/센티넬 범위(-999, 999, >=900, <=-900)
+        return d >= 900 || d <= -900;
+    }
+
     private int parseIntOrDefault(String value, int defaultValue) {
         if (value == null || value.isBlank()) return defaultValue;
-        try { return Integer.parseInt(value.trim()); }
-        catch (NumberFormatException nfe) { return defaultValue; }
+        try {
+            int v = Integer.parseInt(value.trim());
+            return isMissingNumeric(v) ? defaultValue : v;
+        } catch (NumberFormatException nfe) {
+            // "강수없음" 등 비정형 문자열 → 기본값
+            return defaultValue;
+        }
+    }
+
+    private Double parseDoubleOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            double d = Double.parseDouble(value.trim());
+            return isMissingNumeric(d) ? null : d;
+        } catch (NumberFormatException nfe) {
+            return null;
+        }
     }
 }

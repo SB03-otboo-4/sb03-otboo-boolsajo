@@ -172,4 +172,26 @@ class KmaShortTermForecastClientTest {
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
         assertThrows(RuntimeException.class, () -> client.getVilageFcst(params));
     }
+
+    @Test
+    @DisplayName("resultCode가 00이 아니면 IOException으로 실패해야 한다")
+    void 결과코드_비정상_예외() {
+        server.enqueue(new MockResponse()
+            .setBody("{\"response\":{\"header\":{\"resultCode\":\"03\",\"resultMsg\":\"AUTH FAILED\"}}}")
+            .addHeader("Content-Type","application/json").setResponseCode(200));
+
+        Map<String,String> params = builder.toParams(37.5665,126.9780, Instant.parse("2025-09-24T10:05:00Z"));
+        assertThrows(RuntimeException.class, () -> client.getVilageFcst(params));
+    }
+
+    @Test
+    @DisplayName("429/5xx 혼합으로 재시도 한계 도달 시 예외를 던져야 한다")
+    void 혼합_오류_재시도_한계() {
+        server.enqueue(new MockResponse().setResponseCode(429));
+        server.enqueue(new MockResponse().setResponseCode(500));
+        server.enqueue(new MockResponse().setResponseCode(502));
+
+        Map<String,String> params = builder.toParams(37.5665,126.9780, Instant.parse("2025-09-24T10:05:00Z"));
+        assertThrows(RuntimeException.class, () -> client.getVilageFcst(params));
+    }
 }
