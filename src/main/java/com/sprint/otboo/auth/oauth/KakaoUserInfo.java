@@ -34,8 +34,9 @@ public class KakaoUserInfo implements OAuth2UserInfo {
 
         if (email == null) {
             String nickname = getName();
+            String providerId = getProviderUserId();
             if (nickname != null) {
-                email = nickname.replaceAll("\\s+", "") + "@kakao.com";
+                email = nickname.replaceAll("\\s+", "") + "_" + providerId + "@kakao.com";
             }
         }
 
