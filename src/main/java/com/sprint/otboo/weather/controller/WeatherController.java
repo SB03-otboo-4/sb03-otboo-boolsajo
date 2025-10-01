@@ -1,38 +1,53 @@
 package com.sprint.otboo.weather.controller;
 
+import com.sprint.otboo.common.exception.weather.WeatherBadCoordinateException;
+import com.sprint.otboo.weather.dto.data.WeatherDto;
+import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.service.WeatherLocationQueryService;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
+import com.sprint.otboo.weather.service.WeatherService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.validation.annotation.Validated;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/weathers")
-public class WeatherController {
+public class WeatherController implements WeatherApi {
 
-    private final WeatherLocationQueryService service;
+    private final WeatherService weatherService;
+    private final WeatherLocationQueryService locationQueryService;
 
-    @GetMapping("/location")
-    public WeatherLocationResponse getWeatherLocation(
-        @RequestParam("longitude")
-        @DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
-        @DecimalMax(value = "180.0",  message = "경도는 180 이하이어야 합니다.")
-        double longitude,
-
-        @RequestParam("latitude")
-        @DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
-        @DecimalMax(value = "90.0",  message = "위도는 90 이하이어야 합니다.")
-        double latitude
-
+    @Override
+    @GetMapping("")
+    public ResponseEntity<List<WeatherDto>> getWeathers(
+        @RequestParam("longitude") double longitude,
+        @RequestParam("latitude") double latitude
     ) {
-        // 서비스는 (lat, lon) 순서
-        return service.getWeatherLocation(latitude, longitude);
+        validateRange(latitude, longitude);
+        return ResponseEntity.ok(weatherService.getWeather(latitude, longitude));
+    }
+
+    @Override
+    @GetMapping("/location")
+    public ResponseEntity<WeatherLocationResponse> getWeatherLocation(
+        @RequestParam("longitude") double longitude,
+        @RequestParam("latitude") double latitude
+    ) {
+        validateRange(latitude, longitude);
+        return ResponseEntity.ok(locationQueryService.getWeatherLocation(latitude, longitude));
+    }
+
+    private static void validateRange(double lat, double lon) {
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            WeatherBadCoordinateException ex = new WeatherBadCoordinateException();
+            ex.addDetail("latitude", String.valueOf(lat));
+            ex.addDetail("longitude", String.valueOf(lon));
+            throw ex;
+        }
     }
 }
