@@ -11,44 +11,31 @@ import org.springframework.stereotype.Component;
 @Component
 public class DefaultKmaForecastMapper implements KmaForecastMapper {
 
+    private static final int DEFAULT_INT_MISSING = 999;
+    private static final int DEFAULT_POP = 0;
+    private static final int SENTINEL_ABS_MIN = -900;
+    private static final int SENTINEL_ABS_MAX = 900;
+
     @Override
     public SkyStatus mapSky(String skyCode) {
-        if (skyCode == null) return SkyStatus.MOSTLY_CLOUDY;
-        switch (skyCode) {
-            case "1": return SkyStatus.CLEAR;
-            case "3": return SkyStatus.MOSTLY_CLOUDY;
-            case "4": return SkyStatus.CLOUDY;
-            default:  return SkyStatus.MOSTLY_CLOUDY;
-        }
+        return SkyStatus.fromSkyCode(skyCode);
     }
 
     @Override
     public PrecipitationType mapPrecipitation(String ptyCode) {
-        if (ptyCode == null) return PrecipitationType.NONE;
-        switch (ptyCode) {
-            case "0": return PrecipitationType.NONE;
-            case "1": return PrecipitationType.RAIN;
-            case "2": return PrecipitationType.RAIN_SNOW;
-            case "3": return PrecipitationType.SNOW;
-            case "4": return PrecipitationType.SHOWER;
-            case "5": return PrecipitationType.RAIN;
-            case "6": return PrecipitationType.RAIN_SNOW;
-            case "7": return PrecipitationType.SNOW;
-            default:  return PrecipitationType.NONE;
-        }
+        return PrecipitationType.fromPtyCode(ptyCode);
     }
 
     @Override
     public int extractInt(List<KmaForecastItem> items, String category, int defaultValue) {
         if (items == null || category == null) return defaultValue;
-        Optional<KmaForecastItem> found = items.stream()
+        return items.stream()
             .filter(Objects::nonNull)
             .filter(i -> category.equals(i.getCategory()))
-            .findFirst();
-        if (found.isEmpty()) return defaultValue;
-
-        String val = found.get().getFcstValue();
-        return parseIntOrDefault(val, defaultValue);
+            .map(KmaForecastItem::getFcstValue)
+            .findFirst()
+            .map(v -> parseIntOrDefault(v, defaultValue))
+            .orElse(defaultValue);
     }
 
     @Override
@@ -59,23 +46,20 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
                 && Objects.equals(fcstTime, i.getFcstTime()))
             .toList();
 
-        SkyStatus sky = mapSky(findValue(sameTs, "SKY").orElse(null));
-        PrecipitationType precipitation = mapPrecipitation(findValue(sameTs, "PTY").orElse(null));
+        SkyStatus sky = SkyStatus.fromSkyCode(findValue(sameTs, "SKY").orElse(null));
+        PrecipitationType precipitation = PrecipitationType.fromPtyCode(findValue(sameTs, "PTY").orElse(null));
 
-        int temperature = parseIntOrDefault(findValue(sameTs, "TMP").orElse(null), 999);
-        int humidity = parseIntOrDefault(findValue(sameTs, "REH").orElse(null), 999);
-        int precipitationProbability = parseIntOrDefault(findValue(sameTs, "POP").orElse(null), 0);
+        int temperature = parseIntOrDefault(findValue(sameTs, "TMP").orElse(null), DEFAULT_INT_MISSING);
+        int humidity = parseIntOrDefault(findValue(sameTs, "REH").orElse(null), DEFAULT_INT_MISSING);
+        int precipitationProbability = parseIntOrDefault(findValue(sameTs, "POP").orElse(null), DEFAULT_POP);
 
-        // WSD는 -999 같은 센티넬이 들어오므로 가드 추가된 Double 파서 사용
         Double windSpeedMs = parseDoubleOrNull(findValue(sameTs, "WSD").orElse(null));
-
-        Integer windQualCode = null; // 정성 바람 등급 코드(필요 시 카테고리 추가)
 
         return new Slot(
             fcstDate, fcstTime,
             sky, precipitation,
             temperature, humidity, precipitationProbability,
-            windSpeedMs, windQualCode
+            windSpeedMs, null
         );
     }
 
@@ -87,8 +71,7 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
     }
 
     private static boolean isMissingNumeric(double d) {
-        // KMA 결측/센티넬 범위(-999, 999, >=900, <=-900)
-        return d >= 900 || d <= -900;
+        return d >= SENTINEL_ABS_MAX || d <= SENTINEL_ABS_MIN;
     }
 
     private int parseIntOrDefault(String value, int defaultValue) {
@@ -97,7 +80,6 @@ public class DefaultKmaForecastMapper implements KmaForecastMapper {
             int v = Integer.parseInt(value.trim());
             return isMissingNumeric(v) ? defaultValue : v;
         } catch (NumberFormatException nfe) {
-            // "강수없음" 등 비정형 문자열 → 기본값
             return defaultValue;
         }
     }

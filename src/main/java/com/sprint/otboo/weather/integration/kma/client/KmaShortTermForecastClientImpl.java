@@ -24,22 +24,22 @@ import lombok.extern.slf4j.Slf4j;
 public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClient {
 
     private final WeatherKmaProperties props;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public KmaShortTermForecastClientImpl(WeatherKmaProperties props) {
+    public KmaShortTermForecastClientImpl(WeatherKmaProperties props, ObjectMapper objectMapper) {
         this.props = props;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public KmaForecastResponse getVilageFcst(Map<String, String> params) {
         int attempts = 0;
-        int maxAttempts = Math.max(1, props.getRetryMaxAttempts());
-        long backoffMs = Math.max(0L, props.getRetryBackoffMs());
+        int maxAttempts = Math.max(1, props.retryMaxAttempts());
+        long backoffMs = Math.max(0L, props.retryBackoffMs());
 
         while (true) {
             attempts++;
             try {
-                // ▼ 여기서 모든 페이지를 합쳐서 반환
                 return fetchAllPages(params);
 
             } catch (RetryableHttpStatusException e) {
@@ -72,7 +72,9 @@ public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClien
 
         int pageNo = 1;
         int totalCount = Integer.MAX_VALUE;
-        int numOfRows = Integer.parseInt(baseParams.getOrDefault("numOfRows", "1000"));
+        int numOfRows = Integer.parseInt(
+            baseParams.getOrDefault("numOfRows", String.valueOf(props.numOfRows()))
+        );
 
         while (all.size() < totalCount) {
             Map<String, String> p = new LinkedHashMap<>(baseParams);
@@ -86,8 +88,7 @@ public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClien
             }
             all.addAll(page.items);
 
-            // 마지막 페이지 추정(아이템 수가 numOfRows보다 적으면 종료)
-            if (page.items.size() < numOfRows) break;
+            if (page.items.size() < numOfRows) break; // 마지막 페이지 추정
 
             pageNo++;
             if (pageNo > 50) break; // 안전장치
@@ -101,8 +102,8 @@ public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClien
 
     /** 단일 페이지 호출 + totalCount/아이템 파싱 */
     private Page fetchOnePage(Map<String, String> params) throws IOException {
-        String url = buildUrlWithParams(props.getBaseUrl(), params);
-        String body = httpGet(url, props.getConnectTimeoutMs(), props.getReadTimeoutMs());
+        String url = buildUrlWithParams(props.baseUrl(), params);
+        String body = httpGet(url, props.connectTimeoutMs(), props.readTimeoutMs());
 
         JsonNode root = objectMapper.readTree(body);
         JsonNode header = root.path("response").path("header");
@@ -151,14 +152,20 @@ public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClien
         sb.append(baseUrl).append("?");
 
         boolean first = true;
-        for (Map.Entry<String, String> e : params.entrySet()) {
+
+        // props 기본 파라미터 보강
+        Map<String, String> p = new LinkedHashMap<>(params);
+        p.putIfAbsent("dataType", props.dataType());
+        p.putIfAbsent("numOfRows", String.valueOf(props.numOfRows()));
+
+        for (Map.Entry<String, String> e : p.entrySet()) {
             if (!first) sb.append("&");
             sb.append(encode(e.getKey())).append("=").append(encode(e.getValue()));
             first = false;
         }
 
         // apihub 전용: 항상 authKey
-        String keyValue = props.getAuthKey();
+        String keyValue = props.authKey();
         if (keyValue != null && !keyValue.isEmpty()) {
             if (!first) sb.append("&");
             sb.append("authKey").append("=").append(encodeMaybe(keyValue));
@@ -179,13 +186,12 @@ public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClien
             con.setUseCaches(false);
             con.setDoInput(true);
 
-            // 안정화용 헤더
             con.setRequestProperty("Accept", "application/json");
             con.setRequestProperty("Accept-Encoding", "identity");
             con.setRequestProperty("Connection", "close");
             con.setRequestProperty("User-Agent", "otboo-weather/1.0");
 
-            log.debug("[KMA] GET {}", urlString);
+            log.debug("[KMA] GET {}", UrlMasker.maskAuthKey(urlString));
             int code = con.getResponseCode();
             String contentType = con.getHeaderField("Content-Type");
 
@@ -230,8 +236,7 @@ public class KmaShortTermForecastClientImpl implements KmaShortTermForecastClien
     }
 
     private String encodeMaybe(String s) throws IOException {
-        // 이미 인코딩되어 있으면 그대로 사용
-        if (s.contains("%")) return s;
+        if (s.contains("%")) return s; // 이미 인코딩된 값
         return encode(s);
     }
 

@@ -52,10 +52,14 @@ public class KmaRequestBuilder {
         params.put("nx", nx);
         params.put("ny", ny);
         params.put("pageNo", "1");
+
         // ▼ 한 번에 많이 받도록 상향 (props가 더 크면 그 값 사용)
-        int rows = Math.max(1000, props.getNumOfRows());
+        int rows = Math.max(1000, props.numOfRows());
         params.put("numOfRows", String.valueOf(rows));
-        params.put("dataType", props.getDataType());
+
+        String dataType = (props.dataType() == null || props.dataType().isBlank()) ? "JSON" : props.dataType();
+        params.put("dataType", dataType);
+
         return params;
     }
 

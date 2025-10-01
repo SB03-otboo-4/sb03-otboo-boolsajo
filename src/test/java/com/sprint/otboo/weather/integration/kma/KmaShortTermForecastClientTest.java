@@ -3,6 +3,7 @@ package com.sprint.otboo.weather.integration.kma;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
 import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClientImpl;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
@@ -19,13 +20,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * RED: 아직 KmaShortTermForecastClientImpl 미구현이므로 실패해야 정상.
- *  - 정상 응답 파싱
- *  - 카테고리 누락 허용(존재하는 항목만 반환)
- *  - 429/5xx 재시도(backoff 포함)
- *  - 타임아웃 처리
- */
 @DisplayName("KmaShortTermForecastClient 테스트")
 class KmaShortTermForecastClientTest {
 
@@ -39,17 +33,21 @@ class KmaShortTermForecastClientTest {
         server = new MockWebServer();
         server.start();
 
-        props = new WeatherKmaProperties();
-        props.setBaseUrl(server.url("/").toString());
-        props.setConnectTimeoutMs(1000);
-        props.setReadTimeoutMs(1000);
-        props.setRetryMaxAttempts(3);
-        props.setRetryBackoffMs(10);
-        props.setNumOfRows(1000);
-        props.setDataType("JSON");
+        // enabled=false → authKey 없이 검증 통과
+        props = new WeatherKmaProperties(
+            server.url("/").toString(), // baseUrl
+            null,                       // authKey
+            1000,                       // connectTimeoutMs
+            1000,                       // readTimeoutMs
+            3,                          // retryMaxAttempts
+            10,                         // retryBackoffMs
+            1000,                       // numOfRows
+            "JSON",                     // dataType
+            false                       // enabled
+        );
 
         builder = new KmaRequestBuilder(props);
-        client = new KmaShortTermForecastClientImpl(props);
+        client = new KmaShortTermForecastClientImpl(props, new ObjectMapper());
     }
 
     @AfterEach
@@ -87,7 +85,6 @@ class KmaShortTermForecastClientTest {
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
         KmaForecastResponse resp = client.getVilageFcst(params);
 
-        // 계약: resultCode=00이고, 항목이 카테고리별로 파싱되어야 함
         assertThat(resp.getResultCode()).isEqualTo("00");
         List<KmaForecastItem> items = resp.getItems();
         assertThat(items).hasSize(4);
