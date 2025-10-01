@@ -1,9 +1,9 @@
 package com.sprint.otboo.weather.service;
 
-import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
+import com.sprint.otboo.weather.dto.data.WeatherDto;
 import java.util.List;
 
 public interface WeatherService {
 
-    List<WeatherSummaryDto> getWeather(Double latitude, Double longitude);
+    List<WeatherDto> getWeather(Double latitude, Double longitude);
 }

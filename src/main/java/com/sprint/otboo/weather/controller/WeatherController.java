@@ -1,6 +1,7 @@
 package com.sprint.otboo.weather.controller;
 
 import com.sprint.otboo.common.exception.weather.WeatherBadCoordinateException;
+import com.sprint.otboo.weather.dto.data.WeatherDto;
 import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.service.WeatherLocationQueryService;
@@ -23,7 +24,7 @@ public class WeatherController implements WeatherApi {
 
     @Override
     @GetMapping("")
-    public ResponseEntity<List<WeatherSummaryDto>> getWeathers(
+    public ResponseEntity<List<WeatherDto>> getWeathers(
         @RequestParam("longitude") double longitude,
         @RequestParam("latitude") double latitude
     ) {

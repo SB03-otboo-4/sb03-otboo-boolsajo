@@ -52,7 +52,9 @@ public class KmaRequestBuilder {
         params.put("nx", nx);
         params.put("ny", ny);
         params.put("pageNo", "1");
-        params.put("numOfRows", String.valueOf(props.getNumOfRows()));
+        // ▼ 한 번에 많이 받도록 상향 (props가 더 크면 그 값 사용)
+        int rows = Math.max(1000, props.getNumOfRows());
+        params.put("numOfRows", String.valueOf(rows));
         params.put("dataType", props.getDataType());
         return params;
     }

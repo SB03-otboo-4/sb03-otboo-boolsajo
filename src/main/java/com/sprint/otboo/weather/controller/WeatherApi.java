@@ -1,6 +1,7 @@
 package com.sprint.otboo.weather.controller;
 
 import com.sprint.otboo.common.dto.ErrorResponse;
+import com.sprint.otboo.weather.dto.data.WeatherDto;
 import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -92,7 +93,7 @@ public interface WeatherApi {
         )
     )
     @GetMapping("")
-    ResponseEntity<List<WeatherSummaryDto>> getWeathers(
+    ResponseEntity<List<WeatherDto>> getWeathers(
         @Parameter(description = "경도(동경,+), 범위: -180 ~ 180", example = "126.9780", required = true)
         @RequestParam("longitude") double longitude,
         @Parameter(description = "위도(북위,+), 범위: -90 ~ 90", example = "37.5665", required = true)
