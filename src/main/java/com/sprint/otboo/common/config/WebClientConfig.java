@@ -1,6 +1,10 @@
 package com.sprint.otboo.common.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.weather.integration.kakao.KakaoApiProperties;
+import com.sprint.otboo.weather.integration.kma.WeatherKmaProperties;
+import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
+import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClientImpl;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
@@ -16,7 +20,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
 @Configuration
-@EnableConfigurationProperties(KakaoApiProperties.class)
+@EnableConfigurationProperties({KakaoApiProperties.class, WeatherKmaProperties.class})
 public class WebClientConfig {
 
     @Bean(name = "kakaoWebClient")

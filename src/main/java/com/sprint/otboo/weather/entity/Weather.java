@@ -9,12 +9,20 @@ import java.time.Instant;
 
 @Entity
 @Table(
-    name = "weathers"
+    name = "weathers",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uq_weathers_loc_target_ver",
+        columnNames = {"location_id","forecast_at","forecasted_at"}
+    ),
+    indexes = @Index(
+        name = "idx_weathers_loc_at_ver_desc",
+        columnList = "location_id, forecast_at, forecasted_at DESC"
+    )
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@SuperBuilder
+@SuperBuilder(toBuilder = true)
 public class Weather extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

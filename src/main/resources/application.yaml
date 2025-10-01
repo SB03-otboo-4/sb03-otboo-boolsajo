@@ -70,7 +70,19 @@ spring:
 logging:
   level:
     root: info
+    com.sprint.otboo.weather.integration.kma.client: debug
 
+weather:
+  kma:
+    base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst
+    auth-key: ${KMA_AUTH_KEY}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+    retry-max-attempts: 3
+    retry-backoff-ms: 300
+    num-of-rows: 400
+    data-type: JSON
+    enabled: true
 
 kakao:
   api:

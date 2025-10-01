@@ -33,4 +33,19 @@ public class RetryConfig {
 
         return template;
     }
+
+    @Bean
+    public RetryTemplate weatherRetryTemplate() {
+        RetryTemplate t = new RetryTemplate();
+
+        SimpleRetryPolicy policy = new SimpleRetryPolicy(
+            3, Map.of(RuntimeException.class, true), true
+        );
+        FixedBackOffPolicy backOff = new FixedBackOffPolicy();
+        backOff.setBackOffPeriod(100L);
+
+        t.setRetryPolicy(policy);
+        t.setBackOffPolicy(backOff);
+        return t;
+    }
 }
