@@ -1,5 +1,6 @@
 package com.sprint.otboo.user.service.impl;
 
+import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
@@ -32,7 +33,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
@@ -58,6 +58,7 @@ public class UserServiceImpl implements UserService {
     private final AsyncProfileImageUploader asyncProfileImageUploader;
     private final RetryTemplate profileImageStorageRetryTemplate;
     private final ApplicationEventPublisher eventPublisher;
+    private final JwtRegistry jwtRegistry;
 
     public UserServiceImpl(
         UserRepository userRepository,
@@ -69,7 +70,8 @@ public class UserServiceImpl implements UserService {
         WeatherLocationQueryService weatherLocationQueryService,
         AsyncProfileImageUploader asyncProfileImageUploader,
         @Qualifier("profileImageStorageRetryTemplate") RetryTemplate profileImageStorageRetryTemplate,
-        ApplicationEventPublisher eventPublisher
+        ApplicationEventPublisher eventPublisher,
+        JwtRegistry jwtRegistry
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
@@ -81,6 +83,7 @@ public class UserServiceImpl implements UserService {
         this.asyncProfileImageUploader = asyncProfileImageUploader;
         this.profileImageStorageRetryTemplate = profileImageStorageRetryTemplate;
         this.eventPublisher = eventPublisher;
+        this.jwtRegistry = jwtRegistry;
     }
 
     @Override
@@ -101,7 +104,7 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
         log.debug("[UserServiceImpl] 회원 저장 완료 : userId = {} ", savedUser.getId());
 
-        UserProfile profile = com.sprint.otboo.user.entity.UserProfile.builder()
+        UserProfile profile = UserProfile.builder()
             .user(savedUser)
             .build();
         userProfileRepository.save(profile);
@@ -138,6 +141,11 @@ public class UserServiceImpl implements UserService {
         user.updateLockStatus(request.locked());
         User savedUser = userRepository.save(user);
 
+        if (request.locked()) {
+            log.info("[UserServiceImpl] 계정 잠금으로 인한 강제 로그아웃 처리: userId={}", userId);
+            jwtRegistry.invalidateAll(userId);
+        }
+
         log.debug("[UserServiceImpl] 계정 잠금 상태 변경 완료: userId = {} , locked = {} ", userId, request.locked());
         return userMapper.toUserDto(savedUser);
     }
@@ -153,6 +161,9 @@ public class UserServiceImpl implements UserService {
         Role newRole = Role.valueOf(request.role());
         user.updateRole(newRole);
         User savedUser = userRepository.save(user);
+
+        log.info("UserServiceImpl] 권한 변경으로 인한 강제 로그아웃 처리: userId={}", userId);
+        jwtRegistry.invalidateAll(userId);
 
         log.debug("[UserServiceImpl] publish UserRoleChangedEvent: userId={}, previousRole={}, newRole={}",
             savedUser.getId(), previousRole, newRole);
