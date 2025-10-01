@@ -13,21 +13,24 @@ import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.feed.entity.FeedClothes;
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
 @DisplayName("ClothesMapper 매핑 테스트")
 public class ClothesMapperTest {
 
-    @Autowired
     private ClothesMapper clothesMapper;
-
-    @Autowired
     private ClothesAttributeMapper mapper;
+
+    @BeforeEach
+    void setUp() {
+        mapper = Mappers.getMapper(ClothesAttributeMapper.class);
+        clothesMapper = Mappers.getMapper(ClothesMapper.class);
+    }
 
     @Test
     void 의상_속성_정의_엔티티를_DTO로_변환() {
