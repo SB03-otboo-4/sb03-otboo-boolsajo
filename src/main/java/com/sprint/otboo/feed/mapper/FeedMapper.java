@@ -35,6 +35,8 @@ public interface FeedMapper {
     }
 
     @Mappings({
+        @Mapping(target = "author", source = "author"),
+        @Mapping(target = "weather", source = "weather"),
         @Mapping(target = "ootds", source = "feedClothes"),
         @Mapping(target = "likedByMe", constant = "false"),
         @Mapping(target = "createdAt", source = "createdAt", qualifiedByName = "toMillis"),
