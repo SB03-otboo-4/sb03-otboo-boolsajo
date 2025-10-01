@@ -39,12 +39,26 @@ public class KmaForecastAssembler {
     }
 
     public List<Weather> toWeathers(List<KmaForecastMapper.Slot> slots, WeatherLocation location) {
+        return toWeathers(slots, location, List.of());
+    }
+
+    /** 원본 items 를 받아 RN1/PCP, TMN/TMX 를 반영 */
+    public List<Weather> toWeathers(List<KmaForecastMapper.Slot> slots,
+        WeatherLocation location,
+        List<KmaForecastItem> items) {
         if (slots == null || slots.isEmpty()) return List.of();
+
+        // 날짜별 TMN/TMX 미리 뽑기
+        Map<String, Double> dailyMin = extractDailyValue(items, "TMN");
+        Map<String, Double> dailyMax = extractDailyValue(items, "TMX");
+
+        // 타임스탬프별 RN1/PCP 강수량(mm) 뽑기
+        Map<String, Double> precipAmountByTs = extractPrecipAmountByTs(items);
 
         List<Weather> list = new ArrayList<>(slots.size());
         for (KmaForecastMapper.Slot s : slots) {
             Instant forecastAt = instantOf(s);
-            // base_time을 받지 않으므로, 직전 발표 기준으로 30분 전으로 근사
+            // base_time을 모르니, 직전 발표 기준으로 30분 전 근사
             Instant forecastedAt = forecastAt.minusSeconds(30 * 60);
 
             Double tempC = (double) s.getTemperature();
@@ -53,6 +67,14 @@ public class KmaForecastAssembler {
 
             Double speed = safeSpeedMs(s.getWindSpeedMs());
             WindStrength ws = pickWindStrength(s.getWindSpeedMs(), s.getWindQualCode());
+
+            // 강수량(mm): 같은 타임스탬프의 RN1/PCP → 숫자화
+            String tsKey = s.getFcstDate() + "_" + s.getFcstTime();
+            Double amountMm = precipAmountByTs.getOrDefault(tsKey, 0.0);
+
+            // 일 최저/최고: fcstDate 기준으로 TMN/TMX 반영(없으면 null)
+            Double minC = dailyMin.get(s.getFcstDate());
+            Double maxC = dailyMax.get(s.getFcstDate());
 
             Weather w = Weather.builder()
                 .location(location)
@@ -65,6 +87,9 @@ public class KmaForecastAssembler {
                 .asWord(ws)
                 .currentPct(reh)
                 .speedMs(speed)
+                .amountMm(amountMm)
+                .minC(minC)
+                .maxC(maxC)
                 .build();
 
             list.add(w);
@@ -125,5 +150,79 @@ public class KmaForecastAssembler {
             case 3 -> WindStrength.STRONG;
             default -> WindStrength.WEAK;
         };
+    }
+
+    /** 날짜별 TMN/TMX 값을 Double로 추출 */
+    private static Map<String, Double> extractDailyValue(List<KmaForecastItem> items, String category) {
+        if (items == null || items.isEmpty()) return Map.of();
+        Map<String, Double> out = new HashMap<>();
+        for (KmaForecastItem it : items) {
+            if (it == null) continue;
+            if (!category.equals(it.getCategory())) continue;
+            String date = it.getFcstDate();
+            Double v = parseDoubleSafe(it.getFcstValue());
+            if (v != null) out.put(date, v);
+        }
+        return out;
+    }
+
+    /** 타임스탬프별 RN1/PCP 강수량(mm) */
+    private static Map<String, Double> extractPrecipAmountByTs(List<KmaForecastItem> items) {
+        if (items == null || items.isEmpty()) return Map.of();
+        Map<String, Double> out = new HashMap<>();
+        for (KmaForecastItem it : items) {
+            if (it == null) continue;
+            String cat = it.getCategory();
+            if (!"RN1".equals(cat) && !"PCP".equals(cat)) continue;
+
+            String tsKey = it.getFcstDate() + "_" + it.getFcstTime();
+            Double mm = parsePrecipAmountToMm(it.getFcstValue());
+            if (mm == null) continue;
+            if (out.containsKey(tsKey) && "PCP".equals(cat)) continue;
+            out.put(tsKey, mm);
+        }
+        return out;
+    }
+
+    private static Double parseDoubleSafe(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            double d = Double.parseDouble(s.trim());
+            if (d >= 900 || d <= -900) return null;
+            return d;
+        } catch (NumberFormatException ignore) {
+            return null;
+        }
+    }
+
+    /** "강수없음", "1mm 미만", "10~20mm" 등 KMA 문자열을 mm(double)로 표준화 */
+    private static Double parsePrecipAmountToMm(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String v = raw.trim();
+
+        if ("강수없음".equals(v)) return 0.0;
+        if (v.contains("미만")) {
+            // "1mm 미만" → 0.5로 근사
+            return 0.5;
+        }
+        if (v.endsWith("mm")) {
+            String core = v.replace("mm", "").trim();
+            if (core.contains("~")) {
+                // "10~20" → 중간값 15
+                String[] parts = core.split("~");
+                Double a = parseDoubleSafe(parts[0]);
+                Double b = parseDoubleSafe(parts.length > 1 ? parts[1] : null);
+                if (a != null && b != null) return (a + b) / 2.0;
+                if (a != null) return a;
+                if (b != null) return b;
+                return null;
+            } else {
+                return parseDoubleSafe(core);
+            }
+        }
+
+        Double direct = parseDoubleSafe(v);
+        if (direct != null) return direct;
+        return null;
     }
 }

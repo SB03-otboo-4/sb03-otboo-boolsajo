@@ -22,7 +22,7 @@ import java.time.Instant;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@SuperBuilder
+@SuperBuilder(toBuilder = true)
 public class Weather extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
