@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
@@ -27,13 +28,10 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 피드 검색용 커스텀 리포지토리 구현체.
+ * 피드 검색용 커스텀 리포지토리 구현체
  *
  * <p>Elasticsearch에 저장된 피드 문서({@link FeedDoc})를 대상으로
- * - 키워드(형태소/문구/부분/오타/띄어쓰기 보정) 가중치 검색,
- * - 작성자/날씨 조건 필터,
- * - 정렬 및 search_after 기반 커서 페이지네이션
- * 을 수행한다.</p>
+ * - 키워드(형태소/문구/부분/오타/띄어쓰기 보정) 가중치 검색, - 작성자/날씨 조건 필터, - 정렬 및 search_after 기반 커서 페이지네이션을 수행한다.</p>
  *
  * <h2>정렬/페이지네이션</h2>
  * <ul>
@@ -57,18 +55,30 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
 
-    // ====== 필드 상수 (인덱스 템플릿과 일치해야 함) ======
-    private static final String F_CONTENT = "content";
-    private static final String F_CONTENT_KW = "content.kw";
-    private static final String F_CONTENT_NGRAM = "content.ngram";
-    private static final String F_CONTENT_NOSPACE = "content.nospace";
-    private static final String F_CONTENT_SHINGLE = "content.shingle";
-    private static final String F_AUTHOR_NAME = "author.name";
+    static final class F {
+
+        static final String CONTENT = "content";
+        static final String CONTENT_KW = "content.kw";
+        static final String CONTENT_NGRAM = "content.ngram";
+        static final String CONTENT_NOSPACE = "content.nospace";
+        static final String CONTENT_SHINGLE = "content.shingle";
+        static final String AUTHOR_NAME = "author.name";
+        static final String AUTHOR_ID = "author.userId";
+        static final String SKY = "weather.skyStatus";
+        static final String PRECIP = "weather.precipitation.type";
+        static final String CREATED_AT = "createdAt";
+        static final String LIKE_COUNT = "likeCount";
+        static final String ID = "id";
+    }
 
     private final ElasticsearchOperations es;
 
-    // 읽기용 알리아스(또는 인덱스). 운영에서 알리아스 "feeds" 사용.
-    private static final IndexCoordinates INDEX = IndexCoordinates.of("feeds");
+    @Value("${app.index.read-alias:feed-read}")
+    private String readAlias;
+
+    private IndexCoordinates index() {
+        return IndexCoordinates.of(readAlias);
+    }
 
     /**
      * 피드 ID 목록을 커서 페이지네이션으로 조회한다.
@@ -97,12 +107,12 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
         UUID authorId
     ) {
         final boolean desc = !"ASCENDING".equalsIgnoreCase(sortDirection);
-        final String primary = "likeCount".equals(sortBy) ? "likeCount" : "createdAt";
-        final int size = Math.min(Math.max(limit, 1), 100) + 1; // 다음 페이지 존재 여부 판단용 +1
+        final String primary = F.LIKE_COUNT.equals(sortBy) ? F.LIKE_COUNT : F.CREATED_AT;
+        final int size = Math.min(Math.max(limit, 1), 100) + 1;
 
         Query bool = buildBool(keywordLike, skyStatus, precipitationType, authorId);
         List<SortOptions> sorts = buildSorts(primary, desc);
-        List<Object> searchAfter = buildSearchAfter(primary, cursor, idAfter);
+        List<Object> searchAfter = buildSearchAfter(cursor, idAfter);
 
         NativeQueryBuilder qb = new NativeQueryBuilder()
             .withQuery(bool)
@@ -113,7 +123,7 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
             qb.withSearchAfter(searchAfter);
         }
 
-        SearchHits<FeedDoc> hits = es.search(qb.build(), FeedDoc.class, INDEX);
+        SearchHits<FeedDoc> hits = es.search(qb.build(), FeedDoc.class, index());
         List<SearchHit<FeedDoc>> raw = hits.getSearchHits();
 
         boolean hasNext = raw.size() > limit;
@@ -144,37 +154,35 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
     }
 
     /**
-     * 정렬 옵션을 구성한다. 1차 정렬(primary) + 타이브레이커(id).
+     * 정렬 옵션을 구성한다. 1차 정렬(primary) + 타이브레이커(id)
      */
     private List<SortOptions> buildSorts(String primary, boolean desc) {
         SortOrder order = desc ? SortOrder.Desc : SortOrder.Asc;
         return List.of(
             SortOptions.of(s -> s.field(f -> f.field(primary).order(order))),
-            SortOptions.of(s -> s.field(f -> f.field("id").order(order)))
+            SortOptions.of(s -> s.field(f -> f.field(F.ID).order(order)))
         );
     }
 
     /**
      * search_after 값을 구성한다. [primarySortValue, idAfter] 형태
      */
-    private List<Object> buildSearchAfter(String primary, String cursor, UUID idAfter) {
+    private List<Object> buildSearchAfter(String cursor, UUID idAfter) {
         if (cursor == null || idAfter == null) {
             return null;
         }
-        Object pv = parseCursorValue(primary, cursor);
-        return List.of(pv, idAfter.toString());
+        Long primarySortValue = parseCursorValue(cursor);
+        return List.of(primarySortValue, idAfter.toString());
     }
 
     /**
-     * 다음 페이지 커서 구성을 위해 마지막 히트의 sort_values 를 파싱한다
+     * 다음 페이지 커서 구성을 위해 마지막 히트의 sort_values 파싱
      */
     private NextCursor buildNextCursor(List<SearchHit<FeedDoc>> page) {
-        List<Object> sv = page.get(page.size() - 1).getSortValues();
-        Object s0 = sv.get(0);
-        String cursor =
-            (s0 instanceof Number) ? String.valueOf(((Number) s0).longValue()) : s0.toString();
-        String idAfter = sv.get(1).toString();
-        return new NextCursor(cursor, idAfter);
+        List<Object> sortValues = page.get(page.size() - 1).getSortValues();
+        long primarySortValue = ((Number) sortValues.get(0)).longValue();
+        String idAfter = sortValues.get(1).toString();
+        return new NextCursor(String.valueOf(primarySortValue), idAfter);
     }
 
     /**
@@ -185,18 +193,17 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
     }
 
     /**
-     * 커서 문자열을 정렬 기준 타입에 맞게 파싱한다.
-     * likeCount → long, createdAt → long(에포크밀리) 또는 문자열(ES가 반환한 값 그대로) 허용
+     * 커서 문자열을 정렬 기준 타입에 맞게 파싱 허용
      */
-    private Object parseCursorValue(String primary, String cursor) {
-        if (cursor == null) {
+    private Long parseCursorValue(String cursor) {
+        if (cursor == null || cursor.isBlank()) {
             return null;
         }
-        if ("likeCount".equals(primary)) {
-            return Long.parseLong(cursor);
+        try {
+            return Long.parseLong(cursor.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Cursor must be epoch_millis long: " + cursor, e);
         }
-        boolean numeric = cursor.chars().allMatch(Character::isDigit);
-        return numeric ? Long.parseLong(cursor) : cursor;
     }
 
     /**
@@ -221,10 +228,10 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
 
         NativeQuery query = new NativeQueryBuilder()
             .withQuery(bool)
-            .withMaxResults(0) // 카운트만 필요
+            .withMaxResults(0)
             .build();
 
-        long cnt = es.count(query, INDEX);
+        long cnt = es.count(query, index());
 
         if (log.isDebugEnabled()) {
             log.debug(
@@ -243,96 +250,92 @@ public class FeedSearchRepositoryImpl implements FeedSearchRepositoryCustom {
      *   <li>작성자/날씨/강수 필터는 filter 절로 고정</li>
      * </ul>
      */
-    private Query buildBool(
-        String keywordLike,
-        SkyStatus skyStatus,
-        PrecipitationType precipitationType,
-        UUID authorId
-    ) {
+    private Query buildBool(String keywordLike, SkyStatus sky, PrecipitationType type,
+        UUID authorId) {
         final List<Query> must = new ArrayList<>();
         final List<Query> should = new ArrayList<>();
         final List<Query> filters = new ArrayList<>();
 
-        final String q = (keywordLike == null) ? "" : keywordLike.trim();
-        final boolean hasQ = !q.isBlank();
-        final String qNoSpace = hasQ ? noSpace(q) : null;
+        final String searchText = (keywordLike == null) ? "" : keywordLike.trim();
+        final boolean hasSearchText = !searchText.isBlank();
+        final String searchTextNoSpace = hasSearchText ? noSpace(searchText) : null;
 
-        if (!hasQ) {
-            // 검색어 없으면 전체 조회
+        if (!hasSearchText) {
             must.add(MatchAllQuery.of(m -> m)._toQuery());
         } else {
-            // 1) 정확 일치 (가중치 최상)
-            should.add(new Query.Builder().term(t -> t
-                .field(F_CONTENT_KW)
-                .value(q)
-                .boost(8.0f)
-            ).build());
-
-            // 2) 형태소 기본 매치 (AND, best_fields)
-            should.add(new Query.Builder().multiMatch(mm -> mm
-                .query(q)
-                .fields(F_CONTENT + "^3", F_AUTHOR_NAME + "^1.2")
-                .operator(Operator.And)
-                .type(TextQueryType.BestFields)
-                .boost(3.0f)
-            ).build());
-
-            // 3) 문구(shingle) — 띄어쓰기 변형/연속어 보조
-            should.add(new Query.Builder().matchPhrase(mp -> mp
-                .field(F_CONTENT_SHINGLE)
-                .query(q)
-                .slop(2)
-                .boost(2.5f)
-            ).build());
-
-            // 4) 오타 허용(fuzzy) — 한국어 과확장 방지용 낮은 가중치
-            should.add(new Query.Builder().multiMatch(mm -> mm
-                .query(q)
-                .fields(F_CONTENT, F_AUTHOR_NAME)
-                .fuzziness("AUTO")
-                .prefixLength(1)
-                .maxExpansions(30)
-                .boost(1.5f)
-            ).build());
-
-            // 5) 부분일치(edge n-gram)
-            should.add(new Query.Builder().multiMatch(mm -> mm
-                .query(q)
-                .fields(F_CONTENT_NGRAM + "^1.3")
-                .boost(1.3f)
-            ).build());
-
-            // 6) 띄어쓰기 오류(no-space) 보정
-            if (qNoSpace != null && !qNoSpace.isBlank()) {
-                should.add(new Query.Builder().multiMatch(mm -> mm
-                    .query(qNoSpace)
-                    .fields(F_CONTENT_NOSPACE + "^1.6")
-                    .boost(1.6f)
-                ).build());
-            }
+            addWeightedShouldQueries(should, searchText, searchTextNoSpace);
         }
 
         if (authorId != null) {
-            filters.add(new Query.Builder()
-                .term(t -> t.field("author.userId").value(authorId.toString()))
-                .build());
+            filters.add(
+                new Query.Builder().term(t -> t.field(F.AUTHOR_ID).value(authorId.toString()))
+                    .build());
         }
-        if (skyStatus != null) {
-            filters.add(new Query.Builder()
-                .term(t -> t.field("weather.skyStatus").value(skyStatus.name()))
-                .build());
+        if (sky != null) {
+            filters.add(new Query.Builder().term(t -> t.field(F.SKY).value(sky.name())).build());
         }
-        if (precipitationType != null) {
-            filters.add(new Query.Builder()
-                .term(t -> t.field("weather.precipitation.type").value(precipitationType.name()))
-                .build());
+        if (type != null) {
+            filters.add(
+                new Query.Builder().term(t -> t.field(F.PRECIP).value(type.name())).build());
         }
 
-        return new Query.Builder().bool(b -> b
-            .must(must)
-            .should(should)
-            .filter(filters)
-            .minimumShouldMatch(hasQ ? "1" : null)
-        ).build();
+        return new Query.Builder().bool(b -> b.must(must).should(should).filter(filters)
+            .minimumShouldMatch(hasSearchText ? "1" : null)).build();
+    }
+
+    private void addWeightedShouldQueries(List<Query> should, String searchText,
+        String searchTextNoSpace) {
+        // 1) 정확 일치: content.kw (keyword)
+        should.add(new Query.Builder()
+            .term(t -> t.field(F.CONTENT_KW).value(searchText).boost(8.0f))
+            .build());
+
+        // 2) 형태소 기본 매치: content^3, author.name^1.2 (nori, BestFields, AND)
+        should.add(new Query.Builder()
+            .multiMatch(mm -> mm
+                .query(searchText)
+                .fields(F.CONTENT + "^3", F.AUTHOR_NAME + "^1.2")
+                .operator(Operator.And)
+                .type(TextQueryType.BestFields)
+                .boost(3.0f))
+            .build());
+
+        // 3) 문구(shingle): content.shingle (slop 2)
+        should.add(new Query.Builder()
+            .matchPhrase(mp -> mp
+                .field(F.CONTENT_SHINGLE)
+                .query(searchText)
+                .slop(2)
+                .boost(2.5f))
+            .build());
+
+        // 4) 오타 허용(fuzzy): content, author.name
+        should.add(new Query.Builder()
+            .multiMatch(mm -> mm
+                .query(searchText)
+                .fields(F.CONTENT, F.AUTHOR_NAME)
+                .fuzziness("AUTO")
+                .prefixLength(1)
+                .maxExpansions(30)
+                .boost(1.5f))
+            .build());
+
+        // 5) 부분일치(n-gram): content.ngram  (ko_edge = ngram_2_20 기반)
+        should.add(new Query.Builder()
+            .match(m -> m
+                .field(F.CONTENT_NGRAM)
+                .query(searchText)
+                .boost(1.3f))
+            .build());
+
+        // 6) 띄어쓰기 보정(no-space): content.nospace  (keyword+lowercase)
+        if (searchTextNoSpace != null && !searchTextNoSpace.isBlank()) {
+            should.add(new Query.Builder()
+                .match(m -> m
+                    .field(F.CONTENT_NOSPACE)
+                    .query(searchTextNoSpace)
+                    .boost(1.6f))
+                .build());
+        }
     }
 }
