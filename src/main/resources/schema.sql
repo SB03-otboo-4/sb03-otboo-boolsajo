@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS weathers
                                             (current_pct >= 0 AND current_pct <= 100)),
     CONSTRAINT ck_weathers_wind_nonneg CHECK (speed_ms IS NULL OR speed_ms >= 0),
     CONSTRAINT fk_weathers_location FOREIGN KEY (location_id) REFERENCES weather_locations (id) ON DELETE RESTRICT,
-    CONSTRAINT uq_weathers_loc_target UNIQUE (location_id, forecast_at)
+    CONSTRAINT uq_weathers_loc_target_ver UNIQUE (location_id, forecast_at, forecasted_at)
 );
 
 -- 3) User Profiles & OAuth
