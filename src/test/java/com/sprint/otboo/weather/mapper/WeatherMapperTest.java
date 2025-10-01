@@ -36,7 +36,7 @@ class WeatherMapperTest {
         wl.setY(127);
         wl.setLocationNames("서울특별시/중구/태평로1가");
 
-        WeatherLocationResponse dto = mapper.toLocationResponse(wl); // ⬅️ 변경
+        WeatherLocationResponse dto = mapper.toLocationResponse(wl);
         assertThat(dto.locationNames()).containsExactly("서울특별시","중구","태평로1가");
     }
 
@@ -49,13 +49,13 @@ class WeatherMapperTest {
         wl.setY(127);
         wl.setLocationNames("서울특별시   중구    태평로1가");
 
-        WeatherLocationResponse dto = mapper.toLocationResponse(wl); // ⬅️ 변경
+        WeatherLocationResponse dto = mapper.toLocationResponse(wl);
         assertThat(dto.locationNames()).containsExactly("서울특별시","중구","태평로1가");
     }
 
     @Test
     void 구분자만_있는_입력은_빈_리스트() {
-        assertThat(WeatherMapper.splitLocationNames(" /  / ")).isEmpty(); // ← 그대로 OK (static)
+        assertThat(WeatherMapper.splitLocationNames(" /  / ")).isEmpty();
     }
 
     @Test
