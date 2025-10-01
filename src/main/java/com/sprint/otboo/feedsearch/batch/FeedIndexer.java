@@ -7,6 +7,7 @@ import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import com.sprint.otboo.feedsearch.dto.FeedDoc;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -16,7 +17,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FeedIndexer {
 
-    private static final String INDEX_ALIAS = "feed-write";
+    @Value("${app.index.write-alias:feed-write}")
+    private String indexAlias;
 
     private final ElasticsearchClient es;
 
@@ -25,7 +27,7 @@ public class FeedIndexer {
 
         for (FeedDoc d : docs) {
             BulkOperation op = BulkOperation.of(o -> o.index(i -> i
-                .index(INDEX_ALIAS)
+                .index(indexAlias)
                 .id(String.valueOf(d.id()))
                 .document(d)));
             builder.operations(op);
@@ -39,6 +41,6 @@ public class FeedIndexer {
     }
 
     public void refresh() throws IOException {
-        es.indices().refresh(r -> r.index(INDEX_ALIAS));
+        es.indices().refresh(r -> r.index(indexAlias));
     }
 }

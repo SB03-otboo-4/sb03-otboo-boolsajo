@@ -4,8 +4,10 @@ import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feedsearch.bootstrap.EsIndexBootstrapper;
 import com.sprint.otboo.feedsearch.dto.FeedDoc;
+import com.sprint.otboo.feedsearch.redis.FeedIndexRedisHelper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +22,19 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * 피드 색인 배치 서비스.
+ *
+ * <p>이 서비스는 아래를 수행합니다:
+ * <ol>
+ *   <li>프리플라이트: 색인/알리아스 존재 보장</li>
+ *   <li>분산 락: 무중단 배포/멀티 인스턴스 환경에서 단일 실행 보장</li>
+ *   <li>커서 기반 재개: 마지막 처리 위치(cursorUpdatedAt, cursorId)를 Redis에 저장/복원하여
+ *       재시작 후에도 이어서 색인</li>
+ * </ol>
+ *
+ * <p>색인은 JPA로 Feed를 청크 단위로 읽어 ES 문서로 매핑 후 bulk 업서트를 수행합니다.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -31,6 +46,7 @@ public class FeedIndexBatchService {
     private final FeedIndexer feedIndexer;
     private final TransactionTemplate txTemplate;
     private final EsIndexBootstrapper esIndexBootstrapper;
+    private final FeedIndexRedisHelper redis;
 
     @PersistenceContext
     private EntityManager em;
@@ -42,6 +58,14 @@ public class FeedIndexBatchService {
 
     @Value("${app.index.run-on-startup:true}")
     private boolean runOnStartup;
+    @Value("${app.index.write-alias:feed-write}")
+    private String writeAlias;
+    @Value("${app.index.lock.ttl-seconds:600}")
+    private long lockTtlSeconds;
+
+    private String lockKey() {
+        return "locks:feed:index:" + writeAlias;
+    }
 
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     public void scheduledReindex() {
@@ -50,6 +74,7 @@ public class FeedIndexBatchService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void runOnceOnStartup() {
+        loadCursor();
         if (!runOnStartup) {
             log.info("[FeedIndexBatchService] 앱 기동 시 색인 비활성화됨 (app.index.run-on-startup=false)");
             return;
@@ -58,17 +83,24 @@ public class FeedIndexBatchService {
     }
 
     /**
-     * [FeedIndexBatchService] 안전 실행 래퍼
-     * - 동시 실행 방지
-     * - 필요 시 커서 초기화(풀 리인덱스)
-     * - 필요 시 프리플라이트(인덱스 보장) 수행
+     * 안전 실행 래퍼.
+     *
+     * @param reason      실행 이유(로그용)
+     * @param fullReindex true면 커서를 초기화(EPOCH)하여 풀 리인덱스 수행
+     * @param preflight   true면 인덱스/알리아스 보장을 위한 프리플라이트 수행
      */
     private void runSafely(String reason, boolean fullReindex, boolean preflight) {
         if (!running.compareAndSet(false, true)) {
             log.warn("[FeedIndexBatchService] 색인이 이미 실행 중이어서 건너뜀 (reason={})", reason);
             return;
         }
+        String token = null;
         try {
+            token = redis.tryLock(lockKey(), Duration.ofSeconds(lockTtlSeconds));
+            if (token == null) {
+                log.warn("[FeedIndexBatchService] 다른 인스턴스 수행 중 (reason={})", reason);
+                return;
+            }
             if (preflight) {
                 preflightEnsure();
             }
@@ -79,15 +111,14 @@ public class FeedIndexBatchService {
         } catch (Exception e) {
             log.error("[FeedIndexBatchService] 색인 실패 (reason={})", reason, e);
         } finally {
+            if (token != null) {
+                redis.unlock(lockKey(), token);
+            }
             running.set(false);
         }
+
     }
 
-    /**
-     * [FeedIndexBatchService] 프리플라이트: 인덱스 보장
-     * - 부트스트랩퍼를 통해 인덱스가 없으면 생성한다.
-     * - 도커 재기동 등 초기 상태에서도 안전하게 동작.
-     */
     private void preflightEnsure() {
         try {
             esIndexBootstrapper.ensure();
@@ -103,6 +134,10 @@ public class FeedIndexBatchService {
         log.info("[FeedIndexBatchService] 커서를 초기화했습니다. (full reindex)");
     }
 
+    /**
+     * 색인 메인 루프.
+     * <p>청크 단위로 Feed를 조회 → 문서 매핑 → ES bulk 업서트 → 커서 전진·저장 순으로 수행합니다.</p>
+     */
     public void reindex() {
         txTemplate.executeWithoutResult(status -> {
             try {
@@ -154,5 +189,21 @@ public class FeedIndexBatchService {
         Feed tail = chunk.get(chunk.size() - 1);
         cursorUpdatedAt = tail.getUpdatedAt();
         cursorId = tail.getId();
+        redis.saveCursor(writeAlias, cursorUpdatedAt, cursorId);
+    }
+
+    private void loadCursor() {
+        FeedIndexRedisHelper.Holder holder = new FeedIndexRedisHelper.Holder();
+        if (redis.loadCursor(writeAlias, holder)) {
+            cursorUpdatedAt = holder.updatedAt;
+            cursorId = holder.id;
+            log.info("[FeedIndexBatchService] 커서 로드: updatedAt={}, id={}", cursorUpdatedAt,
+                cursorId);
+        } else {
+            redis.resetCursor(writeAlias);
+            cursorUpdatedAt = Instant.EPOCH;
+            cursorId = new UUID(0, 0);
+            log.info("[FeedIndexBatchService] 저장된 커서 없음 → EPOCH부터 시작");
+        }
     }
 }
