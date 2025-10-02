@@ -35,7 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @ActiveProfiles("test")
 class FeedSearchRepositoryTest {
 
-    private static final String INDEX = "feeds";
+    private static final String INDEX = "feed-read";
 
     @Container
     @ServiceConnection
