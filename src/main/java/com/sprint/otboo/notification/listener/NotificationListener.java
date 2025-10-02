@@ -4,10 +4,7 @@ import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
 import com.sprint.otboo.notification.service.NotificationService;
-import com.sprint.otboo.user.entity.Role;
-import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.event.UserRoleChangedEvent;
-import com.sprint.otboo.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,7 +17,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class NotificationListener {
 
     private final NotificationService notificationService;
-    private final UserRepository userRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleUserRoleChanged(UserRoleChangedEvent event) {
