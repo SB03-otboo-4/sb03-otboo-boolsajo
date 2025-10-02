@@ -8,12 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * 색인 커서 저장/복원 전용 헬퍼
- */
 @Component
 @RequiredArgsConstructor
-public class FeedIndexRedisHelper {
+public class RedisCursorHelper {
 
     private final StringRedisTemplate redisTemplate;
 
@@ -34,7 +31,9 @@ public class FeedIndexRedisHelper {
     public Optional<CursorDto> loadCursor(String name) {
         String updated = redisTemplate.opsForValue().get(cursorUpdatedAtKey(name));
         String id = redisTemplate.opsForValue().get(cursorIdKey(name));
-        if (updated == null || id == null) return Optional.empty();
+        if (updated == null || id == null) {
+            return Optional.empty();
+        }
         return Optional.of(new CursorDto(Instant.parse(updated), UUID.fromString(id)));
     }
 }

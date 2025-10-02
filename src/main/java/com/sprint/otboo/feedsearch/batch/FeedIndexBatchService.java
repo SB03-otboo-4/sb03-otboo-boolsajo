@@ -6,8 +6,8 @@ import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.feedsearch.bootstrap.EsIndexBootstrapper;
 import com.sprint.otboo.feedsearch.dto.CursorDto;
 import com.sprint.otboo.feedsearch.dto.FeedDoc;
-import com.sprint.otboo.feedsearch.redis.FeedIndexRedisHelper;
-import com.sprint.otboo.feedsearch.redis.RedisLock;
+import com.sprint.otboo.feedsearch.redis.RedisCursorHelper;
+import com.sprint.otboo.feedsearch.redis.RedisLockHelper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.io.IOException;
@@ -48,16 +48,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Slf4j
 public class FeedIndexBatchService {
 
-    /** 한 번에 처리할 페이지 크기(문서 수). */
+    /**
+     * 한 번에 처리할 페이지 크기(문서 수).
+     */
     private static final int PAGE_SIZE = 500;
 
     private final FeedMapper feedMapper;
     private final FeedIndexer feedIndexer;
     private final EsIndexBootstrapper esIndexBootstrapper;
-    private final FeedIndexRedisHelper redis;
+    private final RedisCursorHelper redis;
     private final FeedRepository feedRepository;
     private final TransactionTemplate txTemplate;
-    private final RedisLock redisLock;
+    private final RedisLockHelper redisLockHelper;
 
     @PersistenceContext
     private EntityManager em;
@@ -65,11 +67,13 @@ public class FeedIndexBatchService {
     /**
      * 내부 처리용 청크 컨테이너.
      *
-     * @param docs 업서트 대상 문서
+     * @param docs          업서트 대상 문서
      * @param lastUpdatedAt 커서 전진 기준이 되는 마지막 updatedAt
-     * @param lastId 커서 전진 기준이 되는 마지막 id
+     * @param lastId        커서 전진 기준이 되는 마지막 id
      */
-    private record Chunk(List<FeedDoc> docs, Instant lastUpdatedAt, UUID lastId) {}
+    private record Chunk(List<FeedDoc> docs, Instant lastUpdatedAt, UUID lastId) {
+
+    }
 
     /**
      * 진행 커서 (영속: Redis).
@@ -123,7 +127,7 @@ public class FeedIndexBatchService {
      */
     private void run(String reason) {
         ensureIndexReady();
-        boolean started = redisLock.runWithLock(
+        boolean started = redisLockHelper.runWithLock(
             lockKey(),
             Duration.ofSeconds(lockTtlSeconds),
             () -> {
@@ -155,8 +159,7 @@ public class FeedIndexBatchService {
      *   <li>EM clear로 1차 캐시 정리</li>
      * </ol>
      *
-     * @implNote IOException 발생 시 예외를 전파하여 배치를 중단한다.
-     *           (커서는 성공 시에만 전진하므로, 다음 실행에서 동일 지점부터 재개)
+     * @implNote IOException 발생 시 예외를 전파하여 배치를 중단한다. (커서는 성공 시에만 전진하므로, 다음 실행에서 동일 지점부터 재개)
      */
     public void reindex() {
         long totalUpserts = 0L;
@@ -269,6 +272,7 @@ public class FeedIndexBatchService {
 
     private void loadCursor() {
         cursor = redis.loadCursor(writeAlias).orElse(CursorDto.epoch());
-        log.info("[FeedIndexBatchService] 커서 로드: updatedAt={}, id={}", cursor.updatedAt(), cursor.id());
+        log.info("[FeedIndexBatchService] 커서 로드: updatedAt={}, id={}", cursor.updatedAt(),
+            cursor.id());
     }
 }
