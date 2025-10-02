@@ -22,12 +22,4 @@ public class FollowController {
     public FollowDto create(@Valid @RequestBody FollowCreateRequest request) {
         return service.create(request.followerId(), request.followeeId());
     }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    void handleBadRequest() {}
-
-    @ExceptionHandler(IllegalStateException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    void handleConflict() {}
 }

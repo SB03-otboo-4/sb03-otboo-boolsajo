@@ -3,15 +3,14 @@ package com.sprint.otboo.follow.controller;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.sprint.otboo.follow.controller.FollowController;
-import com.sprint.otboo.follow.dto.FollowDto;
+import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.service.FollowService;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -65,7 +64,9 @@ class FollowControllerTest {
         mockMvc.perform(post("/api/follows")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("FOLLOW_SELF_NOT_ALLOWED"))
+            .andExpect(jsonPath("$.message").isNotEmpty());
     }
 
     @Test
@@ -83,6 +84,8 @@ class FollowControllerTest {
         mockMvc.perform(post("/api/follows")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isConflict());
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("FOLLOW_ALREADY_EXISTS"))
+            .andExpect(jsonPath("$.message").isNotEmpty());
     }
 }

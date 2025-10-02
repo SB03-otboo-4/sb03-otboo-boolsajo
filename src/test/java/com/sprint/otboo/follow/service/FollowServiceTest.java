@@ -5,12 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.sprint.otboo.follow.dto.FollowDto;
+import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.entity.Follow;
 import com.sprint.otboo.follow.repository.FollowRepository;
-import com.sprint.otboo.follow.service.FollowService;
-import com.sprint.otboo.follow.service.FollowServiceImpl;
-import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
