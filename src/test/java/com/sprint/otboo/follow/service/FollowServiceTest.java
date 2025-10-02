@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.entity.Follow;
 import com.sprint.otboo.follow.repository.FollowRepository;
@@ -24,7 +26,10 @@ class FollowServiceTest {
     void 자기_자신은_팔로우할_수_없다() {
         UUID id = UUID.randomUUID();
         assertThatThrownBy(() -> service.create(id, id))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(FollowException.class)
+            .hasMessageContaining(ErrorCode.FOLLOW_SELF_NOT_ALLOWED.getMessage())
+            .extracting(ex -> ((FollowException) ex).getErrorCode())
+            .isEqualTo(ErrorCode.FOLLOW_SELF_NOT_ALLOWED);
     }
 
     @Test
@@ -36,7 +41,10 @@ class FollowServiceTest {
         when(repository.existsByFollowerIdAndFolloweeId(follower, followee)).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(follower, followee))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(FollowException.class)
+            .hasMessageContaining(ErrorCode.FOLLOW_ALREADY_EXISTS.getMessage())
+            .extracting(ex -> ((FollowException) ex).getErrorCode())
+            .isEqualTo(ErrorCode.FOLLOW_ALREADY_EXISTS);
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.sprint.otboo.follow.dto.reqeust;
+package com.sprint.otboo.follow.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import java.util.UUID;

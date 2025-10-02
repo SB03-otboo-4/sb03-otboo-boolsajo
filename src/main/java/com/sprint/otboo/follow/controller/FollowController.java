@@ -1,7 +1,7 @@
 package com.sprint.otboo.follow.controller;
 
 import com.sprint.otboo.follow.dto.data.FollowDto;
-import com.sprint.otboo.follow.dto.reqeust.FollowCreateRequest;
+import com.sprint.otboo.follow.dto.request.FollowCreateRequest;
 import com.sprint.otboo.follow.service.FollowService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
