@@ -1,6 +1,7 @@
 package com.sprint.otboo.auth.jwt;
 
 import com.sprint.otboo.auth.dto.JwtInformation;
+import java.util.UUID;
 
 public interface JwtRegistry {
 
@@ -24,4 +25,10 @@ public interface JwtRegistry {
      * 전달된 Refresh Token에 해당하는 세션을 무효화(로그아웃)
      */
     void invalidate(String refreshToken);
+
+    /**
+     * 특정 사용자의 모든 활성 JWT 세션을 무효화합니다. (계정 잠금/권한 변경 시 호출)
+     * @param userId 무효화할 사용자의 ID
+     */
+    void invalidateAll(UUID userId);
 }
