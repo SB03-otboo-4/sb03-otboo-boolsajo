@@ -7,6 +7,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
@@ -31,6 +33,8 @@ import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WindStrength;
 import com.sprint.otboo.weather.repository.WeatherRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -545,83 +549,85 @@ public class RecommendationServiceTest {
     }
 
     @Test
-    void 이전추천_DRESS_있음_TopBottom_추천() {
-        // given: 사용자 의상, 이전 추천 정보, 날씨, 사용자 프로필 준비
+    void 최근_추천_제외_및_Dress_제외_로직_테스트() {
+        // given: 날씨 정보, 사용자 의상 2개(Dress + Top), 사용자 프로필, 최근 추천 기록 포함
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(22.0)
+            .maxC(24.0)
+            .minC(20.0)
+            .asWord(WindStrength.WEAK)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .speedMs(1.5)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
         Clothes dress = Clothes.builder()
             .id(UUID.randomUUID())
             .name("원피스")
             .type(ClothesType.DRESS)
-            .attributes(List.of(ClothesAttribute.create(null, null, "MEDIUM")))
             .build();
-
         Clothes top = Clothes.builder()
             .id(UUID.randomUUID())
             .name("셔츠")
             .type(ClothesType.TOP)
-            .attributes(List.of(ClothesAttribute.create(null, null, "LIGHT")))
             .build();
-
-        Clothes bottom = Clothes.builder()
-            .id(UUID.randomUUID())
-            .name("청바지")
-            .type(ClothesType.BOTTOM)
-            .attributes(List.of(ClothesAttribute.create(null, null, "MEDIUM")))
-            .build();
-
-        List<Clothes> userClothes = List.of(dress, top, bottom);
-
-        Weather weather = Weather.builder()
-            .id(weatherId)
-            .maxC(20.0)
-            .minC(15.0)
-            .speedMs(0.0)
-            .build();
-        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(dress, top));
 
         UserProfile profile = UserProfile.builder()
             .userId(userId)
+            .user(User.builder().id(userId).build())
             .temperatureSensitivity(0)
             .build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        when(clothesRepository.findByUser_Id(userId)).thenReturn(userClothes);
-
-        Recommendation prevRecommendation = Recommendation.builder().build();
-        prevRecommendation.addRecommendationClothes(
-            RecommendationClothes.builder().clothes(dress).build()
+        Recommendation recentRecommendation = Recommendation.builder()
+            .user(User.builder().id(userId).build())
+            .weather(weather)
+            .build();
+        recentRecommendation.addRecommendationClothes(
+            RecommendationClothes.builder().clothes(dress).recommendation(recentRecommendation).build()
         );
-        when(recommendationRepository.findTopByUser_IdOrderByCreatedAtDesc(userId))
-            .thenReturn(Optional.of(prevRecommendation));
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of(recentRecommendation));
 
-        when(recommendationEngine.recommend(eq(userClothes), anyDouble(), eq(weather), eq(true)))
-            .thenReturn(List.of(top, bottom));
+        // Engine 동작: 필터링 후 Dress 제외 → Top 추천
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), eq(true)))
+            .thenReturn(List.of(top));
 
-        RecommendationDto expected = new RecommendationDto(weatherId, userId,
-            List.of(
-                new ClothesDto(top.getId(), userId, top.getName(), "image.jpg", ClothesType.TOP, List.of()),
-                new ClothesDto(bottom.getId(), userId, bottom.getName(), "image.jpg", ClothesType.BOTTOM, List.of())
-            )
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(new ClothesDto(top.getId(), userId, "셔츠", "image.jpg", ClothesType.TOP, List.of()))
         );
-        when(recommendationMapper.toDto(any())).thenReturn(expected);
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
 
-        // when: 추천 의상 생성
+        // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
-        // then: 이전 추천 DRESS는 제외하고 TOP & BOTTOM 추천
-        assertThat(result.clothes()).extracting("type")
-            .containsExactlyInAnyOrder(ClothesType.TOP, ClothesType.BOTTOM);
-        assertThat(result.clothes()).extracting("name").doesNotContain("원피스");
+        // then: Dress는 제외되고 Top만 추천
+        assertThat(result.clothes()).hasSize(1);
+        assertThat(result.clothes().get(0).type()).isEqualTo(ClothesType.TOP);
     }
 
     @Test
-    void 이전추천_DRESS_없음_DRESS_추천() {
-        // given: 사용자 의상, 이전 추천 없음, 날씨, 사용자 프로필 준비
-        Clothes dress = Clothes.builder()
-            .id(UUID.randomUUID())
-            .name("원피스")
-            .type(ClothesType.DRESS)
-            .attributes(List.of(ClothesAttribute.create(null, null, "MEDIUM")))
+    void 최근_10분내_추천된_의상은_제외된다() {
+        // given: 날씨, 사용자, 의상 2벌, 10분 내 추천 이력 존재
+        UUID weatherId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(20.0)
+            .maxC(22.0)
+            .minC(18.0)
+            .asWord(WindStrength.WEAK)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .speedMs(1.5)
             .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
 
         Clothes top = Clothes.builder()
             .id(UUID.randomUUID())
@@ -631,46 +637,390 @@ public class RecommendationServiceTest {
 
         Clothes bottom = Clothes.builder()
             .id(UUID.randomUUID())
-            .name("청바지")
+            .name("바지")
             .type(ClothesType.BOTTOM)
             .build();
 
-        List<Clothes> userClothes = List.of(dress, top, bottom);
-
-        Weather weather = Weather.builder()
-            .id(weatherId)
-            .maxC(20.0)
-            .minC(15.0)
-            .speedMs(0.0)
-            .build();
-        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(top, bottom));
 
         UserProfile profile = UserProfile.builder()
             .userId(userId)
+            .user(User.builder().id(userId).build())
             .temperatureSensitivity(0)
             .build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        when(clothesRepository.findByUser_Id(userId)).thenReturn(userClothes);
-
-        when(recommendationRepository.findTopByUser_IdOrderByCreatedAtDesc(userId))
-            .thenReturn(Optional.empty());
-
-        when(recommendationEngine.recommend(eq(userClothes), anyDouble(), eq(weather), eq(false)))
-            .thenReturn(List.of(dress));
-
-        RecommendationDto expected = new RecommendationDto(weatherId, userId,
-            List.of(
-                new ClothesDto(dress.getId(), userId, dress.getName(), "image.jpg", ClothesType.DRESS, List.of())
-            )
+        // 최근 10분 내 추천된 옷 = top
+        Recommendation recent = Recommendation.builder()
+            .user(User.builder().id(userId).build())
+            .weather(weather)
+            .createdAt(Instant.now().minus(5, ChronoUnit.MINUTES)) // Instant 기준 10분 내
+            .build();
+        recent.addRecommendationClothes(
+            RecommendationClothes.builder().clothes(top).recommendation(recent).build()
         );
-        when(recommendationMapper.toDto(any())).thenReturn(expected);
 
-        // when: 추천 의상 생성
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of(recent));
+
+        // Engine은 제외된 top을 제거하고 bottom만 추천하도록 설정
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
+            .thenAnswer(invocation -> {
+                List<Clothes> clothes = invocation.getArgument(0);
+                return clothes.stream()
+                    .filter(c -> c.getType() == ClothesType.BOTTOM)
+                    .toList();
+            });
+
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(new ClothesDto(bottom.getId(), userId, "바지", "image.jpg", ClothesType.BOTTOM, List.of()))
+        );
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+
+        // when: 추천 요청 실행
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
-        // then: 이전 추천 없으면 DRESS 단독 추천
-        assertThat(result.clothes()).extracting("type").containsExactly(ClothesType.DRESS);
-        assertThat(result.clothes()).extracting("name").contains("원피스");
+        // then: 10분 내 추천된 top은 제외되고 bottom만 추천
+        assertThat(result.clothes()).hasSize(1);
+        assertThat(result.clothes().get(0).name()).isEqualTo("바지");
+    }
+
+    @Test
+    void 십분지난_추천은_재추천된다() {
+        // given: 날씨, 사용자, 의상 1벌, 추천 이력(10분 이상 지난 기록)
+        UUID weatherId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(18.0)
+            .maxC(20.0)
+            .minC(16.0)
+            .asWord(WindStrength.WEAK)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .speedMs(2.0)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("맨투맨")
+            .type(ClothesType.TOP)
+            .build();
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(top));
+
+        UserProfile profile = UserProfile.builder()
+            .userId(userId)
+            .user(User.builder().id(userId).build())
+            .temperatureSensitivity(0)
+            .build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        // 10분이 지난 추천 이력
+        Recommendation oldRec = Recommendation.builder()
+            .user(User.builder().id(userId).build())
+            .weather(weather)
+            .createdAt(Instant.now().minus(15, ChronoUnit.MINUTES)) // 10분 초과
+            .build();
+        oldRec.addRecommendationClothes(
+            RecommendationClothes.builder().clothes(top).recommendation(oldRec).build()
+        );
+
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of()); // 10분 초과 → 조회 시점에서 비포함
+
+        // Engine은 top 추천 반환
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
+            .thenReturn(List.of(top));
+
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(new ClothesDto(top.getId(), userId, "맨투맨", "image.jpg", ClothesType.TOP, List.of()))
+        );
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+
+        // when: 추천 서비스 호출
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then: 10분 지난 추천은 필터에서 제외되지 않음 → 다시 추천됨
+        assertThat(result.clothes()).hasSize(1);
+        assertThat(result.clothes().get(0).name()).isEqualTo("맨투맨");
+    }
+
+    @Test
+    void 첫번째추천엔진결과없을때_Fallback으로_전체의상재추천() {
+        // given: 날씨, 사용자, 의상 2벌, 추천엔진 1차 실패 → 2차 성공
+        UUID weatherId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(19.0)
+            .maxC(21.0)
+            .minC(17.0)
+            .asWord(WindStrength.MODERATE)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .speedMs(2.5)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("맨투맨")
+            .type(ClothesType.TOP)
+            .build();
+
+        Clothes bottom = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("청바지")
+            .type(ClothesType.BOTTOM)
+            .build();
+
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(top, bottom));
+
+        UserProfile profile = UserProfile.builder()
+            .userId(userId)
+            .user(User.builder().id(userId).build())
+            .temperatureSensitivity(0)
+            .build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        // 최근 추천 없음
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of());
+
+        // 1차 호출: 빈 리스트 반환 → fallback 호출 유도
+        // 2차 호출: 전체 의상 중 bottom 추천
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
+            .thenReturn(List.of())           // 1차 (filteredClothes)
+            .thenReturn(List.of(bottom));    // 2차 (fallback 전체)
+
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(new ClothesDto(bottom.getId(), userId, "청바지", "image.jpg", ClothesType.BOTTOM, List.of()))
+        );
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+
+        // when: 추천 서비스 실행
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then:
+        // 1) 첫 번째 recommend 호출 시 빈 결과 → fallback 로직 실행
+        // 2) fallback 결과(bottom)가 반환됨
+        assertThat(result.clothes()).hasSize(1);
+        assertThat(result.clothes().get(0).name()).isEqualTo("청바지");
+
+        // verify: recommend() 메서드가 2번 호출됐는지 검증
+        verify(recommendationEngine, times(2))
+            .recommend(anyList(), anyDouble(), eq(weather), anyBoolean());
+    }
+
+    @Test
+    void FallBack_적용되는_타입과_적용되지_않는_타입_테스트() {
+        // given: 날씨, 사용자 의상 2벌 (Top, Dress), 사용자 프로필, 최근 추천에 Top 포함 (10분 내)
+        UUID weatherId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(22.0)
+            .maxC(24.0)
+            .minC(20.0)
+            .asWord(WindStrength.WEAK)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .speedMs(1.5)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        Clothes top = Clothes.builder().id(UUID.randomUUID()).name("셔츠").type(ClothesType.TOP).build();
+        Clothes dress = Clothes.builder().id(UUID.randomUUID()).name("원피스").type(ClothesType.DRESS).build();
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(top, dress));
+
+        UserProfile profile = UserProfile.builder()
+            .userId(userId)
+            .user(User.builder().id(userId).build())
+            .temperatureSensitivity(0)
+            .build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        // 최근 추천에 top 포함 (10분 내)
+        Recommendation recent = Recommendation.builder()
+            .user(User.builder().id(userId).build())
+            .weather(weather)
+            .createdAt(Instant.now().minus(5, ChronoUnit.MINUTES))
+            .build();
+        recent.addRecommendationClothes(RecommendationClothes.builder().clothes(top).recommendation(recent).build());
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of(recent));
+
+        // Engine: filtered clothes empty → fallback으로 Dress 반환
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
+            .thenAnswer(invocation -> {
+                List<Clothes> clothes = invocation.getArgument(0);
+                boolean excludeDress = invocation.getArgument(3);
+                // filtered clothes가 empty이면 fallback으로 dress 반환
+                if (clothes.isEmpty() && excludeDress) {
+                    return List.of(dress);
+                }
+                return clothes.stream()
+                    .filter(c -> !excludeDress || c.getType() != ClothesType.DRESS)
+                    .toList();
+            });
+
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(new ClothesDto(dress.getId(), userId, "원피스", "image.jpg", ClothesType.DRESS, List.of()))
+        );
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+
+        // when: 추천 서비스 호출
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then: fallback 적용으로 Dress 추천, Top 제외
+        assertThat(result.clothes()).hasSize(1);
+        assertThat(result.clothes().get(0).type()).isEqualTo(ClothesType.DRESS);
+    }
+
+    @Test
+    void FallBack_적용후_Dress와_TopBottom_상호배타적_유지() {
+        // given: 날씨, 사용자 의상 3벌 (Dress, Top, Bottom), 사용자 프로필, 최근 추천에 Dress 포함 (10분 내)
+        UUID weatherId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(24.0)
+            .maxC(26.0)
+            .minC(22.0)
+            .asWord(WindStrength.MODERATE)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .speedMs(2.5)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        Clothes dress = Clothes.builder().id(UUID.randomUUID()).name("원피스").type(ClothesType.DRESS).build();
+        Clothes top = Clothes.builder().id(UUID.randomUUID()).name("반팔 티셔츠").type(ClothesType.TOP).build();
+        Clothes bottom = Clothes.builder().id(UUID.randomUUID()).name("린넨 팬츠").type(ClothesType.BOTTOM).build();
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(dress, top, bottom));
+
+        UserProfile profile = UserProfile.builder().userId(userId).user(User.builder().id(userId).build()).temperatureSensitivity(0).build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        // 최근 추천: Dress 포함
+        Recommendation recent = Recommendation.builder()
+            .user(User.builder().id(userId).build())
+            .weather(weather)
+            .createdAt(Instant.now().minus(5, ChronoUnit.MINUTES))
+            .build();
+        recent.addRecommendationClothes(RecommendationClothes.builder().clothes(dress).recommendation(recent).build());
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of(recent));
+
+        // Engine: fallback 후 excludeDress=true → Top & Bottom만 추천
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), eq(true)))
+            .thenReturn(List.of(top, bottom));
+
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(
+                new ClothesDto(top.getId(), userId, "반팔 티셔츠", "image.jpg", ClothesType.TOP, List.of()),
+                new ClothesDto(bottom.getId(), userId, "린넨 팬츠", "image.jpg", ClothesType.BOTTOM, List.of())
+            )
+        );
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+
+        // when: 추천 서비스 호출
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then: Dress 제외, Top & Bottom 상호 배타적 추천 유지
+        assertThat(result.clothes())
+            .extracting(ClothesDto::type)
+            .containsExactlyInAnyOrder(ClothesType.TOP, ClothesType.BOTTOM);
+    }
+
+    @Test
+    void 타입별_FallBack_적용_및_기존추천유지() {
+        // given: 사용자, 날씨, 의상 및 이전 추천 기록
+        UUID weatherId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Weather weather = Weather.builder()
+            .id(weatherId)
+            .currentC(22.0)
+            .maxC(24.0)
+            .minC(20.0)
+            .asWord(WindStrength.WEAK)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .speedMs(1.5)
+            .build();
+        when(weatherRepository.findById(weatherId)).thenReturn(Optional.of(weather));
+
+        Clothes top = Clothes.builder().id(UUID.randomUUID()).name("셔츠").type(ClothesType.TOP).build();
+        Clothes bottom = Clothes.builder().id(UUID.randomUUID()).name("바지").type(ClothesType.BOTTOM).build();
+        // HAT은 사용자의 의상 목록에 없음
+        when(clothesRepository.findByUser_Id(userId)).thenReturn(List.of(top, bottom));
+
+        UserProfile profile = UserProfile.builder()
+            .userId(userId)
+            .user(User.builder().id(userId).build())
+            .temperatureSensitivity(0)
+            .build();
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+        // 이전 추천: Top, Bottom, HAT (10분 내)
+        Recommendation recent = Recommendation.builder()
+            .user(User.builder().id(userId).build())
+            .weather(weather)
+            .createdAt(Instant.now().minus(5, ChronoUnit.MINUTES))
+            .build();
+        recent.addRecommendationClothes(RecommendationClothes.builder().clothes(top).recommendation(recent).build());
+        recent.addRecommendationClothes(RecommendationClothes.builder().clothes(bottom).recommendation(recent).build());
+
+        // FallBack으로 추천될 HAT
+        Clothes fallbackHat = Clothes.builder().id(UUID.randomUUID()).name("모자").type(ClothesType.HAT).build();
+
+        when(recommendationRepository.findByUser_IdAndCreatedAtAfter(eq(userId), any()))
+            .thenReturn(List.of(recent));
+
+        // Engine 스텁: filtered clothes에 HAT이 없으면 FallBack으로 HAT 반환
+        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
+            .thenAnswer(invocation -> {
+                List<Clothes> clothes = invocation.getArgument(0);
+                boolean excludeDress = invocation.getArgument(3);
+                if (clothes.stream().noneMatch(c -> c.getType() == ClothesType.HAT)) {
+                    return List.of(fallbackHat);
+                }
+                return clothes;
+            });
+
+        RecommendationDto expected = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(
+                new ClothesDto(top.getId(), userId, "셔츠", "image.jpg", ClothesType.TOP, List.of()),
+                new ClothesDto(bottom.getId(), userId, "바지", "image.jpg", ClothesType.BOTTOM, List.of()),
+                new ClothesDto(fallbackHat.getId(), userId, "모자", "image.jpg", ClothesType.HAT, List.of())
+            )
+        );
+        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+
+        // when: 추천 서비스 호출
+        RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
+
+        // then: Top, Bottom은 기존 추천 유지, HAT은 FallBack으로 추천
+        assertThat(result.clothes())
+            .extracting(ClothesDto::type)
+            .containsExactlyInAnyOrder(ClothesType.TOP, ClothesType.BOTTOM, ClothesType.HAT);
     }
 }

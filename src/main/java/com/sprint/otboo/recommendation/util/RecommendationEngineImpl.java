@@ -54,13 +54,8 @@ public class RecommendationEngineImpl implements RecommendationEngine {
 
         // 3. 추천 필터링
         List<Clothes> filtered = clothes.stream()
-            .filter(c -> {
-                // 재추천 시 Dress 제외
-                if (excludeDress && c.getType() == ClothesType.DRESS) {
-                    return false;
-                }
-                return matchesSeasonAndCategory(c, season, category, weather);
-            })
+            .filter(c -> !(excludeDress && c.getType() == ClothesType.DRESS))
+            .filter(c -> matchesSeasonAndCategory(c, season, category, weather))
             .toList();
 
         // 4. 타입별 그룹화 후 첫 번째 요소 선택

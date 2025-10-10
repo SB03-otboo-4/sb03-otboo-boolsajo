@@ -77,7 +77,7 @@ public class ClothesTypeMapper {
         }
 
         // ===== 악세서리 ACCESSORY =====
-        if (lower.matches(".*(초커|팬던트|체인|참|숄|장갑|커플링|열쇠고리|아이웨어|안경|악세서리|액세서리|목걸이|반지|팔찌|발찌|귀걸이|시계|벨트|핀|선글라스|브로치|타이|키링|피어싱|eyewear|glasses|anklet|piercing|brooch|accessory|necklace|ring|bracelet|earring|watch|belt|sunglasses|keyring|tie|cufflink|choker|pendant|chain|charm|shawl|glove(s)?|mittens).*")) {
+        if (lower.matches(".*(초커|팬던트|체인|참|숄|장갑|커플링|열쇠고리|아이웨어|안경|악세서리|액세서리|목걸이|반지|팔찌|발찌|귀걸이|시계|벨트|핀|선글라스|브로치|타이|키링|피어싱|링|암[- ]워머|arm[- ]warmer|eyewear|glasses|anklet|piercing|brooch|accessory|necklace|ring|bracelet|earring|watch|belt|sunglasses|keyring|tie|cufflink|choker|pendant|chain|charm|shawl|glove(s)?|mittens).*")) {
             return ClothesType.ACCESSORY;
         }
 
