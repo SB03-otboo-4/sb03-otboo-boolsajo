@@ -93,7 +93,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * 권한 변경 알림을 변도 트랜잭션에서 생성해 롤백 전파를 방지
+     * 권한 변경 알림을 별도 트랜잭션에서 생성해 롤백 전파를 방지
      *
      * @param receiverId 알림 수신자
      * @param newRole 새 권한

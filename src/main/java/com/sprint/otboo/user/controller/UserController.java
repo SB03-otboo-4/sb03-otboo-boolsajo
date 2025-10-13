@@ -65,7 +65,7 @@ public class UserController implements UserApi {
     }
 
     /**
-     * 지정된 사용자의 로그인 비밀번호를 업데잍트
+     * 지정된 사용자의 로그인 비밀번호를 업데이트
      *
      * @param userId 대상 사용자 식별자
      * @param request 새로운 비밀번호 ( 유효성 검증 포함 )

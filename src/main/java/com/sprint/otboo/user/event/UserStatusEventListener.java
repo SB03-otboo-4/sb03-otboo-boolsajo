@@ -26,7 +26,7 @@ public class UserStatusEventListener {
     }
 
     /**
-     * 권한이 변ㅇ경된 사용자의 기존 세션을 무효화
+     * 권한이 변경된 사용자의 기존 세션을 무효화
      * 권한 변경 후 재 로그인을 요구하기 위한 처리
      * @param event 이전/새 Role과 사용자 ID를 담은 이벤트
      * */
