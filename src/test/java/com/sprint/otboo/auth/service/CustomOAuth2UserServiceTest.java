@@ -123,7 +123,7 @@ class CustomOAuth2UserServiceTest {
         // then
         assertThat(resultUser).isNotNull();
         UserDto resultUserDto = resultUser.getUserDto();
-        assertThat(resultUserDto.email()).isEqualTo("테스트유저@kakao.com");
+        assertThat(resultUserDto.email()).isEqualTo("테스트유저_123456789@kakao.com");
         assertThat(resultUserDto.name()).isEqualTo("테스트유저");
         assertThat(resultUserDto.role()).isEqualTo(Role.USER);
 
