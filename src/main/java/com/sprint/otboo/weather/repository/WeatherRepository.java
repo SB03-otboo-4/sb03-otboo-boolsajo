@@ -52,18 +52,15 @@ public interface WeatherRepository extends JpaRepository<Weather, UUID> {
     @Modifying
     @Transactional
     @Query(value = """
-        WITH latest AS (
-          SELECT location_id, forecast_at, MAX(forecasted_at) AS keep_at
-          FROM weathers
-          WHERE location_id = :locationId
-            AND forecast_at BETWEEN :from AND :to
-          GROUP BY location_id, forecast_at
-        )
         DELETE FROM weathers w
-        USING latest l
-        WHERE w.location_id = l.location_id
-          AND w.forecast_at = l.forecast_at
-          AND w.forecasted_at < l.keep_at
+        WHERE w.location_id = :locationId
+          AND w.forecast_at BETWEEN :from AND :to
+          AND w.forecasted_at < (
+              SELECT MAX(w2.forecasted_at)
+              FROM weathers w2
+              WHERE w2.location_id = w.location_id
+                AND w2.forecast_at = w.forecast_at
+          )
     """, nativeQuery = true)
     int deleteOlderVersionsInRange(
         @Param("locationId") UUID locationId,
