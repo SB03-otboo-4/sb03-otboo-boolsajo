@@ -8,10 +8,10 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
 import com.sprint.otboo.notification.entity.NotificationLevel;
@@ -23,6 +23,7 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
@@ -113,70 +114,72 @@ public class NotificationServiceTest {
             .build();
     }
 
-//    @Test
-//    void 알림_목록을_cursor_없이_조회하여_마지막_요소까지_반환() {
-//        // given
-//        UUID receiverId = UUID.randomUUID();
-//        NotificationQueryParams query = new NotificationQueryParams(null, null, 20);
-//
-//        Notification entity = notificationEntity(receiverId, NotificationLevel.INFO);
-//        Slice<Notification> slice = notificationSlice(List.of(entity), query.limit(), false);
-//
-//        given(notificationRepository.findByReceiverWithCursor(
-//            receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
-//        )).willReturn(slice);
-//        NotificationDto dto = notificationDto(entity);
-//        given(notificationMapper.toDto(entity)).willReturn(dto);
-//        given(notificationRepository.countByReceiverId(receiverId)).willReturn(5L);
-//
-//        // when
-//        CursorPageResponse<NotificationDto> actual =
-//            notificationService.getNotifications(receiverId, query);
-//
-//        // then
-//        assertThat(actual.data()).containsExactly(dto);
-//        assertThat(actual.hasNext()).isFalse();
-//        assertThat(actual.totalCount()).isEqualTo(5L);
-//        assertThat(actual.nextCursor()).isNull();
-//        assertThat(actual.nextIdAfter()).isNull();
-//    }
-//
-//    @Test
-//    void 알림_목록을_조회하면_hasNext와_cursor_정보를_갱신() {
-//        // given
-//        UUID receiverId = UUID.randomUUID();
-//        NotificationQueryParams query = new NotificationQueryParams(null, null, 2);
-//
-//        Notification first = notificationEntity(receiverId, NotificationLevel.INFO);
-//        Notification second = notificationEntity(receiverId, NotificationLevel.WARNING);
-//
-//        Slice<Notification> slice = new SliceImpl<>(
-//            List.of(first, second),
-//            PageRequest.of(0, query.fetchSize() - 1),
-//            true
-//        );
-//        NotificationDto firstDto = notificationDto(first);
-//        NotificationDto secondDto = notificationDto(second);
-//
-//        given(notificationRepository.findByReceiverWithCursor(
-//            receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
-//        )).willReturn(slice);
-//        given(notificationMapper.toDto(first)).willReturn(firstDto);
-//        given(notificationMapper.toDto(second)).willReturn(secondDto);
-//        given(notificationRepository.countByReceiverId(receiverId)).willReturn(42L);
-//
-//        // when
-//        CursorPageResponse<NotificationDto> actual =
-//            notificationService.getNotifications(receiverId, query);
-//
-//        // then
-//        assertThat(actual.data()).containsExactly(firstDto, secondDto);
-//        assertThat(actual.hasNext()).isTrue();
-//        NotificationDto last = actual.data().get(actual.data().size() - 1);
-//        assertThat(actual.nextCursor()).isEqualTo(last.createdAt().toString());
-//        assertThat(actual.nextIdAfter()).isEqualTo(last.id().toString());
-//        assertThat(actual.totalCount()).isEqualTo(42L);
-//    }
+    @Test
+    void 알림_목록을_cursor_없이_조회하여_마지막_요소까지_반환() {
+        // given
+        UUID receiverId = UUID.randomUUID();
+        NotificationQueryParams query = new NotificationQueryParams(null, null, 20);
+
+        Notification entity = notificationEntity(receiverId, NotificationLevel.INFO);
+        Slice<Notification> slice = notificationSlice(List.of(entity), query.limit(), false);
+
+        given(notificationRepository.findByReceiverWithCursor(
+            receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
+        )).willReturn(slice);
+        NotificationDto dto = notificationDto(entity);
+        given(notificationMapper.toDto(entity)).willReturn(dto);
+        given(notificationRepository.countByReceiverId(receiverId)).willReturn(5L);
+
+        // when
+        NotificationCursorResponse actual =
+            notificationService.getNotifications(receiverId, query);
+
+        // then
+        assertThat(actual.data()).containsExactly(dto);
+        assertThat(actual.hasNext()).isFalse();
+        assertThat(actual.totalCount()).isEqualTo(5L);
+        assertThat(actual.cursor()).isNull();
+        assertThat(actual.idAfter()).isNull();
+    }
+
+    @Test
+    void 알림_목록을_조회하면_hasNext와_cursor_정보를_갱신() {
+        // given
+        UUID receiverId = UUID.randomUUID();
+        NotificationQueryParams query = new NotificationQueryParams(null, null, 2);
+
+        Notification first = notificationEntity(receiverId, NotificationLevel.INFO);
+        Notification second = notificationEntity(receiverId, NotificationLevel.WARNING);
+
+        Slice<Notification> slice = new SliceImpl<>(
+            List.of(first, second),
+            PageRequest.of(0, query.fetchSize() - 1),
+            true
+        );
+        NotificationDto firstDto = notificationDto(first);
+        NotificationDto secondDto = notificationDto(second);
+
+        given(notificationRepository.findByReceiverWithCursor(
+            receiverId, query.parsedCursor(), query.idAfter(), query.fetchSize()
+        )).willReturn(slice);
+        given(notificationMapper.toDto(first)).willReturn(firstDto);
+        given(notificationMapper.toDto(second)).willReturn(secondDto);
+        given(notificationRepository.countByReceiverId(receiverId)).willReturn(42L);
+
+        // when
+        NotificationCursorResponse actual =
+            notificationService.getNotifications(receiverId, query);
+
+        // then
+        assertThat(actual.data()).containsExactly(firstDto, secondDto);
+        assertThat(actual.hasNext()).isTrue();
+        NotificationDto last = actual.data().get(actual.data().size() - 1);
+        Instant expectedCursor = last.createdAt()
+            .truncatedTo(ChronoUnit.MILLIS);
+        assertThat(actual.cursor()).isEqualTo(expectedCursor.toString());
+        assertThat(actual.idAfter()).isEqualTo(last.id().toString());
+        assertThat(actual.totalCount()).isEqualTo(42L);
+    }
 
     @Test
     void 권한_변경_알림을_저장하고_DTO로_반환() {
