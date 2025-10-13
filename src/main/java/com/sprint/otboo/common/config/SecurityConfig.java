@@ -49,7 +49,8 @@ public class SecurityConfig {
                                   "/api/users/*/password",  // 비밀번호 변경
                                   "/api/users/*/lock",       // 계정 잠금 상태 변경
                                   "/api/users/*/role", // 권한 변경
-                                  "/api/users/*/profiles" // 프로필 변경
+                                  "/api/users/*/profiles", // 프로필 변경
+                                  "/api/sse"    // SSE
                     )
             )
             .sessionManagement(s ->
