@@ -48,6 +48,12 @@ public class UserController implements UserApi {
 
     private final UserService userService;
 
+    /**
+     * 회원가입 요청을 받아 새로운 사용자 생성
+     *
+     * @param request 이름,이메일,비밀번호를 포함한 가입 정보
+     * @return 생성된 사용자 DTO와 201 상태 코드
+     * */
     @PostMapping
     public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserCreateRequest request) {
         log.info("[UserController] 회원가입 요청 : email = {} ", request.email());
@@ -58,6 +64,13 @@ public class UserController implements UserApi {
         return ResponseEntity.status(HttpStatus.CREATED).body(userDto);
     }
 
+    /**
+     * 지정된 사용자의 로그인 비밀번호를 업데잍트
+     *
+     * @param userId 대상 사용자 식별자
+     * @param request 새로운 비밀번호 ( 유효성 검증 포함 )
+     * @return 작업 성공 시 204 No Content
+     * */
     @PatchMapping("/{userId}/password")
     public ResponseEntity<Void> updatePassword(
         @PathVariable UUID userId,
@@ -71,6 +84,13 @@ public class UserController implements UserApi {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 관리자 권한으로 계정 잠금 여부를 변경
+     *
+     * @param userId 대상 사용자
+     * @param request 잠금 여부 플래그
+     * @return 변경된 사용자 DTO
+     * */
     @PatchMapping("/{userId}/lock")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> updateUserLockStatus(
@@ -85,6 +105,13 @@ public class UserController implements UserApi {
         return ResponseEntity.ok(updatedUser);
     }
 
+    /**
+     * 관리자 권한으로 사용자의 Role을 업데이트
+     *
+     * @param userId 대상 사용자
+     * @param request 새로운 역할
+     * @return 변경된 사용자 DTO
+     * */
     @PatchMapping("/{userId}/role")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> updateUserRole(
@@ -99,6 +126,11 @@ public class UserController implements UserApi {
         return ResponseEntity.ok(updatedUser);
     }
 
+    /**
+     * 주어진 사용자의 프로필 정보를 조회
+     *
+     * @param userId 프로필 소유자
+     * @return 프로필 DTO*/
     @GetMapping("/{userId}/profiles")
     public ResponseEntity<ProfileDto> getUserProfile(@PathVariable UUID userId) {
         log.info("[UserController] 프로필 조회 요청 : userId = {}", userId);
@@ -109,6 +141,18 @@ public class UserController implements UserApi {
         return ResponseEntity.ok(profileDto);
     }
 
+    /**
+     * 커서 기반 검색 조건으로 사용자 목록을 조회
+     *
+     * @param cursor 다음 페이지 탐색용 커서
+     * @param idAfter 커서 해독 실패 시 대체로 사용할 UUID
+     * @param limit 조회할 레코드 수
+     * @param sortBy email 또는 createdAt
+     * @param emailLike 이메일 부분 일치 필터
+     * @param roleEqual 권한 필터
+     * @param  locked 잠금 여부  필터
+     * @return 다음 커서/총계 정보를 포함한 사용자 목록
+     * */
     @GetMapping
     public ResponseEntity<CursorPageResponse<UserDto>> listUsers(
         @RequestParam(required = false) String cursor,
@@ -140,6 +184,15 @@ public class UserController implements UserApi {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 본인 또는 관리자 권한으로 프로필 및 이미지 파일을 수정
+     *
+     * @param userId 대상 사용자
+     * @param currentUser 인증된 사용자 정보
+     * @param request 프로필 변경 값
+     * @param image 선택적 프로필 이미지 파일
+     * @return 수정된 프로필 DTO
+     * */
     @PatchMapping(value = "/{userId}/profiles", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProfileDto> updateUserProfile(
         @PathVariable UUID userId,
@@ -170,6 +223,12 @@ public class UserController implements UserApi {
         return ResponseEntity.ok(profileDto);
     }
 
+    /**
+     * 요청자가 본인 또는 관리자인지에 대한 권한 검증
+     *
+     * @param userId 대상 사용자
+     * @param currentUser 인증 정보
+     * */
     private void verifyProfileOwnerOrAdmin(UUID userId, CustomUserDetails currentUser) {
         if (currentUser == null) {
             log.warn("[UserController] 인증 사용자 없음: targetUserId={}", userId);

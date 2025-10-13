@@ -59,6 +59,20 @@ public class UserServiceImpl implements UserService {
     private final RetryTemplate profileImageStorageRetryTemplate;
     private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * UserService가 의존하는 인프라 클래스를 주입
+     *
+     * @param userRepository 사용자 엔티티 CRUD 저장소
+     * @param userProfileRepository 프로필 엔티티 저장소
+     * @param passwordEncoder 비밀번호 인코딩 전략
+     * @param userMapper 엔티티-DTO 변환기
+     * @param userQueryRepository 커서 기반 조회 전용 리포지토리
+     * @param fileStorageService 프로필 이미지 저장소 서비스
+     * @param weatherLocationQueryService 좌표→기상 위치 정보 조회 서비스
+     * @param asyncProfileImageUploader 비동기 프로필 이미지 후처리기
+     * @param profileImageStorageRetryTemplate 이미지 저장 재시도 템플릿
+     * @param eventPublisher 계정 상태 변경 이벤트 퍼블리셔
+     * */
     public UserServiceImpl(
         UserRepository userRepository,
         UserProfileRepository userProfileRepository,
@@ -83,6 +97,13 @@ public class UserServiceImpl implements UserService {
         this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * 신규 사용자를 생성하고 기본 프로필까지 함께 저장
+     *
+     * @param request 이름,이메일,비밀번호 정보를 담은 가입 요청
+     * @return 저장된 사용자 DTO
+     * @throws CustomException DUPLICATE_EMAIL, DUPLICATE_USERNAME
+     * */
     @Override
     @Transactional
     public UserDto createUser(UserCreateRequest request) {
@@ -110,6 +131,14 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserDto(savedUser);
     }
 
+    /**
+     * 사용자의 로그인 비밀번호를 업데이트
+     * 기존 비밀번호와 동일한 값이면 CustomException(SAME_PASSWORD)을 던진다.
+     *
+     * @param userId 대상 사용자 ID
+     * @param request 새 비밀번호 요청
+     * @throws CustomException USER_NOT_FOUND, SAME_PASSWORD
+     * */
     @Override
     @Transactional
     public void updatePassword(UUID userId, ChangePasswordRequest request) {
@@ -128,6 +157,14 @@ public class UserServiceImpl implements UserService {
         user.updatePassword(encodedNewPassword);
     }
 
+    /**
+     * 관리자에 의해 계정 잠금 상태를 변경하고, 잠금 시 UserLockedEvent를 발행
+     *
+     * @param userId 대상 사용자 ID
+     * @param request 잠금 여부( true 잠금, false 해제 )
+     * @return 변경된 사용자 DTO
+     * @throws CustomException USER_NOT_FOUND
+     * */
     @Override
     @Transactional
     public UserDto updateUserLockStatus(UUID userId, UserLockUpdateRequest request) {
@@ -147,6 +184,15 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserDto(savedUser);
     }
 
+    /**
+     * 사용자의 권한을 변경하고 UserRoleChangedEvent를 발행
+     * 이벤트는 권한 변경 후 기존 세션의 무효화를 위해 사용된다.
+     *
+     * @param userId 대상 사용자 ID
+     * @param request 새 Role(USER/ADMIN)
+     * @return 변경된 사용자 DTO
+     * @throws CustomException USER_NOT_FOUND, IllegalArgumentException( Role 변환 실패 )
+     * */
     @Override
     @Transactional
     public UserDto updateUserRole(UUID userId, UserRoleUpdateRequest request) {
@@ -168,6 +214,13 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserDto(savedUser);
     }
 
+    /**
+     * 사용자와 연결된 프로필 정보를 조회
+     *
+     * @param userId 프로필 소유자 ID
+     * @return 사용자 프로필 DTO
+     * @throws CustomException USER_NOT_FOUND, USER_PROFILE_NOT_FOUND
+     * */
     @Override
     public ProfileDto getUserProfile(UUID userId) {
         log.debug("[UserServiceImpl] 프로필 조회 요청: userId = {} ", userId);
@@ -181,6 +234,19 @@ public class UserServiceImpl implements UserService {
         return userMapper.toProfileDto(user, userProfile);
     }
 
+    /**
+     * 커서 기반 페이지네이션으로 사용자 목록을 조회
+     *
+     * @param cursor 다음 페이지 탐색용 Base64 커서
+     * @param idAfter 커서 재생성용 UUID ( cursor가 비어 있을 때 사용 )
+     * @param limit 조회할 행 수
+     * @param sortByParam 정렬 기준 파라미터( email/createdAt )
+     * @param sortDirParam 정렬 방향 파라미터( ASCENDING/DESCENDING )
+     * @param emailLike 이메일 부분 일치 필터
+     * @param roleEqualParam Role 필터 문자열
+     * @param locked 잠금 여부 필터
+     * @return 사용자 DTO 목록과 페이지네이션 메타 정보
+     * */
     @Override
     public CursorPageResponse<UserDto> listUsers(String cursor, String idAfter, Integer limit, String sortByParam, String sortDirParam,
         String emailLike, String roleEqualParam, Boolean locked) {
@@ -215,6 +281,16 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    /**
+     * 프로필 기본 정보와 위치, 이미지 파일을 갱신
+     * 이미지가 있으면 기존 이미지를 삭제 후 새 URL로 교체하며 이미지 원본은 비동기로 재업로드한다.
+     *
+     * @param userId 프로필 소유자 ID
+     * @param request 프로필 수정 요청( 이름, 성별, 생일, 위치, 민감도 )
+     * @param image 새 프로필 이미지
+     * @return 업데이트된 프로필 DTO
+     * @throws CustomException USER_NOT_FOUND, USER_PROFILE_NOT_FOUND, FILE_UPLOAD_FAILED
+     * */
     @Override
     @Transactional
     public ProfileDto updateUserProfile(UUID userId, ProfileUpdateRequest request, MultipartFile image) {
@@ -299,6 +375,12 @@ public class UserServiceImpl implements UserService {
         return userMapper.toProfileDto(user, profile);
     }
 
+    /**
+     * 이메일 중복을 검사하고 발견 시 DUPLICATE_EMAIL 예외를 발생
+     *
+     * @param email 검사할 이메일
+     * @throws CustomException DUPLICATE_EMAIL
+     * */
     private void validateDuplicateEmail(String email) {
         if (userRepository.existsByEmail(email)) {
             log.warn("[UserServiceImpl] 중복된 이메일로 인한 예외 발생 email = {}", email);
@@ -308,6 +390,12 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    /**
+     * 사용자 이름 중복을 검사하고 발견 시 DUPLICATE_USERNAME 예외를 발생
+     *
+     * @param username 검사할 사용자명
+     * @throws CustomException DUPLICATE_USERNAME
+     * */
     private void validateDuplicateUsername(String username) {
         if (userRepository.existsByUsername(username)) {
             log.warn("[UserServiceImpl] 중복된 유저이름으로 인한 예외 발생 username = {}", username);

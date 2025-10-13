@@ -18,6 +18,11 @@ public class NotificationListener {
 
     private final NotificationService notificationService;
 
+    /**
+     * 사용자 권한이 변경되면 해당 사용자에게 권한 변경 알림을 생성
+     *
+     * @param event 권한이 변경된 사용자 ID와 새로운 Role 정보를 담은 이벤트
+     * */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleUserRoleChanged(UserRoleChangedEvent event) {
         log.debug("[NotificationListener] handleUserRoleChanged: userId={}, newRole={}",
@@ -26,16 +31,31 @@ public class NotificationListener {
         notificationService.notifyRoleChanged(event.userId(), event.newRole());
     }
 
+    /**
+     * 새로운 의류 속성 정의가 추가되면 모든 사용자에게 브로드캐스트 알림을 생성
+     *
+     * @param event 생성된 속성 이름을 포함한 이벤트
+     * */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleClothesAttributeCreated(ClothesAttributeDefCreatedEvent event) {
         notificationService.notifyClothesAttributeCreatedForAllUsers(event.attributeName());
     }
 
+    /**
+     * 피드에 좋아요가 추가되면 작성자에게 좋아요 사실을 알리는 알림을 생성
+     *
+     * @param event 피드 작성자와 좋아요 누른 사용자 ID를 담은 이벤트
+     * */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleFeedLiked(FeedLikedEvent event) {
         notificationService.notifyFeedLiked(event.feedAuthorId(), event.likedByUserId());
     }
 
+    /**
+     * 피드에 댓글이 달리면 작성자에게 댓글 작성자를 알려주는 알림을 생성
+     *
+     * @param event 피드 작성자와 댓글 작성자 ID를 담은 이벤트
+     * */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleFeedCommented(FeedCommentedEvent event) {
         notificationService.notifyFeedCommented(event.feedAuthorId(), event.commentedByUserId());
