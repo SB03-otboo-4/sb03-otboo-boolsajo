@@ -15,6 +15,7 @@ import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
+import com.sprint.otboo.user.event.UserLockedEvent;
 import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
@@ -32,7 +33,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
@@ -101,7 +101,7 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
         log.debug("[UserServiceImpl] 회원 저장 완료 : userId = {} ", savedUser.getId());
 
-        UserProfile profile = com.sprint.otboo.user.entity.UserProfile.builder()
+        UserProfile profile = UserProfile.builder()
             .user(savedUser)
             .build();
         userProfileRepository.save(profile);
@@ -137,6 +137,11 @@ public class UserServiceImpl implements UserService {
 
         user.updateLockStatus(request.locked());
         User savedUser = userRepository.save(user);
+
+        if (request.locked()) {
+            log.info("[UserServiceImpl] UserLockedEvent 발행: userId={}", userId);
+            eventPublisher.publishEvent(new UserLockedEvent(userId));
+        }
 
         log.debug("[UserServiceImpl] 계정 잠금 상태 변경 완료: userId = {} , locked = {} ", userId, request.locked());
         return userMapper.toUserDto(savedUser);
