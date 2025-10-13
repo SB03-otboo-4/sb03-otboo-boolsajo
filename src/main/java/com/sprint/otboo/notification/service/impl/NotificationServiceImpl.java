@@ -33,6 +33,13 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
 
+    /**
+     * 알림을 조회해 DTO로 변환하고, 다음 페이지 진입을 위한 커서를 계산
+     *
+     * @param receiverId 조회 대상 사용자
+     * @param query 커서/아이디/limit 정보
+     * @return 다음 커서·아이디 포함 응답 DTO
+     * */
     @Override
     @Transactional(readOnly = true)
     public NotificationCursorResponse getNotifications(UUID receiverId, NotificationQueryParams query) {
@@ -85,6 +92,13 @@ public class NotificationServiceImpl implements NotificationService {
         );
     }
 
+    /**
+     * 권한 변경 알림을 변도 트랜잭션에서 생성해 롤백 전파를 방지
+     *
+     * @param receiverId 알림 수신자
+     * @param newRole 새 권한
+     * @return  저장된 알림 DTO
+     * */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyRoleChanged(UUID receiverId, Role newRole) {
@@ -105,6 +119,11 @@ public class NotificationServiceImpl implements NotificationService {
         return notificationMapper.toDto(saved);
     }
 
+    /**
+     * 모든 사용자에게 의류 속성 생성 알림을 브로드캐스트
+     *
+     * @param attributeName 생성된 속성 이름
+     * */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {

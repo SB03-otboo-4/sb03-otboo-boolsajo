@@ -52,6 +52,14 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         return new SliceImpl<>(results, pageable, hasNext);
     }
 
+    /**
+     * ( createdAt, id ) < ( cursor, idAfter )를 흉내 내는 커서 조건을 구성
+     *
+     * @param notification QueryDSL Q타입
+     * @param cursorInstant 커서 시각 ( 밀리초 단위로 절삭 )
+     * @param idAfter createdAt이 동일할 때 비교할 id
+     * @return 커서 조건 식, 입력이 없으면 null
+     * */
     private BooleanExpression cursorPredicate(QNotification notification,
         Instant cursorInstant,
         UUID idAfter
