@@ -7,6 +7,8 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
@@ -48,6 +50,9 @@ public class NotificationServiceTest {
     private NotificationMapper notificationMapper;
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private NotificationSseService notificationSseService;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -210,22 +215,23 @@ public class NotificationServiceTest {
 
         given(userRepository.findAll()).willReturn(List.of(user1, user2));
 
-        List<Notification> saved = List.of(
-            notificationEntityOwnedBy(user1, NotificationLevel.INFO),
-            notificationEntityOwnedBy(user2, NotificationLevel.INFO)
-        );
-        given(notificationRepository.saveAllAndFlush(anyList())).willReturn(saved);
+        Notification saved1 = notificationEntityOwnedBy(user1, NotificationLevel.INFO);
+        Notification saved2 = notificationEntityOwnedBy(user2, NotificationLevel.INFO);
+
+        given(notificationRepository.saveAndFlush(any(Notification.class)))
+            .willReturn(saved1)
+            .willReturn(saved2);
+
+        doNothing().when(notificationSseService).sendToClient(any());
 
         // when
         notificationService.notifyClothesAttributeCreatedForAllUsers(attributeName);
 
         // then
-        then(notificationRepository).should().saveAllAndFlush(argThat(iterable -> {
-            List<Notification> list = StreamSupport.stream(iterable.spliterator(), false).toList();
-            return list.size() == 2 &&
-                list.stream().allMatch(n -> "새 의상 속성이 등록되었습니다.".equals(n.getTitle()));
-        }));
+        then(notificationRepository).should(times(2)).saveAndFlush(any(Notification.class));
+        then(notificationSseService).should(times(2)).sendToClient(any());
     }
+
 
     @Test
     void 피드_좋아요_알림을_저장하고_DTO를_반환() {

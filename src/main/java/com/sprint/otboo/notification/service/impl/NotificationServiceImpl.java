@@ -10,10 +10,10 @@ import com.sprint.otboo.notification.entity.NotificationLevel;
 import com.sprint.otboo.notification.mapper.NotificationMapper;
 import com.sprint.otboo.notification.repository.NotificationRepository;
 import com.sprint.otboo.notification.service.NotificationService;
+import com.sprint.otboo.notification.service.NotificationSseService;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +30,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
+    private final NotificationSseService notificationSseService;
 
     @Override
     @Transactional(readOnly = true)
@@ -75,28 +76,24 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        Notification saved = notificationRepository.saveAndFlush(notification);
-        return notificationMapper.toDto(saved);
+        return saveAndSend(notification);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {
         List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
-        List<Notification> notifications = new ArrayList<>();
 
         for (User receiver : receivers) {
-            notifications.add(
-                Notification.builder()
-                    .receiver(receiver)
-                    .title("새 의상 속성이 등록되었습니다.")
-                    .content("내 의상에 [%s] 속성을 추가해보세요.".formatted(attributeName))
-                    .level(NotificationLevel.INFO)
-                    .build()
-            );
-        }
+            Notification notification = Notification.builder()
+                .receiver(receiver)
+                .title("새 의상 속성이 등록되었습니다.")
+                .content("내 의상에 [%s] 속성을 추가해보세요.".formatted(attributeName))
+                .level(NotificationLevel.INFO)
+                .build();
 
-        notificationRepository.saveAllAndFlush(notifications);
+            saveAndSend(notification);
+        }
     }
 
     @Override
@@ -112,8 +109,7 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        Notification saved = notificationRepository.saveAndFlush(notification);
-        return notificationMapper.toDto(saved);
+        return saveAndSend(notification);
     }
 
     @Override
@@ -129,8 +125,7 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        Notification saved = notificationRepository.saveAndFlush(notification);
-        return notificationMapper.toDto(saved);
+        return saveAndSend(notification);
     }
 
     @Override
@@ -140,5 +135,23 @@ public class NotificationServiceImpl implements NotificationService {
             throw new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND);
         }
         notificationRepository.deleteById(notificationId);
+    }
+
+    /**
+     * <p>Notification 엔티티를 DB에 저장하고 DTO로 변환한 뒤, SSE를 통해 클라이언트로 전송</p>
+     *
+     * @param notification 전송할 Notification 엔티티
+     * @return 저장 후 변환된 NotificationDto
+     */
+    private NotificationDto saveAndSend(Notification notification) {
+        // 엔티티를 DB에 저장하고 즉시 flush
+        Notification saved = notificationRepository.saveAndFlush(notification);
+
+        NotificationDto dto = notificationMapper.toDto(saved);
+
+        // 변환된 DTO를 SSE를 통해 클라이언트로 전송
+        notificationSseService.sendToClient(dto);
+
+        return dto;
     }
 }

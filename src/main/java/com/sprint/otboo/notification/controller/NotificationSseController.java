@@ -22,7 +22,7 @@ public class NotificationSseController {
     private final NotificationSseService notificationSseService;
 
     /**
-     * 인증 사용자의 SSE 구독을 처리합니다.
+     * 인증 사용자의 SSE 구독을 처리
      *
      * @param principal 인증 사용자 정보
      * @param lastEventId 마지막 수신 이벤트 ID
