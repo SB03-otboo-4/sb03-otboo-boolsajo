@@ -229,12 +229,12 @@ CREATE TABLE IF NOT EXISTS follows
 (
     id           UUID PRIMARY KEY,
     follower_id  UUID        NOT NULL,
-    following_id UUID        NOT NULL,
+    followee_id UUID        NOT NULL,
     created_at   TIMESTAMP NOT NULL,
-    CONSTRAINT uq_follows UNIQUE (follower_id, following_id),
-    CONSTRAINT ck_follows_self CHECK (follower_id <> following_id),
+    CONSTRAINT uq_follows UNIQUE (follower_id, followee_id),
+    CONSTRAINT ck_follows_self CHECK (follower_id <> followee_id),
     CONSTRAINT fk_follows_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_follows_following FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
+    CONSTRAINT fk_follows_followee FOREIGN KEY (followee_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 -- 9) Notifications

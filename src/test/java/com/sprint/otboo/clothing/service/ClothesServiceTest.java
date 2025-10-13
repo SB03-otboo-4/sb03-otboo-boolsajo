@@ -122,13 +122,17 @@ public class ClothesServiceTest {
     }
 
     @Test
-    void 옷_등록_성공() {
+    void 옷_등록_성공_이미지첨부() throws IOException {
         // given
         UUID ownerId = UUID.randomUUID();
         UUID defId = UUID.randomUUID();
         var attrDto = new ClothesAttributeDto(defId, "Black");
         var request = new ClothesCreateRequest(ownerId, "화이트 티셔츠", ClothesType.TOP, List.of(attrDto));
-        MultipartFile image = null;
+
+        // Mock MultipartFile
+        MultipartFile image = mock(MultipartFile.class);
+        when(image.isEmpty()).thenReturn(false);
+
         var user = User.builder().id(ownerId).build();
         var def = ClothesAttributeDef.builder().id(defId).name("색상").build();
 
@@ -150,7 +154,7 @@ public class ClothesServiceTest {
         });
 
         // when
-        ClothesDto result = clothesService.createClothes(request, image);
+        ClothesDto result = clothesService.createClothes(request, image, null);
 
         // then
         assertThat(result).isNotNull();
@@ -164,13 +168,57 @@ public class ClothesServiceTest {
         verify(fileStorageService, times(1)).upload(image);
     }
 
+
+    @Test
+    void 옷_등록_성공_이미지미첨부() {
+        // given
+        UUID ownerId = UUID.randomUUID();
+        UUID defId = UUID.randomUUID();
+        var attrDto = new ClothesAttributeDto(defId, "Black");
+        var request = new ClothesCreateRequest(ownerId, "화이트 티셔츠", ClothesType.TOP, List.of(attrDto));
+
+        MultipartFile image = null; // 이미지 없음
+        String externalImageUrl = null;
+
+        var user = User.builder().id(ownerId).build();
+        var def = ClothesAttributeDef.builder().id(defId).name("색상").build();
+
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(user));
+        when(defRepository.findById(defId)).thenReturn(Optional.of(def));
+
+        when(clothesRepository.save(any())).thenAnswer(inv -> {
+            Clothes c = inv.getArgument(0);
+            if (c.getAttributes() != null) {
+                List<ClothesAttribute> attrs = c.getAttributes().stream()
+                    .map(attr -> ClothesAttribute.create(c, def, attr.getValue()))
+                    .toList();
+                c.getAttributes().clear();
+                c.getAttributes().addAll(attrs);
+            }
+            return c;
+        });
+
+        // when
+        ClothesDto result = clothesService.createClothes(request, image, externalImageUrl);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.name()).isEqualTo("화이트 티셔츠");
+        assertThat(result.type()).isEqualTo(ClothesType.TOP);
+        assertThat(result.attributes()).hasSize(1);
+        assertThat(result.attributes().get(0).definitionId()).isEqualTo(defId);
+        assertThat(result.attributes().get(0).value()).isEqualTo("Black");
+
+        verify(clothesRepository, times(1)).save(any());
+    }
+
     @Test
     void 요청DTO가_null이면_예외발생() {
         // given
         ClothesCreateRequest request = null;
 
         // when & then
-        assertThatThrownBy(() -> clothesService.createClothes(request, null))
+        assertThatThrownBy(() -> clothesService.createClothes(request, null, null))
             .isInstanceOf(ClothesValidationException.class)
             .hasMessage("요청 데이터가 존재하지 않음");
     }
@@ -181,7 +229,7 @@ public class ClothesServiceTest {
         var request = new ClothesCreateRequest(null, "티셔츠", ClothesType.TOP, List.of());
 
         // when & then
-        assertThatThrownBy(() -> clothesService.createClothes(request, null))
+        assertThatThrownBy(() -> clothesService.createClothes(request, null, null))
             .isInstanceOf(ClothesValidationException.class)
             .hasMessage("의상 소유자의 ID가 필요합니다");
     }
@@ -193,11 +241,11 @@ public class ClothesServiceTest {
         var request2 = new ClothesCreateRequest(UUID.randomUUID(), "   ", ClothesType.TOP, List.of());
 
         // when & then
-        assertThatThrownBy(() -> clothesService.createClothes(request1, null))
+        assertThatThrownBy(() -> clothesService.createClothes(request1, null, null))
             .isInstanceOf(ClothesValidationException.class)
             .hasMessage("의상 이름은 필수입니다");
 
-        assertThatThrownBy(() -> clothesService.createClothes(request2, null))
+        assertThatThrownBy(() -> clothesService.createClothes(request2, null, null))
             .isInstanceOf(ClothesValidationException.class)
             .hasMessage("의상 이름은 필수입니다");
     }
@@ -208,7 +256,7 @@ public class ClothesServiceTest {
         var request = new ClothesCreateRequest(UUID.randomUUID(), "티셔츠", null, List.of());
 
         // when & then
-        assertThatThrownBy(() -> clothesService.createClothes(request, null))
+        assertThatThrownBy(() -> clothesService.createClothes(request, null, null))
             .isInstanceOf(ClothesValidationException.class)
             .hasMessage("의상 타입은 필수입니다");
     }
@@ -224,7 +272,7 @@ public class ClothesServiceTest {
         when(clothesRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when
-        ClothesDto result = clothesService.createClothes(request, null);
+        ClothesDto result = clothesService.createClothes(request, null, null);
 
         // then
         assertThat(result).isNotNull();

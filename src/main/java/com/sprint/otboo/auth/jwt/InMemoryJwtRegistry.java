@@ -72,6 +72,14 @@ public class InMemoryJwtRegistry implements JwtRegistry {
         }
     }
 
+    @Override
+    public void invalidateAll(UUID userId) {
+        Queue<JwtInformation> sessionQueue = activeSessions.remove(userId);
+        if (sessionQueue != null) {
+            sessionQueue.forEach(this::invalidateTokens);
+        }
+    }
+
     private void invalidateTokens(JwtInformation sessionInfo) {
         validAccessTokens.remove(sessionInfo.accessToken());
         validRefreshTokens.remove(sessionInfo.refreshToken());
