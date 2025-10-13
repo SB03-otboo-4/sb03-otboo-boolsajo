@@ -4,13 +4,25 @@ import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.entity.WindStrength;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class KmaForecastAssembler {
@@ -21,15 +33,19 @@ public class KmaForecastAssembler {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HHmm");
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
+    /* -------------------- public API -------------------- */
+
+    /** KMA items → 동일 (fcstDate, fcstTime) 묶음의 슬롯 목록 */
     public List<KmaForecastMapper.Slot> toSlots(List<KmaForecastItem> items) {
         if (items == null || items.isEmpty()) return List.of();
 
         Map<String, List<KmaForecastItem>> byTs = items.stream()
+            .filter(Objects::nonNull)
             .collect(Collectors.groupingBy(i -> i.getFcstDate() + "_" + i.getFcstTime()));
 
-        List<KmaForecastMapper.Slot> slots = new ArrayList<>();
+        List<KmaForecastMapper.Slot> slots = new ArrayList<>(byTs.size());
         for (Map.Entry<String, List<KmaForecastItem>> e : byTs.entrySet()) {
-            String key = e.getKey();
+            String key = e.getKey();            // yyyyMMdd_HHmm
             String fcstDate = key.substring(0, 8);
             String fcstTime = key.substring(9);
             slots.add(mapper.toSlot(e.getValue(), fcstDate, fcstTime));
@@ -38,41 +54,44 @@ public class KmaForecastAssembler {
         return slots;
     }
 
+    /** 호환용: 단기예보 원본 없이 호출되면 강수량/최저/최고는 0 또는 null */
     public List<Weather> toWeathers(List<KmaForecastMapper.Slot> slots, WeatherLocation location) {
         return toWeathers(slots, location, List.of());
     }
 
-    /** 원본 items 를 받아 RN1/PCP, TMN/TMX 를 반영 */
+    /**
+     * 권장 시그니처:
+     * - slots: 단기예보에서 만든 슬롯
+     * - location: 위치 엔티티
+     * - shortTermItems: 단기예보 원본(items) – TMN/TMX/PCP 파생용
+     */
     public List<Weather> toWeathers(List<KmaForecastMapper.Slot> slots,
         WeatherLocation location,
-        List<KmaForecastItem> items) {
+        List<KmaForecastItem> shortTermItems) {
         if (slots == null || slots.isEmpty()) return List.of();
 
-        // 날짜별 TMN/TMX 미리 뽑기
-        Map<String, Double> dailyMin = extractDailyValue(items, "TMN");
-        Map<String, Double> dailyMax = extractDailyValue(items, "TMX");
+        // 날짜별 TMN/TMX
+        Map<String, Double> dailyMin = extractDailyValue(shortTermItems, "TMN");
+        Map<String, Double> dailyMax = extractDailyValue(shortTermItems, "TMX");
 
-        // 타임스탬프별 RN1/PCP 강수량(mm) 뽑기
-        Map<String, Double> precipAmountByTs = extractPrecipAmountByTs(items);
+        // 타임스탬프별 PCP(mm)
+        Map<String, Double> pcpByTs = extractPrecipAmountByTs(shortTermItems);
 
-        List<Weather> list = new ArrayList<>(slots.size());
+        List<Weather> out = new ArrayList<>(slots.size());
         for (KmaForecastMapper.Slot s : slots) {
             Instant forecastAt = instantOf(s);
-            // base_time을 모르니, 직전 발표 기준으로 30분 전 근사
             Instant forecastedAt = forecastAt.minusSeconds(30 * 60);
 
             Double tempC = (double) s.getTemperature();
-            Double pop01 = normalizePop01(s.getPrecipitationProbability()); // 0~1 저장
-            Double reh   = normalizeHumidityPct(s.getHumidity());           // 0~100 or null
+            Double pop01 = normalizePop01(s.getPrecipitationProbability());
+            Double reh   = normalizeHumidityPct(s.getHumidity());
 
             Double speed = safeSpeedMs(s.getWindSpeedMs());
             WindStrength ws = pickWindStrength(s.getWindSpeedMs(), s.getWindQualCode());
 
-            // 강수량(mm): 같은 타임스탬프의 RN1/PCP → 숫자화
             String tsKey = s.getFcstDate() + "_" + s.getFcstTime();
-            Double amountMm = precipAmountByTs.getOrDefault(tsKey, 0.0);
+            Double amountMm = pcpByTs.getOrDefault(tsKey, 0.0);
 
-            // 일 최저/최고: fcstDate 기준으로 TMN/TMX 반영(없으면 null)
             Double minC = dailyMin.get(s.getFcstDate());
             Double maxC = dailyMax.get(s.getFcstDate());
 
@@ -92,10 +111,44 @@ public class KmaForecastAssembler {
                 .maxC(maxC)
                 .build();
 
-            list.add(w);
+            out.add(w);
         }
-        return list;
+        return out;
     }
+
+    /* -------------------- PCP / TMN/TMX helpers -------------------- */
+
+    private static Map<String, Double> extractPrecipAmountByTs(List<KmaForecastItem> items) {
+        if (items == null || items.isEmpty()) return Map.of();
+        Map<String, Double> out = new HashMap<>();
+        for (KmaForecastItem it : items) {
+            if (it == null) continue;
+            if (!"PCP".equals(it.getCategory())) continue;
+
+            String tsKey = it.getFcstDate() + "_" + it.getFcstTime();
+            Double mm = parsePrecipAmountToMm(it.getFcstValue());
+            if (mm == null) continue;
+
+            out.put(tsKey, mm);
+        }
+        return out;
+    }
+
+    private static Map<String, Double> extractDailyValue(List<KmaForecastItem> items, String category) {
+        if (items == null || items.isEmpty()) return Map.of();
+        Map<String, Double> out = new HashMap<>();
+        for (KmaForecastItem it : items) {
+            if (it == null) continue;
+            if (!category.equals(it.getCategory())) continue;
+
+            String date = it.getFcstDate();
+            Double v = parseDoubleSafe(it.getFcstValue());
+            if (date != null && v != null) out.put(date, v);
+        }
+        return out;
+    }
+
+    /* -------------------- parsing / normalize -------------------- */
 
     private static Instant instantOf(KmaForecastMapper.Slot s) {
         LocalDate d = LocalDate.parse(s.getFcstDate(), DATE);
@@ -103,15 +156,12 @@ public class KmaForecastAssembler {
         return ZonedDateTime.of(d, t, KST).toInstant();
     }
 
-    /** 강수확률(%) → 0~1 저장. 범위 밖은 클램프, 음수(결측 추정)는 null */
     private static Double normalizePop01(int popPercent) {
         if (popPercent < 0) return null;
-        double p = popPercent;
-        if (p > 100) p = 100;
+        double p = Math.min(100, popPercent);
         return p / 100.0;
     }
 
-    /** 상대습도(%) 0~100 유지. 900급 센티넬은 null */
     private static Double normalizeHumidityPct(int humidityPercent) {
         if (humidityPercent >= 900) return null;
         if (humidityPercent < 0) return 0.0;
@@ -119,14 +169,12 @@ public class KmaForecastAssembler {
         return (double) humidityPercent;
     }
 
-    /** 풍속 값 방어: null/NaN/음수 → 0.0 */
     private static Double safeSpeedMs(Double v) {
         if (v == null) return 0.0;
         if (v.isNaN() || v < 0) return 0.0;
         return v;
     }
 
-    /** 바람 등급 산정: 풍속(m/s) 우선, 없으면 정성코드(1~3) 사용 */
     private static WindStrength pickWindStrength(Double wsdMs, Integer qualCode) {
         if (wsdMs != null && !wsdMs.isNaN() && wsdMs >= 0) {
             return bySpeed(wsdMs);
@@ -152,38 +200,6 @@ public class KmaForecastAssembler {
         };
     }
 
-    /** 날짜별 TMN/TMX 값을 Double로 추출 */
-    private static Map<String, Double> extractDailyValue(List<KmaForecastItem> items, String category) {
-        if (items == null || items.isEmpty()) return Map.of();
-        Map<String, Double> out = new HashMap<>();
-        for (KmaForecastItem it : items) {
-            if (it == null) continue;
-            if (!category.equals(it.getCategory())) continue;
-            String date = it.getFcstDate();
-            Double v = parseDoubleSafe(it.getFcstValue());
-            if (v != null) out.put(date, v);
-        }
-        return out;
-    }
-
-    /** 타임스탬프별 RN1/PCP 강수량(mm) */
-    private static Map<String, Double> extractPrecipAmountByTs(List<KmaForecastItem> items) {
-        if (items == null || items.isEmpty()) return Map.of();
-        Map<String, Double> out = new HashMap<>();
-        for (KmaForecastItem it : items) {
-            if (it == null) continue;
-            String cat = it.getCategory();
-            if (!"RN1".equals(cat) && !"PCP".equals(cat)) continue;
-
-            String tsKey = it.getFcstDate() + "_" + it.getFcstTime();
-            Double mm = parsePrecipAmountToMm(it.getFcstValue());
-            if (mm == null) continue;
-            if (out.containsKey(tsKey) && "PCP".equals(cat)) continue;
-            out.put(tsKey, mm);
-        }
-        return out;
-    }
-
     private static Double parseDoubleSafe(String s) {
         if (s == null || s.isBlank()) return null;
         try {
@@ -195,34 +211,55 @@ public class KmaForecastAssembler {
         }
     }
 
-    /** "강수없음", "1mm 미만", "10~20mm" 등 KMA 문자열을 mm(double)로 표준화 */
+    /* -------------------- 강수량(mm) 파싱 -------------------- */
     private static Double parsePrecipAmountToMm(String raw) {
-        if (raw == null || raw.isBlank()) return null;
+        if (raw == null || raw.isBlank()) return 0.0;
         String v = raw.trim();
 
+        // 1) 명시적 없음
         if ("강수없음".equals(v)) return 0.0;
+
+        // 2) "1mm 미만" 등
         if (v.contains("미만")) {
-            // "1mm 미만" → 0.5로 근사
-            return 0.5;
-        }
-        if (v.endsWith("mm")) {
-            String core = v.replace("mm", "").trim();
-            if (core.contains("~")) {
-                // "10~20" → 중간값 15
-                String[] parts = core.split("~");
-                Double a = parseDoubleSafe(parts[0]);
-                Double b = parseDoubleSafe(parts.length > 1 ? parts[1] : null);
-                if (a != null && b != null) return (a + b) / 2.0;
-                if (a != null) return a;
-                if (b != null) return b;
-                return null;
-            } else {
-                return parseDoubleSafe(core);
-            }
+            return 0.1; // 과대계상 방지: 0.1mm로 근사
         }
 
+        // 3) "50mm 이상" 등
+        if (v.contains("이상")) {
+            String num = v.replaceAll("[^0-9.]", "");
+            Double base = parseDoubleSafe(num);
+            return round1(clampMm(base != null ? base : 0.0));
+        }
+
+        // 4) "10~20mm" 구간값 → 중앙값
+        if (v.endsWith("mm") && v.contains("~")) {
+            String core = v.substring(0, v.length() - 2).trim();
+            String[] parts = core.split("~");
+            Double a = parseDoubleSafe(parts.length > 0 ? parts[0] : null);
+            Double b = parseDoubleSafe(parts.length > 1 ? parts[1] : null);
+            Double mid = (a != null && b != null) ? (a + b) / 2.0 : (a != null ? a : (b != null ? b : 0.0));
+            return round1(clampMm(mid));
+        }
+
+        // 5) "12mm" 단일 값
+        if (v.endsWith("mm")) {
+            String core = v.substring(0, v.length() - 2).trim();
+            Double n = parseDoubleSafe(core);
+            return round1(clampMm(n != null ? n : 0.0));
+        }
+
+        // 6) 숫자 그대로
         Double direct = parseDoubleSafe(v);
-        if (direct != null) return direct;
-        return null;
+        return round1(clampMm(direct != null ? direct : 0.0));
+    }
+
+    private static double clampMm(double mm) {
+        if (mm < 0.0) return 0.0;
+        if (mm > 300.0) return 300.0; // 안전 상한(극한 호우)
+        return mm;
+    }
+
+    private static double round1(double v) {
+        return Math.round(v * 10.0) / 10.0;
     }
 }
