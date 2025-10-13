@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
@@ -101,7 +100,7 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
         log.debug("[UserServiceImpl] 회원 저장 완료 : userId = {} ", savedUser.getId());
 
-        UserProfile profile = com.sprint.otboo.user.entity.UserProfile.builder()
+        UserProfile profile = UserProfile.builder()
             .user(savedUser)
             .build();
         userProfileRepository.save(profile);

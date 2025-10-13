@@ -1,9 +1,9 @@
 package com.sprint.otboo.notification.service.impl;
 
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
 import com.sprint.otboo.notification.entity.NotificationLevel;
@@ -13,6 +13,8 @@ import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -33,14 +35,17 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public CursorPageResponse<NotificationDto> getNotifications(UUID receiverId, NotificationQueryParams query) {
+    public NotificationCursorResponse getNotifications(UUID receiverId, NotificationQueryParams query) {
         log.debug("[NotificationServiceImpl] 알림 조회 시작 : 사용자 = {}, cursor = {}, idAfter = {}, fetchSize = {}",
             receiverId, query.cursor(), query.idAfter(), query.fetchSize());
 
+        Instant cursorInstant = query.parsedCursor();
+        UUID idAfter = query.idAfter();
+
         var slice = notificationRepository.findByReceiverWithCursor(
             receiverId,
-            query.parsedCursor(),
-            query.idAfter(),
+            cursorInstant,
+            idAfter,
             query.fetchSize()
         );
 
@@ -52,16 +57,27 @@ public class NotificationServiceImpl implements NotificationService {
             .map(notificationMapper::toDto)
             .toList();
 
-        NotificationDto last = slice.hasNext() && !data.isEmpty()
+        NotificationDto last = !data.isEmpty()
             ? data.get(data.size() - 1)
+            : null;
+
+        String nextCursor = (last != null && slice.hasNext())
+            ? last.createdAt().truncatedTo(ChronoUnit.MILLIS).toString()
+            : null;
+
+        String nextIdAfter = (last != null && slice.hasNext())
+            ? last.id().toString()
             : null;
 
         long totalCount = notificationRepository.countByReceiverId(receiverId);
 
-        return new CursorPageResponse<>(
+        log.debug("[NotificationServiceImpl] 다음 커서 정보 : cursor = {}, idAfter = {}, hasNext = {}",
+            nextCursor, nextIdAfter, slice.hasNext());
+
+        return NotificationCursorResponse.from(
             data,
-            last != null ? last.createdAt().toString() : null,
-            last != null ? last.id().toString() : null,
+            nextCursor,
+            nextIdAfter,
             slice.hasNext(),
             totalCount,
             "createdAt",

@@ -5,6 +5,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sprint.otboo.notification.entity.Notification;
 import com.sprint.otboo.notification.entity.QNotification;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -51,22 +52,30 @@ public class NotificationRepositoryImpl implements NotificationRepositoryCustom 
         return new SliceImpl<>(results, pageable, hasNext);
     }
 
-    private BooleanExpression cursorPredicate(QNotification notification, Instant cursorInstant, UUID idAfter) {
+    private BooleanExpression cursorPredicate(QNotification notification,
+        Instant cursorInstant,
+        UUID idAfter
+    ) {
         if (cursorInstant == null && idAfter == null) {
             return null;
         }
-        BooleanExpression predicate = null;
-        if (cursorInstant != null) {
-            predicate = notification.createdAt.lt(cursorInstant);
-            if (idAfter != null) {
-                predicate = predicate.or(
-                    notification.createdAt.eq(cursorInstant)
+
+        if (cursorInstant != null && idAfter != null) {
+            Instant truncated = cursorInstant.truncatedTo(ChronoUnit.MILLIS);
+            // 시간이 cursor보다 이전이거나, 같은 시간대면서 ID가 더 작은 것
+            return notification.createdAt.lt(truncated)
+                .or(
+                    notification.createdAt.goe(truncated)
+                        .and(notification.createdAt.lt(truncated.plusMillis(1)))
                         .and(notification.id.lt(idAfter))
                 );
-            }
-        } else if (idAfter != null) {
-            predicate = notification.id.lt(idAfter);
         }
-        return predicate;
+
+        if (cursorInstant != null) {
+            Instant truncated = cursorInstant.truncatedTo(ChronoUnit.MILLIS);
+            return notification.createdAt.lt(truncated);
+        }
+
+        return notification.id.lt(idAfter);
     }
 }

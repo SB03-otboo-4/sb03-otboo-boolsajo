@@ -1,10 +1,9 @@
 package com.sprint.otboo.notification.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.notification.controller.api.NotificationApi;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
-import com.sprint.otboo.notification.dto.response.NotificationDto;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.service.NotificationService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -27,16 +26,18 @@ public class NotificationController implements NotificationApi {
     private final NotificationService notificationService;
 
     @GetMapping
-    public CursorPageResponse<NotificationDto> listNotifications(
+    public NotificationCursorResponse listNotifications(
         @AuthenticationPrincipal CustomUserDetails principal,
         @Valid NotificationQueryParams query
     ) {
         UUID receiverId = principal.getUserId();
         log.debug("[NotificationController] 알림 목록 조회 시작 : 사용자 = {}, query = {}", receiverId, query);
-        CursorPageResponse<NotificationDto> response = notificationService.getNotifications(receiverId, query);
-        log.debug("[NotificationController] 알림 목록 조회 완료 : 개수 = {}, 다음 페이지 여부 = {}",response.data().size(), response.hasNext());
+        NotificationCursorResponse response = notificationService.getNotifications(receiverId, query);
+        log.debug("[NotificationController] 알림 목록 조회 완료 : 개수 = {}, 다음 페이지 여부 = {}",
+            response.data().size(), response.hasNext());
         return response;
     }
+
 
     @DeleteMapping("/{notificationId}")
     public ResponseEntity<Void> deleteNotification(@PathVariable UUID notificationId) {

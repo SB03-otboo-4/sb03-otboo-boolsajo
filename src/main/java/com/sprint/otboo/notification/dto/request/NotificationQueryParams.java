@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public record NotificationQueryParams(
     String cursor,
-    UUID idAfter,
+    UUID idAfter,       // 응답의 idAfter와 정확히 일치
     @Positive @Max(50) int limit
 ) {
     public Instant parsedCursor() {
