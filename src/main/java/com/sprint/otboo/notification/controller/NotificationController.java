@@ -27,10 +27,6 @@ public class NotificationController implements NotificationApi {
 
     /**
      * 인증된 사용자에 대해 커서 기반 페이지네이션으로 알림 목록을 조회
-     *
-     * @param principal Spring Security가 주입한 인증 정보
-     * @param query cursor.idAfter.limit 등의 페이지네이션 파라미터
-     * @return 알림 데이터와 페이지네이션 메타정보
      * */
     @GetMapping
     public NotificationCursorResponse listNotifications(

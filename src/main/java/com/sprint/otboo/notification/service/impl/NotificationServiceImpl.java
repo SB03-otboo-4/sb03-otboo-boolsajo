@@ -36,7 +36,7 @@ public class NotificationServiceImpl implements NotificationService {
     /**
      * 알림을 조회해 DTO로 변환하고, 다음 페이지 진입을 위한 커서를 계산
      *
-     * @param receiverId 조회 대상 사용자
+     * @param receiverId 알림 수신자
      * @param query 커서/아이디/limit 정보
      * @return 다음 커서·아이디 포함 응답 DTO
      * */

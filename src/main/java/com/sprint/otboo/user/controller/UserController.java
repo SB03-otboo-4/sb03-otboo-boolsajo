@@ -11,12 +11,11 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserListQueryParams;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.service.UserService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Pattern;
 import java.io.IOException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +33,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -144,40 +142,14 @@ public class UserController implements UserApi {
     /**
      * 커서 기반 검색 조건으로 사용자 목록을 조회
      *
-     * @param cursor 다음 페이지 탐색용 커서
-     * @param idAfter 커서 해독 실패 시 대체로 사용할 UUID
-     * @param limit 조회할 레코드 수
-     * @param sortBy email 또는 createdAt
-     * @param emailLike 이메일 부분 일치 필터
-     * @param roleEqual 권한 필터
-     * @param  locked 잠금 여부  필터
-     * @return 다음 커서/총계 정보를 포함한 사용자 목록
+     * @param query 커서·정렬·필터 조건
      * */
     @GetMapping
-    public ResponseEntity<CursorPageResponse<UserDto>> listUsers(
-        @RequestParam(required = false) String cursor,
-        @RequestParam(required = false) String idAfter,
-        @RequestParam(defaultValue = "20") @Min(1) Integer limit,
-        @RequestParam(defaultValue = "createdAt") @Pattern(regexp = "email|createdAt") String sortBy,
-        @RequestParam(defaultValue = "DESCENDING") @Pattern(regexp = "ASCENDING|DESCENDING") String sortDirection,
-        @RequestParam(required = false) String emailLike,
-        @RequestParam(required = false) String roleEqual,
-        @RequestParam(required = false) Boolean locked
-    ) {
-        log.info("[UserController] 계정 목록 조회 요청: cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}, emailLike={}, roleEqual={}, locked={}",
-            cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+    public ResponseEntity<CursorPageResponse<UserDto>> listUsers(@Valid UserListQueryParams query) {
+        log.info("[UserController] 계정 목록 조회 요청: {}",query);
 
-        if (limit == null || limit <= 0) {
-            return ResponseEntity.badRequest().build();
-        }
-        if (!"email".equals(sortBy) && !"createdAt".equals(sortBy)) {
-            return ResponseEntity.badRequest().build();
-        }
-        if (!"ASCENDING".equals(sortDirection) && !"DESCENDING".equals(sortDirection)) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        CursorPageResponse<UserDto> response = userService.listUsers(cursor, idAfter, limit, sortBy, sortDirection, emailLike, roleEqual, locked);
+        UserListQueryParams resolved = query.withDefaults();
+        CursorPageResponse<UserDto> response = userService.listUsers(resolved);
 
         log.debug("[UserController] 계정 목록 조회 완료: returnedCount={}, hasNext={}, nextCursor={}",
             response.data().size(), response.hasNext(), response.nextCursor());

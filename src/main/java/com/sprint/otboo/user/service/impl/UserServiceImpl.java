@@ -9,6 +9,7 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserListQueryParams;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.entity.Gender;
@@ -237,31 +238,25 @@ public class UserServiceImpl implements UserService {
     /**
      * 커서 기반 페이지네이션으로 사용자 목록을 조회
      *
-     * @param cursor 다음 페이지 탐색용 Base64 커서
-     * @param idAfter 커서 재생성용 UUID ( cursor가 비어 있을 때 사용 )
-     * @param limit 조회할 행 수
-     * @param sortByParam 정렬 기준 파라미터( email/createdAt )
-     * @param sortDirParam 정렬 방향 파라미터( ASCENDING/DESCENDING )
-     * @param emailLike 이메일 부분 일치 필터
-     * @param roleEqualParam Role 필터 문자열
-     * @param locked 잠금 여부 필터
-     * @return 사용자 DTO 목록과 페이지네이션 메타 정보
+     * @param query 커서·정렬·필터 조건
      * */
     @Override
-    public CursorPageResponse<UserDto> listUsers(String cursor, String idAfter, Integer limit, String sortByParam, String sortDirParam,
-        String emailLike, String roleEqualParam, Boolean locked) {
+    public CursorPageResponse<UserDto> listUsers(UserListQueryParams query) {
         log.debug("[UserServiceImpl] 사용자 목록 조회 파라미터: cursor={}, idAfter={}, limit={}, sortBy={}, sortDir={}, emailLike={}, roleEqual={}, locked={}",
-            cursor, idAfter, limit, sortByParam, sortDirParam, emailLike, roleEqualParam, locked);
+            query.cursor(), query.idAfter(), query.limit(), query.sortBy(), query.sortDirection(), query.emailLike(), query.roleEqual(), query.locked());
 
         // 파라미터 -> enum/타입 변환
-        SortBy sortBy = SortBy.fromParam(sortByParam);
-        SortDirection sd = SortDirection.fromParam(sortDirParam);
-        UUID idAfterUuid = (idAfter != null && !idAfter.isBlank()) ? UUID.fromString(idAfter) : null;
-        Role roleEqualRole = (roleEqualParam != null && !roleEqualParam.isBlank()) ? Role.valueOf(roleEqualParam) : null;
+        SortBy sortBy = SortBy.fromParam(query.sortBy());
+        SortDirection sd = SortDirection.fromParam(query.sortDirection());
+        UUID idAfterUuid = query.parsedIdAfter();
+        Role roleEqualRole = query.hasRoleEqual() ? Role.valueOf(query.roleEqual()) : null;
 
         // 조회
-        UserSlice slice = userQueryRepository.findSlice(cursor, idAfterUuid, limit, sortBy, sd, emailLike, roleEqualRole, locked);
-        long total = userQueryRepository.countAll(emailLike, roleEqualRole, locked);
+        UserSlice slice = userQueryRepository.findSlice(
+            query.cursor(), idAfterUuid, query.limit(), sortBy, sd,
+            query.emailLike(), roleEqualRole, query.locked()
+        );
+        long total = userQueryRepository.countAll(query.emailLike(), roleEqualRole, query.locked());
 
         // 매핑
         List<UserDto> data = slice.rows().stream()
