@@ -93,6 +93,7 @@ class FeedIntegrationTest {
     }
 
     @Nested
+    @DisplayName("피드 등록 통합 테스트")
     class FeedCreateIntegrationTests {
 
         @Test
@@ -178,6 +179,7 @@ class FeedIntegrationTest {
     }
 
     @Nested
+    @DisplayName("피드 수정 통합 테스트")
     class FeedUpdateIntegrationTests {
 
         @Test
@@ -317,6 +319,7 @@ class FeedIntegrationTest {
     }
 
     @Nested
+    @DisplayName("피드 삭제 통합 테스트")
     class FeedDeleteIntegrationTests {
 
         @Test
