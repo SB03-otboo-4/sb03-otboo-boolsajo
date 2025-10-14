@@ -3,6 +3,7 @@ package com.sprint.otboo.notification.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -170,5 +172,77 @@ public class SseControllerTest {
         // then: 누락 알림 전송 검증
         verify(notificationSseService, times(1)).sendToClient(missedNotification);
         verify(sseEmitter, never()).send(Mockito.<SseEmitter.SseEventBuilder>any());
+    }
+
+    @Test
+    void lastEventId_null이면_누락_알림_전송_없이_구독() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Role role = Role.USER;
+        UserDto userDto = new UserDto(userId, Instant.now(), "test@example.com", "Test User", role, null, false);
+        CustomUserDetails customUser = new CustomUserDetails(userDto, "password");
+
+        // given: SSE 구독 시 SseEmitter 반환, lastEventId 없음
+        SseEmitter sseEmitter = mock(SseEmitter.class);
+        given(notificationSseService.subscribe(userId, role, null)).willReturn(sseEmitter);
+
+        // when: SSE 구독 요청
+        mockMvc.perform(get("/api/sse")
+                .with(user(customUser))
+                .accept(MediaType.TEXT_EVENT_STREAM))
+            // then: 상태 OK, 누락 알림 전송 없음
+            .andExpect(status().isOk());
+
+        // 누락 알림 전송이 호출되지 않아야 함
+        verify(notificationService, never()).getMissedNotifications(any(), any());
+        verify(notificationSseService, never()).sendToClient(any());
+    }
+
+    @Test
+    void subscribe_중_예외발생시_서버에러_반환() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Role role = Role.USER;
+        UserDto userDto = new UserDto(userId, Instant.now(), "test@example.com", "Test User", role, null, false);
+        CustomUserDetails customUser = new CustomUserDetails(userDto, "password");
+
+        // given: SSE 구독 실패 시 RuntimeException 발생
+        given(notificationSseService.subscribe(userId, role, null))
+            .willThrow(new RuntimeException("SSE 구독 실패"));
+
+        // when: SSE 구독 요청
+        mockMvc.perform(get("/api/sse")
+                .with(user(customUser))
+                .accept(MediaType.APPLICATION_JSON))
+            // then: 서버 에러 반환
+            .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void 누락_알림_여러개_순서대로_전송() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Role role = Role.USER;
+        String lastEventId = UUID.randomUUID().toString();
+        UserDto userDto = new UserDto(userId, Instant.now(), "test@example.com", "Test User", role, null, false);
+        CustomUserDetails customUser = new CustomUserDetails(userDto, "password");
+
+        // given: SSE 구독 시 SseEmitter 반환, 누락 알림 2개 존재
+        SseEmitter sseEmitter = mock(SseEmitter.class);
+        given(notificationSseService.subscribe(userId, role, lastEventId)).willReturn(sseEmitter);
+
+        NotificationDto n1 = new NotificationDto(UUID.randomUUID(), Instant.now(), userId, "A", "내용1", NotificationLevel.INFO);
+        NotificationDto n2 = new NotificationDto(UUID.randomUUID(), Instant.now(), userId, "B", "내용2", NotificationLevel.INFO);
+
+        given(notificationService.getMissedNotifications(userId, lastEventId)).willReturn(List.of(n1, n2));
+
+        // when: SSE 구독 요청, LastEventId 전달
+        mockMvc.perform(get("/api/sse")
+                .param("LastEventId", lastEventId)
+                .with(user(customUser))
+                .accept(MediaType.TEXT_EVENT_STREAM))
+            // then: 상태 OK, 알림 순서대로 전송
+            .andExpect(status().isOk());
+
+        InOrder inOrder = inOrder(notificationSseService);
+        inOrder.verify(notificationSseService).sendToClient(n1);
+        inOrder.verify(notificationSseService).sendToClient(n2);
     }
 }
