@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
 
                 // Actuator
+                .requestMatchers("/health").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
                 // 사용자 관련 API
