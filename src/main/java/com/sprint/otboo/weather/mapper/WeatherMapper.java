@@ -20,7 +20,6 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface WeatherMapper {
 
-    // -------- full detail --------
     @Mapping(source = "id",           target = "weatherId")
     @Mapping(source = "forecastedAt", target = "forecastedAt")
     @Mapping(source = "forecastAt",   target = "forecastAt")
@@ -32,14 +31,13 @@ public interface WeatherMapper {
     @Mapping(target = "windSpeed",     expression = "java(toWindSpeedDto(weather))")
     WeatherDto toWeatherDto(Weather weather);
 
-    // -------- summary (optional) --------
-    @Mapping(source = "id",        target = "weatherId")
+    @Mapping(source = "id", target = "weatherId")
     @Mapping(source = "skyStatus", target = "skyStatus")
     @Mapping(target = "precipitation", expression = "java(toPrecipitationDto(weather))")
-    @Mapping(target = "temperature",   expression = "java(toTemperatureDto(weather))")
+    @Mapping(target = "temperature", expression = "java(toTemperatureDto(weather))")
     WeatherSummaryDto toWeatherSummaryDto(Weather weather);
 
-    // -------- builders --------
+    // ---------- builders ----------
     default TemperatureDto toTemperatureDto(Weather w) {
         if (w == null) return null;
         double current  = nz(w.getCurrentC());
