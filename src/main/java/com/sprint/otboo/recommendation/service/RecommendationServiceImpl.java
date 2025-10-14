@@ -17,9 +17,13 @@ import com.sprint.otboo.user.entity.UserProfile;
 import com.sprint.otboo.user.repository.UserProfileRepository;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,9 +34,10 @@ import org.springframework.stereotype.Service;
  *   <li>날씨 정보 조회</li>
  *   <li>사용자 의상 조회</li>
  *   <li>사용자 프로필 기반 체감온도 계산</li>
- *   <li>추천 엔진을 통해 추천 의상 추출</li>
+ *   <li>최근 10분 내 추천된 옷 제외 후 추천 엔진 실행</li>
  * </ul>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RecommendationServiceImpl implements RecommendationService {
@@ -76,23 +81,50 @@ public class RecommendationServiceImpl implements RecommendationService {
             profile.getTemperatureSensitivity()
         );
 
-        // 5. 이전 추천 조회 → 재추천 여부 판단
-        boolean excludeDress = recommendationRepository
-            .findTopByUser_IdOrderByCreatedAtDesc(userId)
-            .map(prev -> prev.getRecommendationClothes().stream()
-                .anyMatch(rc -> rc.getClothes().getType() == ClothesType.DRESS))
-            .orElse(false);
+        // 5. 최근 10분 내 추천 이력 조회
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+        List<Recommendation> recentRecommendations =
+            recommendationRepository.findByUser_IdAndCreatedAtAfter(userId, cutoff);
 
-        // 6. 추천 엔진 실행 → 사용자의 옷 중 체감 온도에 적합한 옷 필터링
-        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, excludeDress);
+        // 6. 최근 추천된 옷 ID 수집
+        Set<UUID> recentlyRecommendedIds = recentRecommendations.stream()
+            .flatMap(r -> r.getRecommendationClothes().stream())
+            .map(rc -> rc.getClothes().getId())
+            .collect(Collectors.toSet());
 
-        // 7. 추천 엔티티 구성
+        // 7. 최근 추천된 옷 제외
+        List<Clothes> filteredClothes = userClothes.stream()
+            .filter(c -> !recentlyRecommendedIds.contains(c.getId()))
+            .toList();
+
+        // 8. 최근 추천 제외 후 비어있으면 전체로 재시도 (추천할 옷 부족 시)
+        if (filteredClothes.isEmpty()) {
+            log.info("[Recommendation] 최근 추천 제외 후 남은 의상이 없어 재추천 허용으로 전환");
+            filteredClothes = userClothes;
+        }
+
+        // 9. 이전 추천 조회 → 재추천 여부 판단
+        boolean excludeDress = recentRecommendations.stream()
+            .flatMap(r -> r.getRecommendationClothes().stream())
+            .anyMatch(rc -> rc.getClothes().getType() == ClothesType.DRESS);
+
+        // 10. 추천 엔진 실행 → 사용자의 옷 중 체감 온도에 적합한 옷 필터링
+        List<Clothes> recommended = recommendationEngine.recommend(
+            filteredClothes, perceivedTemp, weather, excludeDress
+        );
+
+        // 11. 추천 결과 없을 때 Fallback( Top&Bottom - Dress 상호 배타 유지 )
+        if (recommended.isEmpty()) {
+            recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, excludeDress);
+        }
+
+        // 12. 추천 엔티티 구성
         Recommendation recommendation = Recommendation.builder()
             .user(User.builder().id(userId).build())
             .weather(weather)
             .build();
 
-        // 8. 추천된 옷들을 RecommendationClothes로 묶어서 연결
+        // 13. 추천된 옷들을 RecommendationClothes로 묶어서 연결
         recommended.forEach(c -> recommendation.addRecommendationClothes(
             RecommendationClothes.builder()
                 .clothes(c)
@@ -100,7 +132,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .build()
         ));
 
-        // 9. 엔티티 → DTO 변환 후 반환
+        // 14. 엔티티 → DTO 변환 후 반환
         return recommendationMapper.toDto(recommendation);
     }
 }

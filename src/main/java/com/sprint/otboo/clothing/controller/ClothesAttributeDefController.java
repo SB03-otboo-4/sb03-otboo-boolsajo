@@ -1,5 +1,6 @@
 package com.sprint.otboo.clothing.controller;
 
+import com.sprint.otboo.clothing.controller.api.ClothesAttributeDefApi;
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDefDto;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
@@ -32,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/clothes/attribute-defs")
 @RequiredArgsConstructor
-public class ClothesAttributeDefController {
+public class ClothesAttributeDefController implements ClothesAttributeDefApi {
 
     private final ClothesAttributeDefService clothesAttributeDefService;
 
@@ -44,6 +45,7 @@ public class ClothesAttributeDefController {
      * @param request 의상 속성 정의 생성 요청 DTO
      * @return 생성된 의상 속성 정의 DTO
      */
+    @Override
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ClothesAttributeDefDto> createAttributeDef(@RequestBody ClothesAttributeDefCreateRequest request) {
@@ -61,6 +63,7 @@ public class ClothesAttributeDefController {
      * @param request 수정 요청 DTO
      * @return 수정된 의상 속성 정의 DTO
      */
+    @Override
     @PatchMapping("/{definitionId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ClothesAttributeDefDto> updateAttributeDef(
@@ -83,8 +86,9 @@ public class ClothesAttributeDefController {
      * @param keywordLike 이름 검색 키워드 (옵션)
      * @return 의상 속성 정의 DTO 리스트
      */
+    @Override
     @GetMapping
-    public ResponseEntity<List<ClothesAttributeDefDto>> listAttributeDefs(
+    public ResponseEntity<List<ClothesAttributeDefDto>> getAttributeDefs(
         @RequestParam String sortBy,
         @RequestParam String sortDirection,
         @RequestParam(required = false) String keywordLike
@@ -106,6 +110,7 @@ public class ClothesAttributeDefController {
      * @return 삭제 성공 시 204 No Content
      * @throws CustomException 삭제할 정의가 존재하지 않으면 RESOURCE_NOT_FOUND 예외 발생
      */
+    @Override
     @DeleteMapping("/{definitionId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteAttributeDef(@PathVariable UUID definitionId) {
