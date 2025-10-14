@@ -124,7 +124,7 @@ public class NotificationSseServiceImpl implements NotificationSseService {
      * @param role       역할 (null 허용)
      * @param emitter    제거할 SseEmitter
      */
-    private void removeEmitter(UUID receiverId, Role role, SseEmitter emitter) {
+    public void removeEmitter(UUID receiverId, Role role, SseEmitter emitter) {
         if (receiverId != null) {
             List<SseEmitter> userList = userEmitters.get(receiverId);
             if (userList != null) userList.remove(emitter);
@@ -145,5 +145,13 @@ public class NotificationSseServiceImpl implements NotificationSseService {
     public void setRoleEmitters(Map<Role, List<SseEmitter>> emitters) {
         roleEmitters.clear();
         roleEmitters.putAll(emitters);
+    }
+
+    public Map<UUID, List<SseEmitter>> getUserEmitters() {
+        return userEmitters;
+    }
+
+    public Map<Role, List<SseEmitter>> getRoleEmitters() {
+        return roleEmitters;
     }
 }

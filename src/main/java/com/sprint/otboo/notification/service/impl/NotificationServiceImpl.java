@@ -127,11 +127,12 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * 모든 사용자에게 새 의상 속성 알림 브로드캐스트
+     * 모든 사용자에게 새 의상 속성 알림을 브로드캐스트하고 DB에 저장합니다.
      *
      * <ul>
-     *     <li>Notification 엔티티 생성 및 DB 저장</li>
-     *     <li>Role 기반 SSE 브로드캐스트</li>
+     *     <li>각 사용자별 Notification 엔티티를 DB에 저장</li>
+     *     <li>저장된 NotificationDto를 사용하여 SSE로 실시간 전송</li>
+     *     <li>삭제 기능 시 DB ID와 일치하여 처리 가능</li>
      * </ul>
      *
      * @param attributeName 새로 생성된 의상 속성 이름
@@ -141,20 +142,11 @@ public class NotificationServiceImpl implements NotificationService {
     public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {
         log.info("[NotificationService] 새 의상 속성 알림 브로드캐스트 시작 : {}", attributeName);
 
-        // ADMIN, USER 모두에게 브로드캐스트
-        NotificationDto dto = new NotificationDto(
-            UUID.randomUUID(),
-            Instant.now(),
-            null, // 브로드캐스트이므로 receiverId 없음
-            "새 의상 속성이 등록되었습니다.",
-            "내 의상에 [%s] 속성을 추가해보세요.".formatted(attributeName),
-            NotificationLevel.INFO
-        );
-
-        List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
+        List<User> receivers = userRepository.findAll(); // ADMIN, USER 역할 필터 가능
         log.debug("[NotificationService] 알림 대상 사용자 수={}", receivers.size());
 
         for (User receiver : receivers) {
+            // DB에 Notification 저장
             Notification notification = Notification.builder()
                 .receiver(receiver)
                 .title("새 의상 속성이 등록되었습니다.")
@@ -162,12 +154,13 @@ public class NotificationServiceImpl implements NotificationService {
                 .level(NotificationLevel.INFO)
                 .build();
 
-            saveAndMap(notification);
+            NotificationDto savedDto = saveAndMap(notification);
+
+            // 실제 DB ID 가진 DTO로 SSE 전송
+            notificationSseService.sendToClient(savedDto);
         }
 
-        notificationSseService.sendToRole(Role.USER, dto);
-        notificationSseService.sendToRole(Role.ADMIN, dto);
-        log.info("[NotificationService] 역할별 SSE 브로드캐스트 완료");
+        log.info("[NotificationService] 모든 권한자에게 SSE 브로드캐스트 완료");
     }
 
     /**
@@ -247,26 +240,32 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * 알림 삭제
+     * 특정 알림을 삭제합니다.
      *
      * <ul>
-     *     <li>존재하지 않는 알림 삭제 시 예외 발생</li>
-     *     <li>알림이 존재하면 DB에서 삭제</li>
+     *     <li>알림이 존재하지 않으면 NOT_FOUND 예외 발생</li>
+     *     <li>존재하는 경우, SSE로 삭제 알림 전송 후 DB에서 제거</li>
+     *     <li>삭제 알림 전송 실패 시 DB 삭제는 실행되지 않음 (재시도 로직 가능)</li>
      * </ul>
      *
-     * @param notificationId 삭제할 알림 UUID
+     * @param notificationId 삭제할 Notification UUID
+     * @throws CustomException 알림이 존재하지 않을 경우 발생
      */
     @Override
     @Transactional
     public void deleteNotification(UUID notificationId) {
-        log.info("[NotificationServiceImpl] 알림 삭제 요청 : 알림ID = {}", notificationId);
+        Notification notification = notificationRepository.findById(notificationId)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
 
-        if (!notificationRepository.existsById(notificationId)) {
-            log.warn("[NotificationServiceImpl] 존재하지 않는 알림 삭제 시도 : 알림 ID = {}", notificationId);
-            throw new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND);
+        // SSE 전송 (실제 삭제 알림)
+        NotificationDto dto = notificationMapper.toDto(notification);
+        try {
+            notificationSseService.sendToClient(dto); // 삭제 전송
+            notificationRepository.deleteById(notificationId); // DB 삭제
+            log.info("[NotificationServiceImpl] SSE 전송 후 알림 삭제 완료 : 알림ID = {}", notificationId);
+        } catch (Exception e) {
+            log.warn("[NotificationServiceImpl] SSE 전송 실패, 삭제 미실행 : 알림ID = {}, 메시지: {}", notificationId, e.getMessage());
         }
-        notificationRepository.deleteById(notificationId);
-        log.info("[NotificationServiceImpl] 알림 삭제 완료 : 알림ID = {}", notificationId);
     }
 
     /**
