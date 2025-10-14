@@ -1,1 +1,2 @@
-[![codecov](https://codecov.io/gh/<owner>/<repo>/branch/dev/graph/badge.svg)](https://codecov.io/gh/<owner>/<repo>)
+[![codecov](https://codecov.io/gh/SB03otboo-4/sb03-otboo-boolsajo/branch/feat-SCRUM-32/graph/badge.svg)](https://codecov.io/gh/SB03otboo-4/sb03-otboo-boolsajo?branch=feat-SCRUM-32)
+
