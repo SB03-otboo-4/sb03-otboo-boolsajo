@@ -21,7 +21,9 @@ jacocoTestReport {
                     '**/Q*.class',
                     '**/*Dto*.class',
                     '**/config/**',
-                    '**/exception/**'
+                    '**/exception/**',
+                    '**/index/**',
+                    '**/helper/**'
             ])
         }))
     }
