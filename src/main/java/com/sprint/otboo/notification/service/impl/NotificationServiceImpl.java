@@ -127,10 +127,15 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * 모든 사용자에게 의류 속성 생성 알림을 브로드캐스트
+     * 모든 사용자에게 새 의상 속성 알림 브로드캐스트
      *
-     * @param attributeName 생성된 속성 이름
-     * */
+     * <ul>
+     *     <li>Notification 엔티티 생성 및 DB 저장</li>
+     *     <li>Role 기반 SSE 브로드캐스트</li>
+     * </ul>
+     *
+     * @param attributeName 새로 생성된 의상 속성 이름
+     */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {
@@ -165,6 +170,19 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[NotificationService] 역할별 SSE 브로드캐스트 완료");
     }
 
+    /**
+     * 피드 좋아요 발생 시 알림 생성 및 전송
+     *
+     * <ul>
+     *     <li>좋아요한 사용자와 피드 작성자를 기반으로 Notification 생성</li>
+     *     <li>DB 저장 후 NotificationDto 반환</li>
+     *     <li>개별 사용자 SSE 전송</li>
+     * </ul>
+     *
+     * @param feedAuthorId 피드 작성자 UUID
+     * @param likedByUserId 좋아요한 사용자 UUID
+     * @return 생성된 NotificationDto
+     */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyFeedLiked(UUID feedAuthorId, UUID likedByUserId) {
@@ -190,6 +208,19 @@ public class NotificationServiceImpl implements NotificationService {
         return dto;
     }
 
+    /**
+     * 피드 댓글 발생 시 알림 생성 및 전송
+     *
+     * <ul>
+     *     <li>댓글 작성자와 피드 작성자를 기반으로 Notification 생성</li>
+     *     <li>DB 저장 후 NotificationDto 반환</li>
+     *     <li>개별 사용자 SSE 전송</li>
+     * </ul>
+     *
+     * @param feedAuthorId 피드 작성자 UUID
+     * @param commentedByUserId 댓글 작성자 UUID
+     * @return 생성된 NotificationDto
+     */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId) {
@@ -215,6 +246,16 @@ public class NotificationServiceImpl implements NotificationService {
         return dto;
     }
 
+    /**
+     * 알림 삭제
+     *
+     * <ul>
+     *     <li>존재하지 않는 알림 삭제 시 예외 발생</li>
+     *     <li>알림이 존재하면 DB에서 삭제</li>
+     * </ul>
+     *
+     * @param notificationId 삭제할 알림 UUID
+     */
     @Override
     @Transactional
     public void deleteNotification(UUID notificationId) {
@@ -228,6 +269,19 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("[NotificationServiceImpl] 알림 삭제 완료 : 알림ID = {}", notificationId);
     }
 
+    /**
+     * 누락된 알림 조회
+     *
+     * <ul>
+     *     <li>LastEventId 이후 생성된 알림 조회</li>
+     *     <li>NotificationDto로 변환 후 반환</li>
+     *     <li>유효하지 않은 LastEventId면 빈 리스트 반환</li>
+     * </ul>
+     *
+     * @param receiverId 알림 수신자 UUID
+     * @param lastEventId 마지막으로 수신한 알림 UUID 문자열
+     * @return 누락된 알림 리스트
+     */
     @Transactional(readOnly = true)
     @Override
     public List<NotificationDto> getMissedNotifications(UUID receiverId, String lastEventId) {
