@@ -3,6 +3,7 @@ package com.sprint.otboo.follow.service;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
+import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.entity.Follow;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.user.repository.UserRepository;
@@ -42,5 +43,13 @@ public class FollowServiceImpl implements FollowService {
 
         Follow saved = followRepository.save(Follow.of(followerId, followeeId));
         return new FollowDto(saved.getId(), saved.getFollowerId(), saved.getFolloweeId());
+    }
+
+    @Override
+    public FollowSummaryDto getMySummary(UUID userId) {
+
+        long following = followRepository.countByFollowerId(userId);
+        long follower  = followRepository.countByFolloweeId(userId);
+        return new FollowSummaryDto(follower, following);
     }
 }

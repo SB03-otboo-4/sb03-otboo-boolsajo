@@ -3,6 +3,7 @@ package com.sprint.otboo.follow.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.util.UUID;
