@@ -1,10 +1,9 @@
 package com.sprint.otboo.notification.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.notification.controller.api.NotificationApi;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
-import com.sprint.otboo.notification.dto.response.NotificationDto;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.service.NotificationService;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -26,18 +25,28 @@ public class NotificationController implements NotificationApi {
 
     private final NotificationService notificationService;
 
+    /**
+     * 인증된 사용자에 대해 커서 기반 페이지네이션으로 알림 목록을 조회
+     * */
     @GetMapping
-    public CursorPageResponse<NotificationDto> listNotifications(
+    public NotificationCursorResponse listNotifications(
         @AuthenticationPrincipal CustomUserDetails principal,
         @Valid NotificationQueryParams query
     ) {
         UUID receiverId = principal.getUserId();
         log.debug("[NotificationController] 알림 목록 조회 시작 : 사용자 = {}, query = {}", receiverId, query);
-        CursorPageResponse<NotificationDto> response = notificationService.getNotifications(receiverId, query);
-        log.debug("[NotificationController] 알림 목록 조회 완료 : 개수 = {}, 다음 페이지 여부 = {}",response.data().size(), response.hasNext());
+        NotificationCursorResponse response = notificationService.getNotifications(receiverId, query);
+        log.debug("[NotificationController] 알림 목록 조회 완료 : 개수 = {}, 다음 페이지 여부 = {}",
+            response.data().size(), response.hasNext());
         return response;
     }
 
+    /**
+     * 지정된 알림을 읽음처리 ( 삭제 )
+     *
+     * @param notificationId 삭제할 알림 식별자
+     * @return 처리 완료 시 204 No Content
+     * */
     @DeleteMapping("/{notificationId}")
     public ResponseEntity<Void> deleteNotification(@PathVariable UUID notificationId) {
         log.info("[NotificationController] 알림 삭제 요청 : 알림ID = {}", notificationId);
