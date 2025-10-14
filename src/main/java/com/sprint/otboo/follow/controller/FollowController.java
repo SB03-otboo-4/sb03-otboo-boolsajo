@@ -46,14 +46,35 @@ public class FollowController implements FollowApi {
 
     // 공통 추출 로직
     private UUID requireUserIdFromSecurityContext() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getName() == null) {
+        var ctx = SecurityContextHolder.getContext();
+        var auth = (ctx != null) ? ctx.getAuthentication() : null;
+
+        if (auth == null || !auth.isAuthenticated()) {
             throw new FollowException(ErrorCode.UNAUTHORIZED);
         }
+
+        Object principal = auth.getPrincipal();
+        try {
+            if (principal instanceof com.sprint.otboo.auth.jwt.CustomUserDetails cud) {
+                Object id = cud.getUserId();
+                return (id instanceof UUID) ? (UUID) id : UUID.fromString(String.valueOf(id));
+            }
+        } catch (Exception ignored) {
+            // 다음 단계로 폴백
+        }
+
+        try {
+            if (principal instanceof org.springframework.security.oauth2.jwt.Jwt jwt) {
+                String val = jwt.getClaimAsString("userId");
+                if (val == null || val.isBlank()) val = jwt.getSubject(); // sub
+                return UUID.fromString(val);
+            }
+        } catch (Exception ignored) {}
+
         try {
             return UUID.fromString(auth.getName());
-        } catch (IllegalArgumentException e) {
-            throw new FollowException(ErrorCode.UNAUTHORIZED);
-        }
+        } catch (Exception ignored) {}
+
+        throw new FollowException(ErrorCode.UNAUTHORIZED);
     }
 }
