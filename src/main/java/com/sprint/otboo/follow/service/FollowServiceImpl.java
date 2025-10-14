@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class FollowServiceImpl implements FollowService {
 
     private final FollowRepository followRepository;
@@ -24,6 +24,7 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
+    @Transactional
     public FollowDto create(UUID followerId, UUID followeeId) {
 
         // 자기 자신 팔로우 금지

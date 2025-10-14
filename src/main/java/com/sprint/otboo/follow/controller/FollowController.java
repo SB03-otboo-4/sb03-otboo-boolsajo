@@ -10,18 +10,18 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/follows")
-public class FollowController {
+public class FollowController implements FollowApi {
 
     private final FollowService service;
 
@@ -29,30 +29,31 @@ public class FollowController {
         this.service = service;
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public FollowDto create(
-        @Valid @RequestBody FollowCreateRequest request,
-        @AuthenticationPrincipal(expression = "username") String username
-    ) {
-        if (username == null) {
+    @Override
+    @PostMapping("")
+    public ResponseEntity<FollowDto> create(@Valid @RequestBody FollowCreateRequest request) {
+        UUID followerId = requireUserIdFromSecurityContext();
+        FollowDto dto = service.create(followerId, request.followeeId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+    }
+
+    @Override
+    @GetMapping("/summary")
+    public ResponseEntity<FollowSummaryDto> getSummary() {
+        UUID userId = requireUserIdFromSecurityContext();
+        return ResponseEntity.ok(service.getMySummary(userId));
+    }
+
+    // 공통 추출 로직
+    private UUID requireUserIdFromSecurityContext() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
             throw new FollowException(ErrorCode.UNAUTHORIZED);
         }
-        UUID followerId;
         try {
-            followerId = UUID.fromString(username);
+            return UUID.fromString(auth.getName());
         } catch (IllegalArgumentException e) {
             throw new FollowException(ErrorCode.UNAUTHORIZED);
         }
-        return service.create(followerId, request.followeeId());
-    }
-
-    @GetMapping("/summary")
-    public ResponseEntity<FollowSummaryDto> getSummary(
-        @RequestHeader("X-USER-ID") String userId
-    ) {
-        return ResponseEntity.ok(
-            service.getMySummary(java.util.UUID.fromString(userId))
-        );
     }
 }
