@@ -7,11 +7,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public interface NotificationSseService {
 
-    SseEmitter subscribe(UUID receiverId, Role role, String lastEventId);
+    SseEmitter subscribe(UUID userId, Role role, String lastEventId);
 
     void sendToClient(NotificationDto dto);
 
     void sendToRole(Role role, NotificationDto dto);
-
-    void removeEmitter(UUID receiverId);
 }

@@ -15,6 +15,7 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -86,7 +87,6 @@ public class NotificationServiceImpl implements NotificationService {
             .build();
 
         NotificationDto dto = saveAndMap(notification);
-
 
         // 권한 변경 알림은 개별 사용자에게만 전송
         notificationSseService.sendToClient(dto);
@@ -177,6 +177,28 @@ public class NotificationServiceImpl implements NotificationService {
         }
         notificationRepository.deleteById(notificationId);
         log.info("[NotificationServiceImpl] 알림 삭제 완료 : 알림ID = {}", notificationId);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<NotificationDto> getMissedNotifications(UUID receiverId, String lastEventId) {
+        if (lastEventId == null) return Collections.emptyList();
+
+        UUID lastId;
+        try {
+            lastId = UUID.fromString(lastEventId);
+        } catch (IllegalArgumentException e) {
+            log.warn("[NotificationService] 유효하지 않은 LastEventId: {}", lastEventId);
+            return Collections.emptyList();
+        }
+
+        log.info("[NotificationService] 누락 알림 조회 — 사용자: {}, LastEventId: {}", receiverId, lastId);
+
+        List<Notification> missed = notificationRepository.findByReceiverIdAndIdAfter(receiverId, lastId);
+
+        return missed.stream()
+            .map(notificationMapper::toDto)
+            .toList();
     }
 
     /**
