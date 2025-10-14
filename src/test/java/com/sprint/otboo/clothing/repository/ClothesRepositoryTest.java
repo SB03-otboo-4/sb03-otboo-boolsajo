@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
+import com.sprint.otboo.common.config.QuerydslConfig;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
@@ -15,13 +16,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@Transactional
-@Rollback
+@DataJpaTest
+@Import({ClothesRepositoryImpl.class, QuerydslConfig.class})
 @DisplayName("ClothesRepositoryImpl 커스텀 쿼리 테스트")
 public class ClothesRepositoryTest {
 
@@ -47,6 +49,8 @@ public class ClothesRepositoryTest {
                 .role(Role.USER)
                 .provider(LoginType.GENERAL)
                 .locked(false)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build()
         );
         userId = testUser.getId();

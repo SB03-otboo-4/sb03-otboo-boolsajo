@@ -24,6 +24,15 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
 
     /**
      * 커서 기반 사용자 슬라이스 조회
+     * @param cursor
+     * @param idAfter 커서가 없을 때 사용할 UUID
+     * @param limit 조회할 행 수
+     * @param sortBy 정렬 기준
+     * @param sortDirection 정렬 방향
+     * @param emailLike 이메일 부분 일치 필터
+     * @param roleEqual 역할 필터
+     * @param locked 잠금 여부 필터
+     * @return 조회 행, 다음 커서, 다음 idAfter를 포함한 슬라이스
      * */
     @Override
     public UserSlice findSlice(
@@ -100,7 +109,12 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
     }
 
     /**
-     * 목록 전체 개수 조회
+     * 필터 조건에 맞는 목록 전체 개수 조회
+     *
+     * @param emailLike 이메일 부분 일치 필터
+     * @param roleEqual 역할 필터
+     * @param locked 잠금 여부 필터
+     * @return 조건에 부합하는 사용자 수
      * */
     @Override
     public long countAll(String emailLike, Role roleEqual, Boolean locked) {
@@ -115,6 +129,12 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
 
     /**
      * 커서를 해석해서 where 절의 경계조건을 추가
+     *
+     * @param where Querydsl BooleanBuilder
+     * @param sortBy 정렬 기준
+     * @param dir 정렬 방향
+     * @param cursor Base64 커서 문자열
+     * @param u QUser
      * */
     private void addCursorPredicate(BooleanBuilder where, SortBy sortBy, SortDirection dir, String cursor, QUser u) {
         Decoded d = decode(cursor);
@@ -140,12 +160,27 @@ public class UserQueryRepositoryImpl implements UserQueryRepository {
         }
     }
 
+    /**
+     * 커서 태그/기준값/UUID를 조합하여 Base64 URL-safe 문자열로 인코딩
+     *
+     * @param tag "createdAt" 또는 "email"
+     * @param primary 정렬 기준 값 ( createdAt millis 또는 email )
+     * @param id UUID tie-breaker
+     * @return Base64 URL-safe 커서 문자열
+     * */
     private String encode(String tag, String primary, UUID id) {
         String raw = tag + "|" + primary + "|" + id;
         return Base64.getUrlEncoder().withoutPadding()
             .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Base64로 인코딩된 커서를 디코딩하여 구성 요소를 반환
+     *
+     * @param cursor encode가 생성한 커서 문자열
+     * @return 태그, 기준값, UUID를 담은 Decoded 레코드
+     * @throws IllegalArgumentException 커서 포맷이 잘못된 경우
+     * */
     private Decoded decode(String cursor) {
         String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
         String[] p = raw.split("\\|", 3);

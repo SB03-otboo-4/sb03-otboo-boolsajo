@@ -1,11 +1,15 @@
 package com.sprint.otboo.recommendation.controller;
 
+import com.sprint.otboo.common.exception.CustomException;
+import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.service.RecommendationService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("api/recommendations")
+@RequestMapping("/api/recommendations")
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
@@ -27,15 +31,18 @@ public class RecommendationController {
     /**
      * 특정 사용자와 날씨 정보를 기반으로 추천 의상 조회
      *
-     * @param userId    사용자 ID
      * @param weatherId 날씨 정보 ID
+     * @param authentication Spring Security 인증 객체
      * @return 추천 의상 정보를 담은 DTO
      */
     @GetMapping
     public ResponseEntity<RecommendationDto> getRecommendations(
-        @RequestParam UUID userId,
-        @RequestParam UUID weatherId
+        @RequestParam UUID weatherId,
+        Authentication authentication
     ) {
+        // SecurityContext에서 사용자 ID 추출
+        UUID userId = extractUserId(authentication);
+
         log.info("추천 요청 수신: 사용자 ID = {}, 날씨 ID = {}", userId, weatherId);
         RecommendationDto dto = recommendationService.getRecommendation(userId, weatherId);
 
@@ -48,4 +55,33 @@ public class RecommendationController {
         return ResponseEntity.ok(dto);
     }
 
+    /**
+     * 인증 정보에서 사용자 ID(UUID) 추출
+     *
+     * @param authentication 인증 객체
+     * @return 사용자 UUID
+     */
+    private UUID extractUserId(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new IllegalStateException("인증 정보가 존재하지 않습니다.");
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        try {
+            if (principal instanceof UserDetails userDetails) {
+                return UUID.fromString(userDetails.getUsername());
+            }
+
+            if (principal instanceof String principalStr) {
+                return UUID.fromString(principalStr);
+            }
+        } catch (IllegalArgumentException e) {
+            CustomException ex = new CustomException(ErrorCode.INVALID_INPUT, e);
+            ex.addDetail("principalValue", principal.toString());
+            throw ex;
+        }
+
+        throw new CustomException(ErrorCode.INVALID_INPUT, new IllegalStateException("인증 객체에서 사용자 ID를 추출할 수 없습니다."));
+    }
 }

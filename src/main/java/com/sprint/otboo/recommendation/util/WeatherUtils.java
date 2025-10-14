@@ -93,9 +93,9 @@ public class WeatherUtils {
 
             case WINTER
                 // 겨울(-∞ ~ 7°C) 구간 세분화
-                // -∞ ~ 6.9°C -> "LOW" 구간 (춥게 느낌)
-                // 7.0°C 이상 -> "HIGH" 구간 (덜 춥게 느낌)
-                -> (perceivedTemp <= 6.9) ? TemperatureCategory.LOW : TemperatureCategory.HIGH;
+                // 영하 -> "LOW" 구간 (많이 춥게 느낌)
+                // 0.1°C 이상 -> "HIGH" 구간 (춥게 느낌)
+                -> (perceivedTemp <= 0.0) ? TemperatureCategory.LOW : TemperatureCategory.HIGH;
         };
     }
 

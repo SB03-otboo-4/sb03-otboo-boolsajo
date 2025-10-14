@@ -3,6 +3,7 @@ package com.sprint.otboo.recommendation.controller;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -42,7 +43,7 @@ public class RecommendationControllerTest {
     private JwtRegistry jwtRegistry;
 
     @Test
-    @WithMockUser(username = "user1", roles = {"USER"})
+    @WithMockUser(roles = {"USER"})
     void 추천_조회_API_성공() throws Exception {
         // given: 테스트 데이터 준비
         UUID userId = UUID.randomUUID();
@@ -78,6 +79,7 @@ public class RecommendationControllerTest {
         mockMvc.perform(get("/api/recommendations")
                 .param("userId", userId.toString())
                 .param("weatherId", weatherId.toString())
+                .with(user(userId.toString()).roles("USER"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
             .andExpect(status().isOk())
@@ -115,7 +117,7 @@ public class RecommendationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin1", roles = {"ADMIN"})
+    @WithMockUser(roles = {"ADMIN"})
     void 추천_조회_API_성공_관리자() throws Exception {
         // given: 테스트 데이터 준비
         UUID userId = UUID.randomUUID();
@@ -134,6 +136,7 @@ public class RecommendationControllerTest {
         mockMvc.perform(get("/api/recommendations")
                 .param("weatherId", weatherId.toString())
                 .param("userId", userId.toString())
+                .with(user(userId.toString()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
             .andExpect(status().isOk())

@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS user_profiles
 CREATE TABLE IF NOT EXISTS clothes_attributes_def
 (
     id            UUID PRIMARY KEY,
-    name          VARCHAR(20) NOT NULL,
+    name          VARCHAR(150) NOT NULL,
     select_values VARCHAR(255),
     created_at    TIMESTAMPTZ NOT NULL
 );
@@ -230,12 +230,12 @@ CREATE TABLE IF NOT EXISTS follows
 (
     id           UUID PRIMARY KEY,
     follower_id  UUID        NOT NULL,
-    following_id UUID        NOT NULL,
+    followee_id UUID        NOT NULL,
     created_at   TIMESTAMPTZ NOT NULL,
-    CONSTRAINT uq_follows UNIQUE (follower_id, following_id),
-    CONSTRAINT ck_follows_self CHECK (follower_id <> following_id),
+    CONSTRAINT uq_follows UNIQUE (follower_id, followee_id),
+    CONSTRAINT ck_follows_self CHECK (follower_id <> followee_id),
     CONSTRAINT fk_follows_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_follows_following FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
+    CONSTRAINT fk_follows_followee FOREIGN KEY (followee_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 -- 9) Notifications

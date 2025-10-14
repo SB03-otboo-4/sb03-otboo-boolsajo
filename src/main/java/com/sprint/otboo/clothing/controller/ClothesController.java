@@ -4,6 +4,7 @@ import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesType;
+import com.sprint.otboo.clothing.scraper.ClothesExtractionService;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.clothing.valid.ClothesTypeValid;
 import com.sprint.otboo.common.dto.CursorPageResponse;
@@ -35,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>의상 목록 조회</li>
  *   <li>의상 수정</li>
  *   <li>의상 삭제</li>
+ *   <li>URL 기반 의상 정보 추출</li>
  * </ul>
  *
  * <p>보안: 인증된 사용자( USER, ADMIN )만 접근 가능하도록 Spring Security 설정</p>
@@ -46,27 +48,47 @@ import org.springframework.web.multipart.MultipartFile;
 public class ClothesController {
 
     private final ClothesService clothesService;
+    private final ClothesExtractionService extractionService;
 
     /**
-     * 의상 등록
+     * 새로운 의상을 등록하는 POST 엔드포인트.
      *
-     * <p>multipart/form-data 요청을 처리하며, 의상 정보를 등록하고 선택적으로 이미지 파일을 함께 저장</p>
+     * <p>접근 권한: USER 또는 ADMIN 롤이 필요합니다.
      *
-     * @param request 등록할 의상 정보 DTO
-     * @param image 업로드할 이미지 파일 (선택)
-     * @return {@link ResponseEntity}<{@link ClothesDto}> 생성된 의상 정보와 HTTP 상태 코드
+     * <p>요청 형식: multipart/form-data
+     * <ul>
+     *   <li>request: {@link ClothesCreateRequest} - 의상 기본 정보</li>
+     *   <li>image: {@link MultipartFile} (선택) - 업로드할 이미지 파일</li>
+     *   <li>imageUrl: {@link String} (선택) - 외부 이미지 URL</li>
+     * </ul>
+     *
+     * <p>처리 과정:
+     * <ol>
+     *   <li>요청 로그 기록</li>
+     *   <li>{@link ClothesService#createClothes} 호출하여 의상 등록</li>
+     *   <li>등록된 {@link ClothesDto} 반환</li>
+     * </ol>
+     *
+     * @param request  의상 등록 요청 DTO
+     * @param image    업로드할 이미지 파일 (선택)
+     * @param imageUrl 이미지 URL (선택)
+     * @return 등록된 의상 정보 {@link ResponseEntity} (HTTP 201)
      */
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ClothesDto> createClothes(
         @RequestPart("request") ClothesCreateRequest request,
-        @RequestPart(value = "image", required = false) MultipartFile image
+        @RequestPart(value = "image", required = false) MultipartFile image,
+        @RequestPart(value = "imageUrl", required = false) String imageUrl
     ) {
-        log.info("POST /api/clothes 요청 수신: ownerId={}, name={}, image={}",
-            request.ownerId(), request.name(), image != null ? image.getOriginalFilename() : "없음");
+        log.info("POST /api/clothes 요청 수신: ownerId={}, name={}, image={}, imageUrl={}",
+            request.ownerId(), request.name(),
+            image != null ? image.getOriginalFilename() : "없음",
+            imageUrl != null ? imageUrl : "없음"
+        );
 
-        // 서비스에 이미지 파일 전달
-        ClothesDto created = clothesService.createClothes(request, image);
+        // 서비스 호출: 로컬 저장 방식
+        ClothesDto created = clothesService.createClothes(request, image, imageUrl);
 
         log.info("의상 등록 성공: id = {}, ownerId = {}, type = {}",
             created.id(), created.ownerId(), created.type()
@@ -148,5 +170,23 @@ public class ClothesController {
         return ResponseEntity
             .status(HttpStatus.NO_CONTENT)
             .build();
+    }
+
+    /**
+     * 의상 정보 추출 API
+     *
+     * <p>주어진 상품 URL(무신사, 지그재그, 29CM 등)에서 의상 정보를 추출하여 반환</p>
+     *
+     * <ul>
+     *   <li>지원하는 사이트 여부를 내부 로직에서 판별</li>
+     *   <li>의상 이름, 이미지, 타입, 속성 등을 DTO로 변환</li>
+     * </ul>
+     *
+     * @param url 상품 상세 페이지 URL
+     * @return {@link ClothesDto} 추출된 의상 정보
+     */
+    @GetMapping("/extractions")
+    public ClothesDto extractByUrl(@RequestParam String url) {
+        return extractionService.extractByUrl(url);
     }
 }

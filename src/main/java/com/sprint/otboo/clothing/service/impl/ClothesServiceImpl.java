@@ -20,12 +20,18 @@ import com.sprint.otboo.common.storage.FileStorageService;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -76,30 +82,50 @@ public class ClothesServiceImpl implements ClothesService {
     }
 
     /**
-     * 새로운 의상을 생성합니다.
+     * 새로운 의상을 생성하고 저장
      *
      * <p>절차:
      * <ol>
-     *   <li>요청 데이터 검증</li>
-     *   <li>이미지 업로드 및 URL 생성</li>
-     *   <li>Clothes 엔티티 저장</li>
-     *   <li>ClothesAttribute 엔티티 저장</li>
-     *   <li>DTO 변환 및 반환</li>
+     *   <li>요청 데이터 검증 (validateRequest 호출)</li>
+     *   <li>이미지 업로드:
+     *       <ul>
+     *         <li>MultipartFile이 제공되면 {@link FileStorageService}에 업로드</li>
+     *         <li>외부 이미지 URL이 제공되면 다운로드 후 업로드</li>
+     *       </ul>
+     *   </li>
+     *   <li>Clothes 엔티티 생성 및 저장</li>
+     *   <li>ClothesAttribute 엔티티 저장 (addAttributes 호출)</li>
+     *   <li>저장된 엔티티를 {@link ClothesDto}로 변환하여 반환</li>
      * </ol>
      *
      * @param request 의상 생성 요청 DTO
      * @param image 업로드할 이미지 파일 (선택)
-     * @return 저장 완료된 ClothesDto
-     * @throws ClothesValidationException 요청 데이터가 유효하지 않을 경우 발생
+     * @param externalImageUrl 외부 이미지 URL (선택)
+     * @return 저장 완료된 {@link ClothesDto}
+     * @throws ClothesValidationException 요청 데이터가 유효하지 않을 경우
      */
     @Override
     @Transactional
-    public ClothesDto createClothes(ClothesCreateRequest request, MultipartFile image) {
-
+    public ClothesDto createClothes(ClothesCreateRequest request, MultipartFile image, String externalImageUrl
+    ) {
         // 요청 유효성 검증
         validateRequest(request);
 
-        String imageUrl = fileStorageService.upload(image);
+        String imageUrl = "";
+
+        try {
+            if (image != null && !image.isEmpty()) {
+                // MultipartFile이 있으면 업로드
+                imageUrl = fileStorageService.upload(image);
+            } else if (externalImageUrl != null && !externalImageUrl.isBlank()) {
+                // 외부 URL이 있으면 다운로드 후 업로드
+                MultipartFile downloaded = downloadImageAsMultipartFile(externalImageUrl);
+                imageUrl = fileStorageService.upload(downloaded);
+            }
+        } catch (IOException e) {
+            log.warn("이미지 다운로드/저장 실패, URL 비워둠: {}", e.getMessage());
+            imageUrl = ""; // 안전하게 빈값 처리
+        }
 
         var user = userRepository.findById(request.ownerId())
             .orElseThrow(() -> new ClothesValidationException("유효하지 않은 사용자"));
@@ -111,7 +137,6 @@ public class ClothesServiceImpl implements ClothesService {
             .type(request.type())
             .build();
 
-        // Clothes 엔티티에 속성 추가
         addAttributes(request, clothes);
 
         Clothes saved = clothesRepository.save(clothes);
@@ -318,5 +343,49 @@ public class ClothesServiceImpl implements ClothesService {
                 return ClothesAttribute.create(clothes, def, dto.value());
             })
             .collect(Collectors.toList());
+    }
+
+    /**
+     * 외부 URL로부터 이미지를 다운로드하여 {@link MultipartFile} 형태로 반환.
+     *
+     * <p>절차:
+     * <ol>
+     *   <li>URL을 통해 이미지 데이터를 읽음</li>
+     *   <li>파일명에서 쿼리 스트링 제거 및 특수문자 제거</li>
+     *   <li>{@link MultipartFile} 구현체로 래핑하여 반환</li>
+     * </ol>
+     *
+     * @param imageUrl 다운로드할 이미지 URL
+     * @return 이미지 데이터를 담은 {@link MultipartFile}
+     * @throws IOException 이미지 다운로드 또는 읽기 실패 시
+     */
+    private MultipartFile downloadImageAsMultipartFile(String imageUrl) throws IOException {
+        // 1. URL 객체 생성
+        URL url = new URL(imageUrl);
+
+        // 2. 원본 파일명 추출 및 쿼리 제거
+        String originalFilename = Paths.get(url.getPath()).getFileName().toString();
+        String filenameWithoutQuery = originalFilename.split("\\?")[0];
+
+        // 3. 안전한 파일명으로 변환( 특수문자 제거 )
+        String safeFilename = filenameWithoutQuery.replaceAll("[^a-zA-Z0-9\\-_.]", "");
+        final String finalFilename = safeFilename;
+
+        // 4. 이미지 데이터 읽기
+        try (InputStream in = url.openStream()) {
+            byte[] bytes = in.readAllBytes();
+
+            // 5. MultipartFile 구현체 반환
+            return new MultipartFile() {
+                @Override public String getName() { return finalFilename; }
+                @Override public String getOriginalFilename() { return finalFilename; }
+                @Override public String getContentType() { return "application/octet-stream"; }
+                @Override public boolean isEmpty() { return bytes.length == 0; }
+                @Override public long getSize() { return bytes.length; }
+                @Override public byte[] getBytes() { return bytes; }
+                @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
+                @Override public void transferTo(File dest) throws IOException { Files.write(dest.toPath(), bytes); }
+            };
+        }
     }
 }

@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.only;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -32,13 +31,13 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.ProfileLocationUpdateRequest;
 import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserListQueryParams;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.entity.Gender;
 import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.service.UserService;
-import jakarta.validation.ConstraintViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,7 +45,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -56,6 +55,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 @WebMvcTest(UserController.class)
 @DisplayName("UserController 테스트")
@@ -627,16 +627,7 @@ public class UserControllerTest {
             "DESCENDING"
         );
 
-        given(userService.listUsers(
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.eq(3),
-            ArgumentMatchers.eq("createdAt"),
-            ArgumentMatchers.eq("DESCENDING"),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull()
-        )).willReturn(response);
+        given(userService.listUsers(any(UserListQueryParams.class))).willReturn(response);
 
         // when
         ResultActions result = mockMvc.perform(get("/api/users")
@@ -655,19 +646,17 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
 
-        then(userService).should().listUsers(
-            null,
-            null,
-            3,
-            "createdAt",
-            "DESCENDING",
-            null,
-            null,
-            null
-        );
-        then(userService).should(only()).listUsers(
-            null, null, 3, "createdAt", "DESCENDING", null, null, null
-        );
+        ArgumentCaptor<UserListQueryParams> captor = ArgumentCaptor.forClass(UserListQueryParams.class);
+        then(userService).should().listUsers(captor.capture());
+
+        UserListQueryParams captured = captor.getValue();
+        assertThat(captured.cursor()).isNull();
+        assertThat(captured.limit()).isEqualTo(3);
+        assertThat(captured.sortBy()).isEqualTo("createdAt");
+        assertThat(captured.sortDirection()).isEqualTo("DESCENDING");
+        assertThat(captured.emailLike()).isNull();
+        assertThat(captured.roleEqual()).isNull();
+        assertThat(captured.locked()).isNull();
     }
 
     @Test
@@ -688,16 +677,7 @@ public class UserControllerTest {
             "ASCENDING"
         );
 
-        given(userService.listUsers(
-            ArgumentMatchers.eq("CUR1"),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.eq(2),
-            ArgumentMatchers.eq("email"),
-            ArgumentMatchers.eq("ASCENDING"),
-            ArgumentMatchers.eq("test"),
-            ArgumentMatchers.eq("USER"),
-            ArgumentMatchers.eq(false)
-        )).willReturn(response);
+        given(userService.listUsers(any(UserListQueryParams.class))).willReturn(response);
 
         // when
         ResultActions result = mockMvc.perform(get("/api/users")
@@ -719,16 +699,17 @@ public class UserControllerTest {
             .andExpect(jsonPath("$.sortBy").value("email"))
             .andExpect(jsonPath("$.sortDirection").value("ASCENDING"));
 
-        then(userService).should().listUsers(
-            "CUR1",
-            null,
-            2,
-            "email",
-            "ASCENDING",
-            "test",
-            "USER",
-            false
-        );
+        ArgumentCaptor<UserListQueryParams> captor = ArgumentCaptor.forClass(UserListQueryParams.class);
+        then(userService).should().listUsers(captor.capture());
+
+        UserListQueryParams captured = captor.getValue();
+        assertThat(captured.cursor()).isEqualTo("CUR1");
+        assertThat(captured.limit()).isEqualTo(2);
+        assertThat(captured.sortBy()).isEqualTo("email");
+        assertThat(captured.sortDirection()).isEqualTo("ASCENDING");
+        assertThat(captured.emailLike()).isEqualTo("test");
+        assertThat(captured.roleEqual()).isEqualTo("USER");
+        assertThat(captured.locked()).isFalse();
     }
 
     @Test
@@ -744,24 +725,23 @@ public class UserControllerTest {
             "createdAt",
             "DESCENDING"
         );
-        given(userService.listUsers(
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.eq(20),
-            ArgumentMatchers.eq("createdAt"),
-            ArgumentMatchers.eq("DESCENDING"),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull(),
-            ArgumentMatchers.isNull()
-        )).willReturn(response);
+        given(userService.listUsers(any(UserListQueryParams.class))).willReturn(response);
 
         // when
         ResultActions result = mockMvc.perform(get("/api/users"));
 
         result.andExpect(status().isOk());
-        then(userService).should().listUsers(
-            null, null, 20, "createdAt", "DESCENDING", null, null, null
-        );
+        ArgumentCaptor<UserListQueryParams> captor = ArgumentCaptor.forClass(UserListQueryParams.class);
+        then(userService).should().listUsers(captor.capture());
+
+        UserListQueryParams captured = captor.getValue();
+        assertThat(captured.cursor()).isNull();
+        assertThat(captured.limit()).isEqualTo(20);
+        assertThat(captured.sortBy()).isEqualTo("createdAt");
+        assertThat(captured.sortDirection()).isEqualTo("DESCENDING");
+        assertThat(captured.emailLike()).isNull();
+        assertThat(captured.roleEqual()).isNull();
+        assertThat(captured.locked()).isNull();
     }
 
     @Test
@@ -780,7 +760,7 @@ public class UserControllerTest {
         // then
         result.andExpect(status().isBadRequest())
             .andExpect(res -> assertThat(res.getResolvedException())
-                .isInstanceOf(ConstraintViolationException.class));
+                .isInstanceOf(MethodArgumentNotValidException.class));
         verifyNoInteractions(userService);
     }
 

@@ -15,14 +15,13 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
 @DisplayName("RecommendationMapper 단위 테스트")
 public class RecommendationMapperTest {
 
-    @Autowired
     private RecommendationMapper recommendationMapper;
 
     private User testUser;
@@ -32,7 +31,9 @@ public class RecommendationMapperTest {
 
     @BeforeEach
     void setUp() {
-        // given: 테스트용 사용자, 의상, 추천 관계, Recommendation 엔티티 생성
+        // given: MapStruct 인터페이스, 테스트용 사용자, 의상, 추천 관계, Recommendation 엔티티 생성
+        recommendationMapper = Mappers.getMapper(RecommendationMapper.class);
+
         testUser = User.builder()
             .id(UUID.randomUUID())
             .username("testuser")

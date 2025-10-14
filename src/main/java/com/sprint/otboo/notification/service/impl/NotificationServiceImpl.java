@@ -1,9 +1,9 @@
 package com.sprint.otboo.notification.service.impl;
 
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
 import com.sprint.otboo.notification.entity.NotificationLevel;
@@ -13,6 +13,8 @@ import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,31 +33,58 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
 
+    /**
+     * 알림을 조회해 DTO로 변환하고, 다음 페이지 진입을 위한 커서를 계산
+     *
+     * @param receiverId 알림 수신자
+     * @param query 커서/아이디/limit 정보
+     * @return 다음 커서·아이디 포함 응답 DTO
+     * */
     @Override
     @Transactional(readOnly = true)
-    public CursorPageResponse<NotificationDto> getNotifications(UUID receiverId, NotificationQueryParams query) {
+    public NotificationCursorResponse getNotifications(UUID receiverId, NotificationQueryParams query) {
+        log.debug("[NotificationServiceImpl] 알림 조회 시작 : 사용자 = {}, cursor = {}, idAfter = {}, fetchSize = {}",
+            receiverId, query.cursor(), query.idAfter(), query.fetchSize());
+
+        Instant cursorInstant = query.parsedCursor();
+        UUID idAfter = query.idAfter();
+
         var slice = notificationRepository.findByReceiverWithCursor(
             receiverId,
-            query.parsedCursor(),
-            query.idAfter(),
+            cursorInstant,
+            idAfter,
             query.fetchSize()
         );
+
+        log.debug("[NotificationServiceImpl] 알림 조회 완료 : 조회수 = {}, 다음 페이지 여부 = {}",
+            slice.getNumberOfElements(), slice.hasNext());
 
         List<NotificationDto> data = slice.getContent()
             .stream()
             .map(notificationMapper::toDto)
             .toList();
 
-        NotificationDto last = slice.hasNext() && !data.isEmpty()
+        NotificationDto last = !data.isEmpty()
             ? data.get(data.size() - 1)
+            : null;
+
+        String nextCursor = (last != null && slice.hasNext())
+            ? last.createdAt().truncatedTo(ChronoUnit.MILLIS).toString()
+            : null;
+
+        String nextIdAfter = (last != null && slice.hasNext())
+            ? last.id().toString()
             : null;
 
         long totalCount = notificationRepository.countByReceiverId(receiverId);
 
-        return new CursorPageResponse<>(
+        log.debug("[NotificationServiceImpl] 다음 커서 정보 : cursor = {}, idAfter = {}, hasNext = {}",
+            nextCursor, nextIdAfter, slice.hasNext());
+
+        return NotificationCursorResponse.from(
             data,
-            last != null ? last.createdAt().toString() : null,
-            last != null ? last.id().toString() : null,
+            nextCursor,
+            nextIdAfter,
             slice.hasNext(),
             totalCount,
             "createdAt",
@@ -63,9 +92,18 @@ public class NotificationServiceImpl implements NotificationService {
         );
     }
 
+    /**
+     * 권한 변경 알림을 별도 트랜잭션에서 생성해 롤백 전파를 방지
+     *
+     * @param receiverId 알림 수신자
+     * @param newRole 새 권한
+     * @return  저장된 알림 DTO
+     * */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyRoleChanged(UUID receiverId, Role newRole) {
+        log.info("[NotificationServiceImpl] 권한 변경 알림 생성 : 사용자 = {}, 새로운 권한 = {}", receiverId, newRole);
+
         User receiver = userRepository.getReferenceById(receiverId);
 
         Notification notification = Notification.builder()
@@ -76,15 +114,26 @@ public class NotificationServiceImpl implements NotificationService {
             .build();
 
         Notification saved = notificationRepository.saveAndFlush(notification);
+
+        log.debug("[NotificationServiceImpl] 권한 변경 알림 저장 완료 : 알림ID = {}",saved.getId());
         return notificationMapper.toDto(saved);
     }
 
+    /**
+     * 모든 사용자에게 의류 속성 생성 알림을 브로드캐스트
+     *
+     * @param attributeName 생성된 속성 이름
+     * */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {
-        List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
-        List<Notification> notifications = new ArrayList<>();
+        log.info("[NotificationServiceImpl] 의류 속성 생성 알림 브로드캐스트 시작 : 속성명 = {}", attributeName);
 
+        List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
+
+        log.debug("브로드캐스트 대상 수 : {}",receivers.size());
+
+        List<Notification> notifications = new ArrayList<>();
         for (User receiver : receivers) {
             notifications.add(
                 Notification.builder()
@@ -96,12 +145,16 @@ public class NotificationServiceImpl implements NotificationService {
             );
         }
 
+        log.debug("[NotificationServiceImpl] 브로드캐스트 알림 준비 완료 : 총개수 = {}",notifications.size());
         notificationRepository.saveAllAndFlush(notifications);
+        log.info("[NotificationServiceImpl] 브로드캐스트 알림 저장 완료 : 속성명 = {}",attributeName);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyFeedLiked(UUID feedAuthorId, UUID likedByUserId) {
+        log.info("[NotificationServiceImpl] 피드 좋아요 알림 생성: 작성자 = {}, 좋아요사용자 = {}", feedAuthorId, likedByUserId);
+
         User receiver = userRepository.getReferenceById(feedAuthorId);
         User liker = userRepository.getReferenceById(likedByUserId);
 
@@ -113,12 +166,16 @@ public class NotificationServiceImpl implements NotificationService {
             .build();
 
         Notification saved = notificationRepository.saveAndFlush(notification);
+
+        log.debug("[NotificationServiceImpl] 피드 좋아요 알림 저장 완료 : 알림ID = {}",saved.getId());
         return notificationMapper.toDto(saved);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId) {
+        log.info("[NotificationServiceImpl] 피드 댓글 알림 생성 : 작성자 = {}, 댓글사용자 = {}", feedAuthorId, commentedByUserId);
+
         User receiver = userRepository.getReferenceById(feedAuthorId);
         User commenter = userRepository.getReferenceById(commentedByUserId);
 
@@ -130,15 +187,21 @@ public class NotificationServiceImpl implements NotificationService {
             .build();
 
         Notification saved = notificationRepository.saveAndFlush(notification);
+
+        log.debug("[NotificationServiceImpl] 피드 댓글 알림 저장 완료 : 알림ID = {}",saved.getId());
         return notificationMapper.toDto(saved);
     }
 
     @Override
     @Transactional
     public void deleteNotification(UUID notificationId) {
+        log.info("[NotificationServiceImpl] 알림 삭제 요청 : 알림ID = {}", notificationId);
+
         if (!notificationRepository.existsById(notificationId)) {
+            log.warn("[NotificationServiceImpl] 존재하지 않는 알림 삭제 시도 : 알림 ID = {}", notificationId);
             throw new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND);
         }
         notificationRepository.deleteById(notificationId);
+        log.info("[NotificationServiceImpl] 알림 삭제 완료 : 알림ID = {}", notificationId);
     }
 }

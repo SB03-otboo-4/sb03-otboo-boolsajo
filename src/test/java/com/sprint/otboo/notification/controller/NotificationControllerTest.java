@@ -14,8 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.NotificationLevel;
 import com.sprint.otboo.notification.service.NotificationService;
@@ -83,7 +83,7 @@ public class NotificationControllerTest {
         CustomUserDetails principal = userPrincipal(receiverId);
 
         NotificationDto dto = notificationDto(receiverId);
-        CursorPageResponse<NotificationDto> response = new CursorPageResponse<>(
+        NotificationCursorResponse response = NotificationCursorResponse.from(
             List.of(dto),
             "2025-09-24T10:00:00Z",
             UUID.randomUUID().toString(),

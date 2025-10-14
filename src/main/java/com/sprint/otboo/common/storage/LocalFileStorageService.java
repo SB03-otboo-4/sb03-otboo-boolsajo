@@ -79,7 +79,10 @@ public class LocalFileStorageService implements FileStorageService {
      * 실제 파일을 디스크에 저장
      * */
     private Path saveFile(MultipartFile file, Path dir) throws IOException {
-        String filename = System.currentTimeMillis() + "-" + file.getOriginalFilename();
+        String originalFilename = file.getOriginalFilename();
+        // 특수문자 제거
+        String safeFilename = originalFilename.replaceAll("[^a-zA-Z0-9\\-_.]", "");
+        String filename = System.currentTimeMillis() + "-" + safeFilename;
         Path target = dir.resolve(filename);
         file.transferTo(target.toFile());
         return target;
