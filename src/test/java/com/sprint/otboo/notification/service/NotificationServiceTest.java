@@ -222,14 +222,15 @@ public class NotificationServiceTest {
             .willReturn(saved1)
             .willReturn(saved2);
 
-        doNothing().when(notificationSseService).sendToClient(any());
+        // sendToRole로 맞춤
+        doNothing().when(notificationSseService).sendToRole(any(), any());
 
         // when
         notificationService.notifyClothesAttributeCreatedForAllUsers(attributeName);
 
         // then
         then(notificationRepository).should(times(2)).saveAndFlush(any(Notification.class));
-        then(notificationSseService).should(times(2)).sendToClient(any());
+        then(notificationSseService).should(times(2)).sendToRole(any(), any());
     }
 
 

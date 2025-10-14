@@ -14,6 +14,7 @@ import com.sprint.otboo.notification.service.NotificationSseService;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -76,14 +77,27 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        return saveAndSend(notification);
+        NotificationDto dto = saveAndMap(notification);
+
+        // 권한 변경 알림은 개별 사용자에게만 전송
+        notificationSseService.sendToClient(dto);
+        return dto;
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyClothesAttributeCreatedForAllUsers(String attributeName) {
-        List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
+        // ADMIN, USER 모두에게 브로드캐스트
+        NotificationDto dto = new NotificationDto(
+            UUID.randomUUID(),
+            Instant.now(),
+            null, // 브로드캐스트이므로 receiverId 없음
+            "새 의상 속성이 등록되었습니다.",
+            "내 의상에 [%s] 속성을 추가해보세요.".formatted(attributeName),
+            NotificationLevel.INFO
+        );
 
+        List<User> receivers = userRepository.findAll();   // 필요시 역할로 필터링
         for (User receiver : receivers) {
             Notification notification = Notification.builder()
                 .receiver(receiver)
@@ -92,8 +106,11 @@ public class NotificationServiceImpl implements NotificationService {
                 .level(NotificationLevel.INFO)
                 .build();
 
-            saveAndSend(notification);
+            saveAndMap(notification);
         }
+
+        notificationSseService.sendToRole(Role.USER, dto);
+        notificationSseService.sendToRole(Role.ADMIN, dto);
     }
 
     @Override
@@ -109,7 +126,11 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        return saveAndSend(notification);
+        NotificationDto dto = saveAndMap(notification);
+
+        // 개인 대상 전송
+        notificationSseService.sendToClient(dto);
+        return dto;
     }
 
     @Override
@@ -125,7 +146,11 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        return saveAndSend(notification);
+        NotificationDto dto = saveAndMap(notification);
+
+        // 개인 대상 전송
+        notificationSseService.sendToClient(dto);
+        return dto;
     }
 
     @Override
@@ -138,20 +163,18 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * <p>Notification 엔티티를 DB에 저장하고 DTO로 변환한 뒤, SSE를 통해 클라이언트로 전송</p>
+     * <p>Notification 엔티티를 DB에 저장하고 DTO로 변환</p>
+     * <ul>
+     *     <li>DB 저장 및 flush</li>
+     *     <li>DTO 변환 후 반환</li>
+     *     <li>SSE 전송은 외부에서 수행</li>
+     * </ul>
      *
-     * @param notification 전송할 Notification 엔티티
-     * @return 저장 후 변환된 NotificationDto
+     * @param notification 저장할 Notification 엔티티
+     * @return 변환된 NotificationDto
      */
-    private NotificationDto saveAndSend(Notification notification) {
-        // 엔티티를 DB에 저장하고 즉시 flush
+    private NotificationDto saveAndMap(Notification notification) {
         Notification saved = notificationRepository.saveAndFlush(notification);
-
-        NotificationDto dto = notificationMapper.toDto(saved);
-
-        // 변환된 DTO를 SSE를 통해 클라이언트로 전송
-        notificationSseService.sendToClient(dto);
-
-        return dto;
+        return notificationMapper.toDto(saved);
     }
 }

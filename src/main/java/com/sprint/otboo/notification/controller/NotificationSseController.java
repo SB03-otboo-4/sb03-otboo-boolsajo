@@ -2,6 +2,7 @@ package com.sprint.otboo.notification.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.notification.service.NotificationSseService;
+import com.sprint.otboo.user.entity.Role;
 import java.io.IOException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,17 +35,7 @@ public class NotificationSseController {
         @RequestParam(value = "LastEventId", required = false) String lastEventId
     ) {
         UUID userId = principal.getUserId();
-        SseEmitter emitter = notificationSseService.subscribe(userId, lastEventId);
-
-        // 초기 연결 이벤트 발송
-        try {
-            emitter.send(SseEmitter.event()
-                .name("connect")
-                .data("connected successfully"));
-        } catch (IOException e) {
-            notificationSseService.removeEmitter(userId);
-        }
-
-        return emitter;
+        Role role = principal.getUserDto().role();
+        return notificationSseService.subscribe(userId, role, lastEventId);
     }
 }
