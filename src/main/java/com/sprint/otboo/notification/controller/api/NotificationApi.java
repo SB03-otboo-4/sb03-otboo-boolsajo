@@ -1,10 +1,9 @@
 package com.sprint.otboo.notification.controller.api;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.dto.ErrorResponse;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
-import com.sprint.otboo.notification.dto.response.NotificationDto;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -20,21 +19,19 @@ import org.springframework.http.ResponseEntity;
 @Tag(name = "알림", description = "알림 API")
 public interface NotificationApi {
 
-
-    @Operation(summary = "알림 목록 조회",description = "알림 목록 조회 API")
+    @Operation(summary = "알림 목록 조회", description = "알림 목록 조회 API")
     @ApiResponses({
         @ApiResponse(responseCode = "200",
             description = "알림 목록 조회 성공",
-            content = @Content(schema = @Schema(implementation = CursorPageResponse.class))),
+            content = @Content(schema = @Schema(implementation = NotificationCursorResponse.class))),
         @ApiResponse(responseCode = "400",
             description = "알림 목록 조회 실패",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    CursorPageResponse<NotificationDto> listNotifications(
-        @Parameter(hidden = true)CustomUserDetails principal,
+    NotificationCursorResponse listNotifications(
+        @Parameter(hidden = true) CustomUserDetails principal,
         @ParameterObject @Valid NotificationQueryParams query
     );
-
 
     @Operation(summary = "알림 읽음 처리", description = "알림 읽음 처리 API")
     @ApiResponses({

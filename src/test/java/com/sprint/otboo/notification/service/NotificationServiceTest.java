@@ -10,10 +10,10 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 
-import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
+import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.notification.entity.Notification;
 import com.sprint.otboo.notification.entity.NotificationLevel;
@@ -25,6 +25,7 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
@@ -135,15 +136,15 @@ public class NotificationServiceTest {
         given(notificationRepository.countByReceiverId(receiverId)).willReturn(5L);
 
         // when
-        CursorPageResponse<NotificationDto> actual =
+        NotificationCursorResponse actual =
             notificationService.getNotifications(receiverId, query);
 
         // then
         assertThat(actual.data()).containsExactly(dto);
         assertThat(actual.hasNext()).isFalse();
         assertThat(actual.totalCount()).isEqualTo(5L);
-        assertThat(actual.nextCursor()).isNull();
-        assertThat(actual.nextIdAfter()).isNull();
+        assertThat(actual.cursor()).isNull();
+        assertThat(actual.idAfter()).isNull();
     }
 
     @Test
@@ -171,15 +172,17 @@ public class NotificationServiceTest {
         given(notificationRepository.countByReceiverId(receiverId)).willReturn(42L);
 
         // when
-        CursorPageResponse<NotificationDto> actual =
+        NotificationCursorResponse actual =
             notificationService.getNotifications(receiverId, query);
 
         // then
         assertThat(actual.data()).containsExactly(firstDto, secondDto);
         assertThat(actual.hasNext()).isTrue();
         NotificationDto last = actual.data().get(actual.data().size() - 1);
-        assertThat(actual.nextCursor()).isEqualTo(last.createdAt().toString());
-        assertThat(actual.nextIdAfter()).isEqualTo(last.id().toString());
+        Instant expectedCursor = last.createdAt()
+            .truncatedTo(ChronoUnit.MILLIS);
+        assertThat(actual.cursor()).isEqualTo(expectedCursor.toString());
+        assertThat(actual.idAfter()).isEqualTo(last.id().toString());
         assertThat(actual.totalCount()).isEqualTo(42L);
     }
 
