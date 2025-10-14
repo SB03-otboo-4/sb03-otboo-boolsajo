@@ -24,6 +24,14 @@ spring:
       port: ${REDIS_PORT}
       ssl:
         enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: https://otboopheonix.site/login/oauth2/code/kakao
+          google:
+            redirect-uri: https://otboopheonix.site/login/oauth2/code/google
 
 server:
   port: 8080
