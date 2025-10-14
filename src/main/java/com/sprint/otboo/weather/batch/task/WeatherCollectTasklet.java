@@ -10,10 +10,14 @@ import com.sprint.otboo.weather.mapper.KmaForecastMapper;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepContribution;
@@ -46,11 +50,8 @@ public class WeatherCollectTasklet implements Tasklet {
             return RepeatStatus.FINISHED;
         }
 
-        long epoch = resolveExecutionTime(chunkContext);
-        Instant at = Instant.ofEpochMilli(epoch);
-
-        int saved = 0;
-        int skipped = 0;
+        Instant at = Instant.ofEpochMilli(resolveExecutionTime(chunkContext));
+        int totalSaved = 0, skipped = 0;
 
         for (WeatherLocation loc : locations) {
             if (loc.getLatitude() == null || loc.getLongitude() == null) {
@@ -69,19 +70,37 @@ public class WeatherCollectTasklet implements Tasklet {
                     kmaClient.getVilageFcst(params)
                 );
 
+                // PCP/TMN/TMX 반영 호출
                 List<KmaForecastMapper.Slot> slots = kmaAssembler.toSlots(response.getItems());
-                List<Weather> snapshots = kmaAssembler.toWeathers(slots, loc);
+                List<Weather> snapshots = kmaAssembler.toWeathers(slots, loc, response.getItems());
+                if (snapshots.isEmpty()) continue;
 
-                for (Weather w : snapshots) {
-                    UUID locationId = loc.getId();
-                    Optional<Weather> exists = weatherRepository
-                        .findByLocationIdAndForecastAtAndForecastedAt(
-                            locationId, w.getForecastAt(), w.getForecastedAt()
-                        );
-                    if (exists.isEmpty()) {
-                        weatherRepository.save(w);
-                        saved++;
-                    }
+                // 범위 계산
+                Instant minAt = snapshots.stream().map(Weather::getForecastAt).filter(Objects::nonNull)
+                    .min(Comparator.naturalOrder()).orElse(null);
+                Instant maxAt = snapshots.stream().map(Weather::getForecastAt).filter(Objects::nonNull)
+                    .max(Comparator.naturalOrder()).orElse(null);
+
+                // N+1 방지: 해당 범위 기존 키 한 번에 로드
+                List<Weather> existed = weatherRepository
+                    .findAllByLocationIdAndForecastAtBetweenOrderByForecastAtAscForecastedAtDesc(
+                        loc.getId(), minAt, maxAt
+                    );
+                Set<String> existedKeys = existed.stream()
+                    .map(w -> key(w.getForecastAt(), w.getForecastedAt()))
+                    .collect(Collectors.toSet());
+
+                // 신규만 선별
+                List<Weather> toSave = snapshots.stream()
+                    .filter(w -> !existedKeys.contains(key(w.getForecastAt(), w.getForecastedAt())))
+                    .toList();
+
+                if (!toSave.isEmpty()) {
+                    weatherRepository.saveAll(toSave);
+                    totalSaved += toSave.size();
+
+                    // 저장한 범위에서 최신 발표본만 남기고 정리
+                    weatherRepository.deleteOlderVersionsInRange(loc.getId(), minAt, maxAt);
                 }
 
             } catch (Exception ex) {
@@ -89,16 +108,17 @@ public class WeatherCollectTasklet implements Tasklet {
             }
         }
 
-        log.info("[weather-batch] processed locations={}, saved={}, skipped={}", locations.size(), saved, skipped);
+        log.info("[weather-batch] processed locations={}, saved={}, skipped={}",
+            locations.size(), totalSaved, skipped);
         return RepeatStatus.FINISHED;
     }
 
     private long resolveExecutionTime(ChunkContext chunkContext) {
         Object value = chunkContext.getStepContext().getJobParameters().get("executionTime");
-        if (value instanceof Long) {
-            return (Long) value;
-        }
-        // 파라미터 없으면 현재 시각 사용
-        return System.currentTimeMillis();
+        return (value instanceof Long) ? (Long) value : System.currentTimeMillis();
+    }
+
+    private static String key(Instant forecastAt, Instant forecastedAt) {
+        return forecastAt.toString() + "|" + (forecastedAt != null ? forecastedAt.toString() : "");
     }
 }
