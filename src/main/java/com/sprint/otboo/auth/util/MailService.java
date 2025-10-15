@@ -1,15 +1,20 @@
 package com.sprint.otboo.auth.util;
 
+import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.common.exception.auth.MailSendFailedException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailService {
 
     private final JavaMailSender mailSender;
@@ -29,8 +34,9 @@ public class MailService {
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
-        } catch (MessagingException e) {
-            throw new RuntimeException("메일 전송에 실패했습니다.", e);
+        } catch (MessagingException | MailException e) {
+            log.error("메일 전송 실패: toEmail={}, error={}", toEmail, e.getMessage());
+            throw new MailSendFailedException(ErrorCode.MAIL_SEND_FAILED, e);
         }
     }
 
