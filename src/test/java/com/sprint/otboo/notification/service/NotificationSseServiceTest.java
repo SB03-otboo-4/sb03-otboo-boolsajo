@@ -250,4 +250,57 @@ public class NotificationSseServiceTest {
         // then: 실패한 Emitter가 userEmitters에서 제거됨
         assertTrue(sseService.getUserEmitters().get(userId).isEmpty(), "userEmitters에서 제거되지 않음");
     }
+
+    @Test
+    void Emitter_이벤트_콜백_제거_동작_검증() {
+        // given: 사용자와 역할, SSE 구독 생성
+        UUID userId = UUID.randomUUID();
+        Role role = Role.USER;
+        SseEmitter emitter = sseService.subscribe(userId, role, null);
+
+        // when: 콜백 강제 실행
+        emitter.complete(); // onCompletion()
+        emitter.onTimeout(() -> {}); // 타임아웃 등록 후 직접 제거 호출
+        sseService.removeEmitter(userId, role, emitter); // clean up
+
+        // then: emitter가 제거되었음을 검증
+        assertTrue(sseService.getUserEmitters().get(userId).isEmpty());
+        assertTrue(sseService.getRoleEmitters().get(role).isEmpty());
+    }
+
+    @Test
+    void 사용자_Emitter_목록이_비었을_때_전송_스킵() {
+        // given: 비어 있는 Emitter 리스트와 NotificationDto
+        UUID userId = UUID.randomUUID();
+        sseService.setUserEmitters(Map.of(userId, new CopyOnWriteArrayList<>())); // empty list
+
+        NotificationDto dto = new NotificationDto(
+            UUID.randomUUID(),
+            Instant.now(),
+            userId,
+            "제목",
+            "내용",
+            NotificationLevel.INFO
+        );
+
+        // when & then: 전송 시도 시 예외 없이 통과 ( 로그만 발생 )
+        assertDoesNotThrow(() -> sseService.sendToClient(dto));
+    }
+
+    @Test
+    void 역할별_Emitter_없을_때_브로드캐스트_스킵() {
+        // given: 존재하지 않는 역할과 NotificationDto
+        Role role = Role.ADMIN;
+        NotificationDto dto = new NotificationDto(
+            UUID.randomUUID(),
+            Instant.now(),
+            null,
+            "관리자 알림",
+            "내용",
+            NotificationLevel.INFO
+        );
+
+        // when & then: 브로드캐스트 시도 시 아무 예외 없이 종료
+        assertDoesNotThrow(() -> sseService.sendToRole(role, dto));
+    }
 }
