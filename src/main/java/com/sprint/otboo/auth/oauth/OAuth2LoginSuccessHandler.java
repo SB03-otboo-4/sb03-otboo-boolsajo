@@ -26,11 +26,21 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final RefreshTokenCookieUtil refreshTokenCookieUtil;
     private final JwtRegistry jwtRegistry;
 
+    /**
+     * OAuth2 인증 성공 시 호출된다.
+     * Access Token과 Refresh Token을 생성하여 세션을 등록하고,
+     * Refresh Token은 쿠키에 담아 응답하며, 사용자를 홈("/")으로 리디렉션한다.
+     *
+     * @param request        요청 객체
+     * @param response       응답 객체
+     * @param authentication Spring Security가 생성한 인증 객체
+     */
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
 
         CustomOAuth2User customOAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         UserDto userDto = customOAuth2User.getUserDto();
+        log.info("OAuth2 로그인 성공 사용자: {}", userDto.name());
 
         String accessToken;
         String refreshToken;

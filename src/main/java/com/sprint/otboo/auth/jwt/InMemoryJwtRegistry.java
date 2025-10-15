@@ -10,6 +10,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+/**
+ * JWT의 유효성을 메모리 상에서 관리하는 레지스트리 구현체
+ * 사용자별 최대 활성 세션 수를 관리하여 동시 로그인을 제어한다.
+ */
 @Component
 public class InMemoryJwtRegistry implements JwtRegistry {
 
@@ -26,6 +30,12 @@ public class InMemoryJwtRegistry implements JwtRegistry {
         this.maxActiveJwtCount = maxActiveJwtCount;
     }
 
+    /**
+     * 새로운 JWT 정보를 시스템에 등록한다.
+     * 사용자별 최대 세션 수를 초과하면 가장 오래된 세션을 자동으로 무효화한다.
+     *
+     * @param jwtInformation 등록할 JWT 세션 정보
+     */
     @Override
     public void register(JwtInformation jwtInformation) {
         UUID userId = jwtInformation.userDto().id();
@@ -58,6 +68,11 @@ public class InMemoryJwtRegistry implements JwtRegistry {
         return validRefreshTokens.contains(refreshToken);
     }
 
+    /**
+     * 특정 Refresh Token과 연결된 세션을 무효화한다
+     *
+     * @param refreshToken 무효화할 Refresh Token
+     */
     @Override
     public void invalidate(String refreshToken) {
         JwtInformation sessionInfo = refreshTokenIndex.get(refreshToken);
@@ -72,6 +87,11 @@ public class InMemoryJwtRegistry implements JwtRegistry {
         }
     }
 
+    /**
+     * 특정 사용자의 모든 활성 세션을 무효화한다
+     *
+     * @param userId 모든 세션을 무효화할 사용자의 ID
+     */
     @Override
     public void invalidateAll(UUID userId) {
         Queue<JwtInformation> sessionQueue = activeSessions.remove(userId);

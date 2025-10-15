@@ -63,6 +63,16 @@ public class TokenProvider {
         return createToken(user, refreshTokenExpiration, refreshTokenSigner, "refresh");
     }
 
+    /**
+     * JWT의 Claim을 설정하고 서명하여 직렬화된 토큰 문자열을 생성한다.
+     *
+     * @param user       사용자 정보 DTO
+     * @param expiration 만료 시간
+     * @param signer     서명기
+     * @param tokenType  토큰 타입 ("access" 또는 "refresh")
+     * @return 직렬화된 JWT 문자열
+     * @throws JOSEException 토큰 서명 실패 시
+     */
     private String createToken(UserDto user, long expiration, JWSSigner signer, String tokenType) throws JOSEException {
         String tokenId = UUID.randomUUID().toString();
 
@@ -97,6 +107,16 @@ public class TokenProvider {
         validateToken(token, refreshTokenVerifier, "refresh");
     }
 
+    /**
+     * 주어진 토큰의 서명, 타입, 만료 시간을 검증합니다.
+     *
+     * @param token        검증할 토큰
+     * @param verifier     검증기
+     * @param expectedType 기대하는 토큰 타입
+     * @throws TokenExpiredException 토큰이 만료된 경우
+     * @throws ParseException      토큰 파싱에 실패한 경우
+     * @throws InvalidTokenException 서명이나 타입이 유효하지 않은 경우
+     */
     private void validateToken(String token, JWSVerifier verifier, String expectedType)
         throws TokenExpiredException, ParseException, InvalidTokenException {
         try {
@@ -121,6 +141,13 @@ public class TokenProvider {
         }
     }
 
+    /**
+     * 유효한 Access Token에서 사용자 정보를 추출하여 Spring Security의 Authentication 객체를 생성한다.
+     *
+     * @param token Access Token
+     * @return 생성된 Authentication 객체
+     * @throws ParseException 토큰 파싱에 실패한 경우
+     */
     public Authentication getAuthentication(String token) throws ParseException {
         // 1. 토큰을 파싱하여 Claims 추출
         SignedJWT signedJWT = SignedJWT.parse(token);
