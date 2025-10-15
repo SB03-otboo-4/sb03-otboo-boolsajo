@@ -5,6 +5,11 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
+import com.sprint.otboo.follow.repository.FollowQueryRepository;
+import com.sprint.otboo.follow.repository.FollowRepository;
+import com.sprint.otboo.user.dto.response.UserSummaryResponse;
+import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,8 +20,15 @@ import org.mockito.Mockito;
 @DisplayName("팔로잉 목록 조회 서비스 테스트")
 class FollowingsServiceTest {
 
+    private final FollowRepository followRepository = Mockito.mock(FollowRepository.class);
+    private final UserRepository userRepository = Mockito.mock(UserRepository.class);
     private final FollowQueryRepository queryRepository = Mockito.mock(FollowQueryRepository.class);
-    private final FollowService service = new FollowServiceImpl(queryRepository);
+
+    private final FollowService service = new FollowServiceImpl(
+        followRepository,
+        userRepository,
+        queryRepository
+    );
 
     // 첫 페이지: limit개 + hasNext=true → nextCursor/nextIdAfter 세팅
     @Test
@@ -24,19 +36,19 @@ class FollowingsServiceTest {
         UUID me = UUID.randomUUID();
         int limit = 2;
 
-        FollowingRow r1 = new FollowingRow(
+        FollowListItemResponse item1 = new FollowListItemResponse(
             UUID.fromString("386cb145-63c6-4333-89c9-6245789c6671"),
             new UserSummaryResponse(UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b"), "slinky", null),
             new UserSummaryResponse(me, "buzz", "https://s3/..."),
             Instant.parse("2025-10-14T05:29:40Z")
         );
-        FollowingRow r2 = new FollowingRow(
+        FollowListItemResponse item2 = new FollowListItemResponse(
             UUID.fromString("93d3247e-5628-4fe7-a6da-93611e1ff732"),
             new UserSummaryResponse(UUID.fromString("e88dc0a5-b1aa-441d-8ea1-540129b1b78b"), "jessie", null),
             new UserSummaryResponse(me, "buzz", "https://s3/..."),
             Instant.parse("2025-10-14T05:29:40Z")
         );
-        FollowingRow extra = new FollowingRow(
+        FollowListItemResponse extra = new FollowListItemResponse(
             UUID.randomUUID(),
             new UserSummaryResponse(UUID.randomUUID(), "rex", null),
             new UserSummaryResponse(me, "buzz", "https://s3/..."),
@@ -44,7 +56,7 @@ class FollowingsServiceTest {
         );
 
         when(queryRepository.findFollowingPage(eq(me), isNull(), isNull(), eq(limit + 1), isNull()))
-            .thenReturn(List.of(r1, r2, extra));
+            .thenReturn(List.of(item1, item2, extra));
         when(queryRepository.countFollowing(eq(me), isNull())).thenReturn(3L);
 
         CursorPageResponse<FollowListItemResponse> page = service.getFollowings(me, null, null, limit, null);
@@ -64,17 +76,21 @@ class FollowingsServiceTest {
         UUID me = UUID.randomUUID();
         int limit = 2;
 
-        FollowingRow r1 = new FollowingRow(UUID.randomUUID(),
+        FollowListItemResponse item1 = new FollowListItemResponse(
+            UUID.randomUUID(),
             new UserSummaryResponse(UUID.randomUUID(), "a", null),
             new UserSummaryResponse(me, "buzz", "https://s3/..."),
-            Instant.parse("2025-10-14T05:28:00Z"));
-        FollowingRow r2 = new FollowingRow(UUID.randomUUID(),
+            Instant.parse("2025-10-14T05:28:00Z")
+        );
+        FollowListItemResponse item2 = new FollowListItemResponse(
+            UUID.randomUUID(),
             new UserSummaryResponse(UUID.randomUUID(), "b", null),
             new UserSummaryResponse(me, "buzz", "https://s3/..."),
-            Instant.parse("2025-10-14T05:27:00Z"));
+            Instant.parse("2025-10-14T05:27:00Z")
+        );
 
         when(queryRepository.findFollowingPage(eq(me), isNull(), isNull(), eq(limit + 1), isNull()))
-            .thenReturn(List.of(r1, r2));
+            .thenReturn(List.of(item1, item2));
         when(queryRepository.countFollowing(eq(me), isNull())).thenReturn(2L);
 
         CursorPageResponse<FollowListItemResponse> page = service.getFollowings(me, null, null, limit, null);
@@ -96,7 +112,9 @@ class FollowingsServiceTest {
             .thenReturn(List.of());
         when(queryRepository.countFollowing(eq(me), isNull())).thenReturn(0L);
 
-        CursorPageResponse<FollowListItemResponse> page = service.getFollowings(me, "2025-10-14T05:29:40Z", null, limit, null);
+        CursorPageResponse<FollowListItemResponse> page = service.getFollowings(
+            me, "2025-10-14T05:29:40Z", null, limit, null
+        );
 
         assertThat(page.data()).isEmpty();
         assertThat(page.hasNext()).isFalse();

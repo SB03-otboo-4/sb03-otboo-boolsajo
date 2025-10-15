@@ -1,11 +1,13 @@
 package com.sprint.otboo.follow.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.dto.request.FollowCreateRequest;
+import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.service.FollowService;
 import jakarta.validation.Valid;
 import java.lang.reflect.Method;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -102,6 +105,20 @@ public class FollowController implements FollowApi {
 
         throw new FollowException(
             ErrorCode.UNAUTHORIZED
+        );
+    }
+
+    @Override
+    @GetMapping("/followings")
+    public ResponseEntity<CursorPageResponse<FollowListItemResponse>> getFollowings(
+        @RequestParam("followerId") UUID followerId,
+        @RequestParam(value = "cursor", required = false) String cursor,
+        @RequestParam(value = "idAfter", required = false) UUID idAfter,
+        @RequestParam("limit") int limit,
+        @RequestParam(value = "nameLike", required = false) String nameLike
+    ) {
+        return ResponseEntity.ok(
+            service.getFollowings(followerId, cursor, idAfter, limit, nameLike)
         );
     }
 }

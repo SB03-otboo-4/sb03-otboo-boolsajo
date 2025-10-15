@@ -9,6 +9,7 @@ import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.entity.Follow;
+import com.sprint.otboo.follow.repository.FollowQueryRepository;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
@@ -20,9 +21,12 @@ import org.mockito.Mockito;
 @DisplayName("팔로우 생성 서비스 테스트")
 class FollowServiceTest {
 
-    FollowRepository followRepository = Mockito.mock(FollowRepository.class);
-    UserRepository userRepository = Mockito.mock(UserRepository.class);
-    FollowService service = new FollowServiceImpl(followRepository, userRepository);
+    private final FollowRepository followRepository = Mockito.mock(FollowRepository.class);
+    private final UserRepository userRepository = Mockito.mock(UserRepository.class);
+    private final FollowQueryRepository followQueryRepository = Mockito.mock(FollowQueryRepository.class);
+    
+    private final FollowService service =
+        new FollowServiceImpl(followRepository, userRepository, followQueryRepository);
 
     @Test
     void 자기_자신은_팔로우할_수_없다() {

@@ -1,12 +1,16 @@
 package com.sprint.otboo.follow.service;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
+import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.entity.Follow;
+import com.sprint.otboo.follow.repository.FollowQueryRepository;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.user.repository.UserRepository;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +21,12 @@ public class FollowServiceImpl implements FollowService {
 
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
+    private final FollowQueryRepository followQueryRepository;
 
-    public FollowServiceImpl(FollowRepository followRepository, UserRepository userRepository) {
+    public FollowServiceImpl(FollowRepository followRepository, UserRepository userRepository, FollowQueryRepository followQueryRepository) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
+        this.followQueryRepository = followQueryRepository;
     }
 
     @Override
@@ -52,5 +58,43 @@ public class FollowServiceImpl implements FollowService {
         long following = followRepository.countByFollowerId(userId);
         long follower  = followRepository.countByFolloweeId(userId);
         return new FollowSummaryDto(follower, following);
+    }
+
+    @Override
+    public CursorPageResponse<FollowListItemResponse> getFollowings(
+        UUID followerId,
+        String cursor,
+        UUID idAfter,
+        int limit,
+        String nameLike
+    ) {
+        int pageSize = (limit <= 0 || limit > 100) ? 20 : limit;
+
+        List<FollowListItemResponse> rows = followQueryRepository.findFollowingPage(
+            followerId, cursor, idAfter, pageSize + 1, nameLike
+        );
+
+        boolean hasNext = rows.size() > pageSize;
+        List<FollowListItemResponse> pageRows = hasNext ? rows.subList(0, pageSize) : rows;
+
+        String nextCursor = null;
+        String nextIdAfter = null;
+        if (hasNext && !pageRows.isEmpty()) {
+            FollowListItemResponse last = pageRows.get(pageRows.size() - 1);
+            nextCursor = last.createdAt() != null ? last.createdAt().toString() : null;
+            nextIdAfter = last.id() != null ? last.id().toString() : null;
+        }
+
+        long total = followQueryRepository.countFollowing(followerId, nameLike);
+
+        return new CursorPageResponse<FollowListItemResponse>(
+            pageRows,
+            nextCursor,
+            nextIdAfter,
+            hasNext,
+            total,
+            "createdAt",
+            "DESCENDING"
+        );
     }
 }
