@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -290,7 +291,6 @@ public class NotificationServiceTest {
     }
 
     @Test
-    @DisplayName("알림 삭제 시 Repository에서 제거")
     void 알림_삭제_시_Repository에서_제거() {
         // given
         UUID notificationId = UUID.randomUUID();
@@ -329,11 +329,9 @@ public class NotificationServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 알림 삭제 시 예외 발생")
     void 존재하지_않는_알림_삭제_시_예외_발생() {
         // given
         UUID notificationId = UUID.randomUUID();
-        // 새 구현은 findById(...).orElseThrow(...) 형태이므로 Optional.empty() 반환 설정
         given(notificationRepository.findById(notificationId)).willReturn(Optional.empty());
 
         // when
@@ -413,5 +411,51 @@ public class NotificationServiceTest {
 
         // then: 결과가 빈 리스트임을 검증
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 알림_삭제_중_SSE_전송_실패시_DB_삭제_되지_않음() {
+        // given: 존재하는 알림과 매핑된 DTO, 전송 실패 설정
+        UUID notificationId = UUID.randomUUID();
+        User receiver = user(UUID.randomUUID());
+        Notification existing = Notification.builder()
+            .id(notificationId)
+            .createdAt(Instant.now())
+            .receiver(receiver)
+            .title("삭제 테스트")
+            .content("전송 실패 케이스")
+            .level(NotificationLevel.INFO)
+            .build();
+
+        NotificationDto dto = notificationDto(existing);
+
+        given(notificationRepository.findById(notificationId)).willReturn(Optional.of(existing));
+        given(notificationMapper.toDto(existing)).willReturn(dto);
+
+        // sendToClient가 예외 발생시키도록 설정
+        willThrow(new RuntimeException("전송 실패"))
+            .given(notificationSseService).sendToClient(dto);
+
+        // when: 알림 삭제 요청 실행
+        notificationService.deleteNotification(notificationId);
+
+        // then: DB 삭제는 수행되지 않아야 함
+        then(notificationRepository).should().findById(notificationId);
+        then(notificationSseService).should().sendToClient(dto);
+        then(notificationRepository).should(never()).deleteById(notificationId);
+    }
+
+    @Test
+    void 의상_속성_추가시_사용자_없으면_전송_스킵() {
+        // given: 사용자 목록이 비어 있음
+        String attributeName = "신규 속성";
+        given(userRepository.findAll()).willReturn(List.of());
+
+        // when: 모든 사용자에게 속성 생성 알림 브로드캐스트 실행
+        notificationService.notifyClothesAttributeCreatedForAllUsers(attributeName);
+
+        // then: DB 저장 및 SSE 전송이 수행되지 않음
+        then(notificationRepository).should(never()).saveAndFlush(any());
+        then(notificationSseService).should(never()).sendToClient(any());
     }
 }
