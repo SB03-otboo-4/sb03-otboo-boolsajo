@@ -36,6 +36,7 @@ class KmaShortTermForecastClientTest {
         // enabled=false → authKey 없이 검증 통과
         props = new WeatherKmaProperties(
             server.url("/").toString(), // baseUrl
+            null,                       // vilageFcstPath
             null,                       // authKey
             1000,                       // connectTimeoutMs
             1000,                       // readTimeoutMs
@@ -153,7 +154,6 @@ class KmaShortTermForecastClientTest {
         server.enqueue(new MockResponse().setResponseCode(503));
 
         Map<String, String> params = builder.toParams(37.5665, 126.9780, Instant.parse("2025-09-24T10:05:00Z"));
-
         assertThrows(RuntimeException.class, () -> client.getVilageFcst(params));
     }
 

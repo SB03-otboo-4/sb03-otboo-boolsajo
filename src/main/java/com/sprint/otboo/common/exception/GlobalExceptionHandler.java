@@ -1,5 +1,6 @@
 package com.sprint.otboo.common.exception;
 
+import com.sprint.otboo.clothing.exception.ClothesExtractionException;
 import com.sprint.otboo.common.dto.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
@@ -16,8 +17,8 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MissingRequestCookieException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -284,4 +285,11 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
+
+    @ExceptionHandler(ClothesExtractionException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleClothesExtractionException(ClothesExtractionException ex) {
+        return Map.of("message", ex.getMessage());
+    }
+
 }

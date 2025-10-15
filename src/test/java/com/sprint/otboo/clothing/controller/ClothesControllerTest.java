@@ -25,6 +25,8 @@ import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesType;
+import com.sprint.otboo.clothing.exception.ClothesExtractionException;
+import com.sprint.otboo.clothing.scraper.ClothesExtractionService;
 import com.sprint.otboo.clothing.service.ClothesService;
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.CustomException;
@@ -58,6 +60,9 @@ public class ClothesControllerTest {
     private ClothesService clothesService;
 
     @MockitoBean
+    private ClothesExtractionService clothesExtractionService;
+
+    @MockitoBean
     TokenProvider tokenProvider;
 
     @MockitoBean
@@ -86,7 +91,7 @@ public class ClothesControllerTest {
             MediaType.IMAGE_PNG_VALUE,
             "dummy-image".getBytes()
         );
-        when(clothesService.createClothes(any(), any())).thenReturn(response);
+        when(clothesService.createClothes(any(), any(), any())).thenReturn(response);
 
         // when: API 호출
         mockMvc.perform(multipart("/api/clothes")
@@ -125,7 +130,7 @@ public class ClothesControllerTest {
             "dummy-image".getBytes()
         );
 
-        when(clothesService.createClothes(any(), any())).thenReturn(response);
+        when(clothesService.createClothes(any(), any(), any())).thenReturn(response);
 
         // when & then
         mockMvc.perform(multipart("/api/clothes")
@@ -621,5 +626,89 @@ public class ClothesControllerTest {
             .andExpect(jsonPath("$.message").value("의상 정보를 찾을 수 없습니다."));
 
         verify(clothesService, times(1)).deleteClothes(clothesId);
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상정보_추출_API_성공() throws Exception {
+        // given: 지원하는 URL과 extractionService 반환값 준비
+        String url = "https://www.musinsa.com/product/12345";
+        UUID attrId = UUID.randomUUID();
+        ClothesAttributeDto attrDto = new ClothesAttributeDto(attrId, "Black");
+        ClothesDto responseDto = new ClothesDto(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "블랙 티셔츠",
+            "https://image.url/black.png",
+            ClothesType.TOP,
+            List.of(attrDto)
+        );
+
+        when(clothesExtractionService.extractByUrl(url)).thenReturn(responseDto);
+
+        // when: API 호출
+        var resultActions = mockMvc.perform(get("/api/clothes/extractions")
+            .param("url", url)
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 응답 검증
+        resultActions
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("블랙 티셔츠"))
+            .andExpect(jsonPath("$.type").value("TOP"))
+            .andExpect(jsonPath("$.imageUrl").value("https://image.url/black.png"))
+            .andExpect(jsonPath("$.attributes[0].value").value("Black"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin1", roles = {"ADMIN"})
+    void 의상정보_추출_API_실패_지원하지않는_URL() throws Exception {
+        // given: 지원하지 않는 URL
+        String url = "https://www.unsupported.com/product/999";
+
+        when(clothesExtractionService.extractByUrl(url))
+            .thenThrow(new ClothesExtractionException("지원하지 않는 URL입니다."));
+
+        // when: API 호출
+        var resultActions = mockMvc.perform(get("/api/clothes/extractions")
+            .param("url", url)
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 400 Bad Request + 메시지 확인
+        resultActions
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("지원하지 않는 URL입니다."));
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 의상정보_추출_API_URL_누락() throws Exception {
+        // when: url 파라미터 없이 호출
+        var resultActions = mockMvc.perform(get("/api/clothes/extractions")
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 400 Bad Request
+        resultActions
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "admin1", roles = {"ADMIN"})
+    void 의상정보_추출_API_Service예외() throws Exception {
+        // given: URL
+        String url = "https://www.musinsa.com/product/12345";
+
+        when(clothesExtractionService.extractByUrl(url))
+            .thenThrow(new ClothesExtractionException("서비스 처리 중 오류 발생"));
+
+        // when: API 호출
+        var resultActions = mockMvc.perform(get("/api/clothes/extractions")
+            .param("url", url)
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 500 Internal Server Error + 메시지 확인
+        resultActions
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("서비스 처리 중 오류 발생"));
     }
 }

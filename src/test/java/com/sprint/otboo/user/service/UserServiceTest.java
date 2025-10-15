@@ -19,6 +19,7 @@ import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.ProfileLocationUpdateRequest;
 import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserListQueryParams;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import com.sprint.otboo.user.entity.Gender;
@@ -26,6 +27,7 @@ import com.sprint.otboo.user.entity.LoginType;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.entity.UserProfile;
+import com.sprint.otboo.user.event.UserLockedEvent;
 import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import com.sprint.otboo.user.mapper.UserMapper;
 import com.sprint.otboo.user.repository.UserProfileRepository;
@@ -778,9 +780,10 @@ public class UserServiceTest {
         });
 
         // when
-        CursorPageResponse<UserDto> response = userService.listUsers(
+        UserListQueryParams query = new UserListQueryParams(
             "CUR1", null, 2 , "createdAt", "DESCENDING", "test", "USER", false
         );
+        CursorPageResponse<UserDto> response = userService.listUsers(query);
 
         // then
         assertThat(response.data()).hasSize(2);
@@ -909,6 +912,29 @@ public class UserServiceTest {
             .isInstanceOfSatisfying(UserRoleChangedEvent.class, event -> {
                 assertThat(event.userId()).isEqualTo(userId);
                 assertThat(event.newRole()).isEqualTo(Role.ADMIN);
+            });
+    }
+
+    @Test
+    void 계정_잠금_시_이벤트를_발행한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+        User mockUser = createMockUserForLockUpdate(userId, false);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(userRepository.save(any(User.class))).willReturn(mockUser);
+
+        // when
+        userService.updateUserLockStatus(userId, request);
+
+        // then
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+
+        assertThat(captor.getValue())
+            .isInstanceOfSatisfying(UserLockedEvent.class, event -> {
+                assertThat(event.userId()).isEqualTo(userId);
             });
     }
 }
