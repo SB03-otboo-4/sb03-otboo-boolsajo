@@ -120,4 +120,50 @@ class FollowingsServiceTest {
         assertThat(page.hasNext()).isFalse();
         assertThat(page.nextCursor()).isNull();
     }
+
+    // cursor와 idAfter가 함께 올 때 createdAt 동률이면 id DESC 타이브레이커 적용 후 nextCursor/nextIdAfter가 올바르게 계산된다
+    @Test
+    void cursor와_idAfter가_함께_올_때_타이브레이커_적용_후_올바르게_계산된다() {
+        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
+        int limit = 2;
+        Instant ts = Instant.parse("2025-10-14T05:29:40Z");
+
+        // 두 개는 같은 createdAt, id는 내림차순으로 정렬된다고 가정
+        FollowListItemResponse r1 = new FollowListItemResponse(
+            UUID.fromString("386cb145-63c6-4333-89c9-6245789c6671"),
+            new UserSummaryResponse(UUID.randomUUID(), "slinky", null),
+            new UserSummaryResponse(me, "buzz", "https://..."),
+            ts
+        );
+        FollowListItemResponse r2 = new FollowListItemResponse(
+            UUID.fromString("93d3247e-5628-4fe7-a6da-93611e1ff732"),
+            new UserSummaryResponse(UUID.randomUUID(), "jessie", null),
+            new UserSummaryResponse(me, "buzz", "https://..."),
+            ts
+        );
+        // 다음 페이지가 더 있음 표시용 extra
+        FollowListItemResponse extra = new FollowListItemResponse(
+            UUID.randomUUID(),
+            new UserSummaryResponse(UUID.randomUUID(), "rex", null),
+            new UserSummaryResponse(me, "buzz", "https://..."),
+            Instant.parse("2025-10-14T05:28:00Z")
+        );
+
+        // repository는 limit+1개 반환 (서비스가 hasNext 판단)
+        when(queryRepository.findFollowingPage(eq(me), eq(ts.toString()), any(), eq(limit + 1), isNull()))
+            .thenReturn(List.of(r1, r2, extra));
+        when(queryRepository.countFollowing(eq(me), isNull())).thenReturn(3L);
+
+        // 실행
+        CursorPageResponse<FollowListItemResponse> page =
+            service.getFollowings(me, ts.toString(), null, limit, null);
+
+        // 검증: 페이지 사이즈, hasNext, nextCursor/nextIdAfter 계산
+        assertThat(page.data()).hasSize(2);
+        assertThat(page.hasNext()).isTrue();
+        // 마지막 요소 기준
+        assertThat(page.nextCursor()).isEqualTo(ts.toString());
+        assertThat(page.nextIdAfter()).isEqualTo("93d3247e-5628-4fe7-a6da-93611e1ff732");
+        assertThat(page.totalCount()).isEqualTo(3L);
+    }
 }

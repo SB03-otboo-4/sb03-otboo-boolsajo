@@ -76,4 +76,68 @@ class FollowingsControllerTest {
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
     }
+
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void 잘못된_cursor_400() throws Exception {
+        Mockito.reset(followService);
+
+        mvc.perform(get("/api/follows/followings")
+                .param("followerId", "68e17953-f79f-4d4f-8839-b26054887d5f")
+                .param("cursor", "not-an-instant")
+                .param("limit", "2")
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+
+        Mockito.verifyNoInteractions(followService);
+    }
+
+    // limit이 0이면 하한 1로 보정되어 200 반환 및 서비스가 1로 호출된다
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void limit_하한_보정() throws Exception {
+        CursorPageResponse<FollowListItemResponse> resp =
+            new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING");
+
+        when(followService.getFollowings(
+            Mockito.eq(UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f")),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(1), Mockito.isNull()
+        )).thenReturn(resp); // ★ limit=1로 호출 기대
+
+        mvc.perform(get("/api/follows/followings")
+                .param("followerId", "68e17953-f79f-4d4f-8839-b26054887d5f")
+                .param("limit", "0") // 하한 위반
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
+
+        Mockito.verify(followService).getFollowings(
+            Mockito.eq(UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f")),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(1), Mockito.isNull()
+        );
+    }
+
+    // limit이 100을 초과하면 상한 100으로 보정되어 서비스가 100으로 호출된다
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void limit_상한_보정() throws Exception {
+        CursorPageResponse<FollowListItemResponse> resp =
+            new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING");
+
+        when(followService.getFollowings(
+            Mockito.eq(UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f")),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(100), Mockito.isNull()
+        )).thenReturn(resp); // ★ limit=100으로 호출 기대
+
+        mvc.perform(get("/api/follows/followings")
+                .param("followerId", "68e17953-f79f-4d4f-8839-b26054887d5f")
+                .param("limit", "999") // 상한 위반
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
+
+        Mockito.verify(followService).getFollowings(
+            Mockito.eq(UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f")),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(100), Mockito.isNull()
+        );
+    }
 }

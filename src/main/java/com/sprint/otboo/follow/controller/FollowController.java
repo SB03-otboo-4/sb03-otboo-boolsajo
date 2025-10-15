@@ -11,6 +11,8 @@ import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.service.FollowService;
 import jakarta.validation.Valid;
 import java.lang.reflect.Method;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -114,9 +116,23 @@ public class FollowController implements FollowApi {
         @RequestParam("followerId") UUID followerId,
         @RequestParam(value = "cursor", required = false) String cursor,
         @RequestParam(value = "idAfter", required = false) UUID idAfter,
-        @RequestParam("limit") int limit,
+        @RequestParam(value = "limit", defaultValue = "20") int limit,
         @RequestParam(value = "nameLike", required = false) String nameLike
     ) {
+        if (limit < 1) {
+            limit = 1;
+        } else if (limit > 100) {
+            limit = 100;
+        }
+
+        if (cursor != null && !cursor.isBlank()) {
+            try {
+                Instant.parse(cursor); // 형식만 검증
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
+            }
+        }
+
         return ResponseEntity.ok(
             service.getFollowings(followerId, cursor, idAfter, limit, nameLike)
         );
