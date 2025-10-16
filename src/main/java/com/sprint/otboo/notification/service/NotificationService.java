@@ -4,6 +4,7 @@ import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
 import com.sprint.otboo.user.entity.Role;
+import java.util.List;
 import java.util.UUID;
 
 public interface NotificationService {
@@ -19,6 +20,8 @@ public interface NotificationService {
     NotificationDto notifyFeedLiked(UUID feedAuthorId, UUID likedByUserId);
 
     NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId);
+
+    List<NotificationDto> getMissedNotifications(UUID receiverId, String lastEventId);
 
     void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId);
 

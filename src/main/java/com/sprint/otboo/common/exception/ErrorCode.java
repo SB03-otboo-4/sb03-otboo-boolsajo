@@ -60,11 +60,14 @@ public enum ErrorCode {
 
     // 500 INTERNAL SERVER ERROR
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다."),
-    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "현재 서비스를 사용할 수 없습니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
 
     // 502 Bad Gateway
     WEATHER_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "외부 날씨/위치 제공자 오류가 발생했습니다."),
+
+    // 503 Service Unavailable
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "현재 서비스를 사용할 수 없습니다."),
+    MAIL_SEND_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "메일 전송에 실패했습니다."),
 
     // 504 Gateway Timeout
     WEATHER_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "외부 제공자 응답 지연이 발생했습니다."),

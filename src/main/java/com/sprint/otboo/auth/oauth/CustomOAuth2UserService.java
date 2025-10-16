@@ -28,6 +28,14 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final UserMapper userMapper;
     private final DefaultOAuth2UserService delegate;
 
+    /**
+     * OAuth2 제공자로부터 사용자 정보를 로드하여, CustomOAuth2User 객체를 반환한다.
+     * 사용자가 DB에 없으면 신규 회원으로 등록하고, 있으면 기존 정보를 사용한다.
+     *
+     * @param userRequest OAuth2 로그인 요청 정보
+     * @return 인증 처리에 사용될 CustomOAuth2User 객체
+     * @throws OAuth2AuthenticationException 인증 처리 중 오류 발생 시
+     */
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -51,6 +59,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         // DB에서 사용자 조회
         User user = userRepository.findByProviderAndProviderUserId(provider, providerUserId)
             .orElseGet(() -> {
+                log.info("신규 소셜 계정연동 진행 Provider: {}, Email: {}", provider, email);
                 // 사용자가 없으면 새로 생성 (회원가입)
                 User newUser = User.builder()
                     .email(email)
