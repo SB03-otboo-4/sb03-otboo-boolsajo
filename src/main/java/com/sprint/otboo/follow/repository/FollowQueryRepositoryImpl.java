@@ -9,7 +9,6 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.user.dto.response.UserSummaryResponse;
 import com.sprint.otboo.user.entity.QUser;
-import com.sprint.otboo.user.entity.QUserProfile;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
