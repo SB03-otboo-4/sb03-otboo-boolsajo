@@ -12,17 +12,17 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@Tag(name = "Like", description = "Feed Like API")
+@Tag(name = "피드 관리", description = "피드 관련 API")
 public interface LikeApi {
 
     @Operation(
-        summary = "Feed Like",
-        description = "로그인 사용자가 해당 Feed에 좋아요를 등록합니다.",
+        summary = "피드 좋아요",
+        description = "피드 좋아요 API",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({
         @ApiResponse(
-            responseCode = "204", description = "좋아요 등록 성공 (No Content)", content = @Content
+            responseCode = "204", description = "피드 좋아요 성공", content = @Content
         ),
         @ApiResponse(
             responseCode = "401", description = "인증 실패", content = @Content
@@ -32,21 +32,21 @@ public interface LikeApi {
         )
     })
     ResponseEntity<Void> like(
-        @Parameter(description = "좋아요 대상 Feed ID", required = true)
+        @Parameter(description = "feedId", required = true)
         @PathVariable UUID feedId,
 
         @Parameter(hidden = true)
         CustomUserDetails user
     );
     @Operation(
-        summary = "Feed Unlike",
-        description = "로그인 사용자가 해당 Feed의 좋아요를 취소합니다. (멱등)",
+        summary = "피드 좋아요 취소",
+        description = "피드 좋아요 취소 API",
         security = @SecurityRequirement(name = "bearerAuth"),
         operationId = "removeFeedLike"
     )
     @ApiResponses({
         @ApiResponse(
-            responseCode = "204", description = "좋아요 취소 성공 (또는 이미 없음, 멱등)", content = @Content
+            responseCode = "204", description = "피드 좋아요 취소 성공", content = @Content
         ),
         @ApiResponse(
             responseCode = "401", description = "인증 실패", content = @Content
@@ -56,7 +56,7 @@ public interface LikeApi {
         )
     })
     ResponseEntity<Void> removeLike(
-        @Parameter(description = "좋아요 취소 대상 Feed ID", required = true)
+        @Parameter(description = "feedId", required = true)
         @PathVariable UUID feedId,
 
         @Parameter(hidden = true)

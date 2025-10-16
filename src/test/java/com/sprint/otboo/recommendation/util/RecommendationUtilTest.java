@@ -17,8 +17,6 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
 @DisplayName("RecommendationEngine + WeatherUtils 통합 테스트")
 public class RecommendationUtilTest {

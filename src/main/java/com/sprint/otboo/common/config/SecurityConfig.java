@@ -49,7 +49,9 @@ public class SecurityConfig {
                                   "/api/users/*/password",  // 비밀번호 변경
                                   "/api/users/*/lock",       // 계정 잠금 상태 변경
                                   "/api/users/*/role", // 권한 변경
-                                  "/api/users/*/profiles" // 프로필 변경
+                                  "/api/users/*/profiles", // 프로필 변경
+                                  "/api/follows", // 팔로우 생성
+                                  "/api/sse"    // SSE
                     )
             )
             .sessionManagement(s ->
@@ -90,8 +92,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/clothes/attribute-defs/**").hasRole("ADMIN") // 의상 속성 수정( ADMIN )
                 .requestMatchers(HttpMethod.DELETE, "/api/clothes/attribute-defs/{definitionId}").hasRole("ADMIN") // 의상 속성 삭제( ADMIN )
 
-                // 날씨
+                // 날씨(임시)
                 .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
+
+                // 팔로우(임시)
+                .requestMatchers(HttpMethod.POST, "/api/follows/**").permitAll()
 
                 // 나머지 인증 필요
                 .anyRequest().authenticated()

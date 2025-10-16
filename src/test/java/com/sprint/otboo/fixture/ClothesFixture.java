@@ -17,4 +17,14 @@ public class ClothesFixture {
             .type(type)
             .build();
     }
+
+    public static Clothes create(User user, String name, String imageUrl,
+        ClothesType type) {
+        return Clothes.builder()
+            .user(user)
+            .name(name)
+            .imageUrl(imageUrl)
+            .type(type)
+            .build();
+    }
 }

@@ -12,7 +12,6 @@ public interface RecommendationEngine {
      * @param clothes 사용자 의상 목록
      * @param perceivedTemp 체감 온도
      * @param weather 날씨 정보
-     * @param previous 추천 내역 - 재추천 시 Dress 존재 여부 판단
      * @return 추천 의상 리스트
      */
     List<Clothes> recommend(List<Clothes> clothes, double perceivedTemp, Weather weather, boolean excludeDress);

@@ -3,6 +3,7 @@ package com.sprint.otboo.recommendation.controller;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -24,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @WebMvcTest(controllers = RecommendationController.class)
 @DisplayName("의상 추천 API 테스트")
@@ -42,7 +44,7 @@ public class RecommendationControllerTest {
     private JwtRegistry jwtRegistry;
 
     @Test
-    @WithMockUser(username = "user1", roles = {"USER"})
+    @WithMockUser(roles = {"USER"})
     void 추천_조회_API_성공() throws Exception {
         // given: 테스트 데이터 준비
         UUID userId = UUID.randomUUID();
@@ -78,6 +80,7 @@ public class RecommendationControllerTest {
         mockMvc.perform(get("/api/recommendations")
                 .param("userId", userId.toString())
                 .param("weatherId", weatherId.toString())
+                .with(user(userId.toString()).roles("USER"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
             .andExpect(status().isOk())
@@ -115,7 +118,7 @@ public class RecommendationControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin1", roles = {"ADMIN"})
+    @WithMockUser(roles = {"ADMIN"})
     void 추천_조회_API_성공_관리자() throws Exception {
         // given: 테스트 데이터 준비
         UUID userId = UUID.randomUUID();
@@ -134,6 +137,7 @@ public class RecommendationControllerTest {
         mockMvc.perform(get("/api/recommendations")
                 .param("weatherId", weatherId.toString())
                 .param("userId", userId.toString())
+                .with(user(userId.toString()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
             .andExpect(status().isOk())
@@ -155,5 +159,88 @@ public class RecommendationControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 400 Bad Request
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void 인증_정보_누락_예외() throws Exception {
+        // given: SecurityContext에 인증 정보 없음
+        UUID weatherId = UUID.randomUUID();
+
+        // when: 추천 API 호출
+        ResultActions result = mockMvc.perform(get("/api/recommendations")
+            .param("weatherId", weatherId.toString())
+            .with(request -> { request.setUserPrincipal(null); return request; })
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: CustomException 처리에 따라 400 Bad Request
+        result.andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+            .andExpect(jsonPath("$.message").value("잘못된 입력 값입니다."));
+    }
+
+    @Test
+    @WithMockUser(username = "not-a-uuid", roles = {"USER"})
+    void 잘못된_UUID_인증_예외() throws Exception {
+        // given: username이 UUID 형식이 아님
+        UUID weatherId = UUID.randomUUID();
+
+        // when: 추천 API 호출
+        ResultActions result = mockMvc.perform(get("/api/recommendations")
+            .param("weatherId", weatherId.toString())
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 400 Bad Request 반환
+        result.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 추천_결과_빈_리스트() throws Exception {
+        // given: 올바른 UUID 값과 빈 추천 결과 준비
+        UUID userId = UUID.randomUUID();
+        UUID weatherId = UUID.randomUUID();
+        when(recommendationService.getRecommendation(eq(userId), eq(weatherId)))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of()));
+
+        // when: API 호출
+        ResultActions result = mockMvc.perform(get("/api/recommendations")
+            .param("weatherId", weatherId.toString())
+            .with(user(userId.toString()).roles("USER"))
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 추천 결과가 빈 리스트임을 검증
+        result.andExpect(status().isOk())
+            .andExpect(jsonPath("$.clothes").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(username = "user1", roles = {"USER"})
+    void 다른사용자_추천_조회_불가() throws Exception {
+        // given: 다른 사용자의 UUID와 날씨 ID
+        UUID weatherId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+
+        // when: 다른 사용자 ID로 API 호출
+        ResultActions result = mockMvc.perform(get("/api/recommendations")
+            .param("weatherId", weatherId.toString())
+            .with(user(otherUserId.toString()).roles("USER"))
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 호출은 정상 처리되지만, 다른 사용자 추천은 조회되지 않음
+        result.andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void weatherId_userId_모두_누락_실패() throws Exception {
+        // given: 요청 파라미터 없음
+
+        // when: 추천 API 호출
+        ResultActions result = mockMvc.perform(get("/api/recommendations")
+            .contentType(MediaType.APPLICATION_JSON));
+
+        // then: 400 Bad Request 반환
+        result.andExpect(status().isBadRequest());
     }
 }

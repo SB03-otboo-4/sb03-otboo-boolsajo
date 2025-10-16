@@ -1,13 +1,21 @@
 package com.sprint.otboo.weather.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.when;
 
+import com.sprint.otboo.weather.entity.PrecipitationType;
+import com.sprint.otboo.weather.entity.SkyStatus;
+import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
+import com.sprint.otboo.weather.entity.WindStrength;
 import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastResponse;
+import com.sprint.otboo.weather.mapper.KmaForecastAssembler;
+import com.sprint.otboo.weather.mapper.KmaForecastMapper;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.math.BigDecimal;
@@ -26,6 +34,7 @@ import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBatchTest

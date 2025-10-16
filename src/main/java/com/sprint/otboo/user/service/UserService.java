@@ -6,6 +6,7 @@ import com.sprint.otboo.user.dto.data.UserDto;
 import com.sprint.otboo.user.dto.request.ChangePasswordRequest;
 import com.sprint.otboo.user.dto.request.ProfileUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserCreateRequest;
+import com.sprint.otboo.user.dto.request.UserListQueryParams;
 import com.sprint.otboo.user.dto.request.UserLockUpdateRequest;
 import com.sprint.otboo.user.dto.request.UserRoleUpdateRequest;
 import java.util.UUID;
@@ -23,7 +24,7 @@ public interface UserService {
 
     ProfileDto getUserProfile(UUID userId);
 
-    CursorPageResponse<UserDto> listUsers(String cursor, String idAfter, Integer limit, String sortBy, String sortDirection, String emailLike, String roleEqual, Boolean locked);
+    CursorPageResponse<UserDto> listUsers(UserListQueryParams query);
 
     ProfileDto updateUserProfile(UUID userId, ProfileUpdateRequest request, MultipartFile image);
 }

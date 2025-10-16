@@ -17,7 +17,8 @@ class KmaRequestBuilderTest {
     private KmaRequestBuilder newBuilder() {
         // enabled=false 이면 authKey 없어도 통과
         WeatherKmaProperties props = new WeatherKmaProperties(
-            null,
+            null,          // baseUrl
+            null,          // vilageFcstPath
             null,          // authKey
             3000,          // connectTimeoutMs
             5000,          // readTimeoutMs

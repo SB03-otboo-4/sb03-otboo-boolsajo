@@ -2,6 +2,7 @@ package com.sprint.otboo.weather.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,7 +56,6 @@ class WeatherServiceTest {
     private WeatherServiceImpl weatherService;
 
     @Test
-    @DisplayName("위경도 입력 시 KMA 호출 → 스냅샷 업서트 → 일자 대표 집계 → WeatherDto 리스트 반환")
     void 위경도_입력시_파라미터를_빌드하여_KMA호출_후_슬롯을_엔티티로_업서트하고_DTO로_반환한다() {
         // given
         Double latitude = 37.5665;
@@ -93,20 +93,20 @@ class WeatherServiceTest {
         Instant now = Instant.now();
         Weather snapshot = Weather.builder()
             .location(location)
-            .forecastAt(now.plusSeconds(3600))   // 오늘 이후/동일일의 미래 시각
+            .forecastAt(now.plusSeconds(3600))
             .forecastedAt(now)
             .skyStatus(SkyStatus.CLEAR)
             .type(PrecipitationType.NONE)
             .currentC(22.0)
             .probability(10.0)
             .build();
-        when(kmaAssembler.toWeathers(List.of(slot), location)).thenReturn(List.of(snapshot));
+        when(kmaAssembler.toWeathers(eq(List.of(slot)), eq(location), anyList()))
+            .thenReturn(List.of(snapshot));
 
-        // 업서트: 기존 없음 → save
-        when(weatherRepository.findByLocationIdAndForecastAtAndForecastedAt(
-            location.getId(), snapshot.getForecastAt(), snapshot.getForecastedAt()
-        )).thenReturn(Optional.empty());
-        when(weatherRepository.save(any(Weather.class))).thenAnswer(inv -> inv.getArgument(0));
+        // 업서트: 기존 없음 → saveAll
+        when(weatherRepository.findAllByLocationIdAndForecastAtBetweenOrderByForecastAtAscForecastedAtDesc(
+            eq(location.getId()), any(Instant.class), any(Instant.class)
+        )).thenReturn(List.of());
 
         // 5일 범위 추가 로드(단순화: 없음)
         when(weatherRepository.findRangeOrdered(
@@ -121,13 +121,12 @@ class WeatherServiceTest {
 
         // then
         verify(kmaClient).getVilageFcst(params);
-        verify(weatherRepository).save(any(Weather.class));
+        verify(weatherRepository).saveAll(anyList());
         verify(weatherMapper).toWeatherDto(any(Weather.class));
         assertThat(result).hasSize(1); // 매퍼가 null을 리턴해도 크기는 1이어야 함(대표 1건)
     }
 
     @Test
-    @DisplayName("동일 스냅샷이 이미 존재하면 저장하지 않고 매핑만 수행한다")
     void 동일_스냅샷이_이미_존재하면_저장을_생략하고_DTO만_반환한다() {
         // given
         Double latitude = 35.1796;
@@ -167,12 +166,13 @@ class WeatherServiceTest {
             .currentC(24.0)
             .probability(0.0)
             .build();
-        when(kmaAssembler.toWeathers(List.of(slot), location)).thenReturn(List.of(snapshot));
+        when(kmaAssembler.toWeathers(eq(List.of(slot)), eq(location), anyList()))
+            .thenReturn(List.of(snapshot));
 
-        // 기존 존재 → save 생략
-        when(weatherRepository.findByLocationIdAndForecastAtAndForecastedAt(
-            location.getId(), snapshot.getForecastAt(), snapshot.getForecastedAt()
-        )).thenReturn(Optional.of(snapshot));
+        // 기존 존재 → saveAll 생략
+        when(weatherRepository.findAllByLocationIdAndForecastAtBetweenOrderByForecastAtAscForecastedAtDesc(
+            eq(location.getId()), any(Instant.class), any(Instant.class)
+        )).thenReturn(List.of(snapshot));
 
         // 5일 범위 추가 로드 없음
         when(weatherRepository.findRangeOrdered(
@@ -185,7 +185,7 @@ class WeatherServiceTest {
         List<WeatherDto> result = weatherService.getWeather(latitude, longitude);
 
         // then
-        verify(weatherRepository, never()).save(any(Weather.class));
+        verify(weatherRepository, never()).saveAll(anyList());
         verify(weatherMapper).toWeatherDto(any(Weather.class));
         assertThat(result).hasSize(1);
     }
