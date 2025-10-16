@@ -1,42 +1,46 @@
 package com.sprint.otboo.follow.controller;
 
-import static org.mockito.BDDMockito.then;
-import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.BDDMockito.willDoNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
-import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.service.FollowService;
-import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(
     controllers = FollowController.class,
-    excludeFilters = @ComponentScan.Filter(
-        type = FilterType.ASSIGNABLE_TYPE,
-        classes = JwtAuthenticationFilter.class
-    )
+    excludeAutoConfiguration = {
+        SecurityAutoConfiguration.class,
+        SecurityFilterAutoConfiguration.class,
+        OAuth2ResourceServerAutoConfiguration.class,
+        OAuth2ClientAutoConfiguration.class
+    },
+    excludeFilters = {
+        @ComponentScan.Filter(
+            type = FilterType.ASSIGNABLE_TYPE,
+            classes = { JwtAuthenticationFilter.class }
+        )
+    }
 )
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
@@ -44,59 +48,48 @@ import org.springframework.test.web.servlet.MockMvc;
 class UnfollowControllerTest {
 
     @Autowired
-    MockMvc mockMvc;
+    MockMvc mvc;
 
     @MockitoBean
     FollowService followService;
 
-    @BeforeEach
-    void setUp() { SecurityContextHolder.clearContext(); }
-
-    @AfterEach
-    void tearDown() { SecurityContextHolder.clearContext(); }
-
-    private void putAuthWithUserId(UUID userId) {
-        List<GrantedAuthority> auths = List.of(new SimpleGrantedAuthority("ROLE_USER"));
-        var token = new UsernamePasswordAuthenticationToken(userId.toString(), null, auths);
-        SecurityContextHolder.getContext().setAuthentication(token);
-    }
+    @MockitoBean
+    JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
-    @DisplayName("언팔로우 성공 시 204를 반환한다")
+    @WithMockUser(username="11111111-1111-1111-1111-111111111111")
     void 언팔로우_성공_204() throws Exception {
-        UUID followerId = UUID.randomUUID();
-        UUID followeeId = UUID.randomUUID();
-        putAuthWithUserId(followerId);
+        UUID follower = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID followee = UUID.randomUUID();
 
-        willDoNothing().given(followService).unfollow(followerId, followeeId);
+        Mockito.doNothing().when(followService).unfollow(follower, followee);
 
-        mockMvc.perform(delete("/api/follows/{followeeId}", followeeId))
+        mvc.perform(delete("/api/follows/{id}", followee))
             .andExpect(status().isNoContent());
 
-        then(followService).should().unfollow(followerId, followeeId);
+        Mockito.verify(followService).unfollow(follower, followee);
     }
 
     @Test
-    @DisplayName("팔로우 상태가 아니면 404를 반환한다")
-    void 언팔로우_대상이_없으면_404() throws Exception {
-        UUID followerId = UUID.randomUUID();
-        UUID followeeId = UUID.randomUUID();
-        putAuthWithUserId(followerId);
+    @WithMockUser(username="11111111-1111-1111-1111-111111111111")
+    void 언팔로우_대상없음_404() throws Exception {
+        UUID follower = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID followee = UUID.randomUUID();
 
-        willAnswer(inv -> { throw new FollowException(ErrorCode.FOLLOW_NOT_FOUND); })
-            .given(followService).unfollow(followerId, followeeId);
+        Mockito.doThrow(new FollowException(ErrorCode.FOLLOW_NOT_FOUND))
+            .when(followService).unfollow(follower, followee);
 
-        mockMvc.perform(delete("/api/follows/{followeeId}", followeeId))
-            .andExpect(status().isNotFound());
+        mvc.perform(delete("/api/follows/{id}", followee))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("FOLLOW_NOT_FOUND"));
     }
 
     @Test
-    void 인증_없으면_401() throws Exception {
-        SecurityContextHolder.clearContext();
+    void 언팔로우_인증없음_401() throws Exception {
+        mvc.perform(delete("/api/follows/{id}", UUID.randomUUID()))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
-        UUID followeeId = UUID.randomUUID();
-
-        mockMvc.perform(delete("/api/follows/{followeeId}", followeeId))
-            .andExpect(status().isUnauthorized());
+        Mockito.verifyNoInteractions(followService);
     }
 }

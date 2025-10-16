@@ -17,8 +17,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -26,7 +32,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @DisplayName("팔로우 생성 API 테스트")
-@WebMvcTest(FollowController.class)
+@WebMvcTest(
+    controllers = FollowController.class,
+    excludeAutoConfiguration = {
+        SecurityAutoConfiguration.class,
+        SecurityFilterAutoConfiguration.class,
+        OAuth2ResourceServerAutoConfiguration.class,
+        OAuth2ClientAutoConfiguration.class
+    },
+    excludeFilters = {
+        @ComponentScan.Filter(
+            type = FilterType.ASSIGNABLE_TYPE,
+            classes = { JwtAuthenticationFilter.class }
+        )
+    }
+)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)
 class FollowControllerTest {
@@ -41,9 +61,6 @@ class FollowControllerTest {
 
     @MockitoBean
     JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @MockitoBean
-    TokenProvider tokenProvider;
 
     @Test
     @WithMockUser(username = AUTH_USER)
