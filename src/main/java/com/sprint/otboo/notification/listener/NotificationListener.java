@@ -1,6 +1,7 @@
 package com.sprint.otboo.notification.listener;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
+import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
@@ -85,5 +86,13 @@ public class NotificationListener {
         log.debug("[NotificationListener] handleFollowCreated: followerId={}, followeeId={}",
             event.followerId(), event.followeeId());
         notificationService.notifyUserFollowed(event.followerId(), event.followeeId());
+    }
+
+    /**
+     * 의상 속성 정의 삭제 이벤트를 받아 전체 사용자에 대한 알림을 위임
+     * */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleClothesAttributeDeleted(ClothesAttributeDefDeletedEvent event) {
+        notificationService.notifyClothesAttributeDeletedForAllUsers(event.attributeName());
     }
 }

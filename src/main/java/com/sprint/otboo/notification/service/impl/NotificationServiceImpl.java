@@ -17,9 +17,11 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -258,7 +260,8 @@ public class NotificationServiceImpl implements NotificationService {
     public void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId) {
         List<UUID> followerIds = followRepository.findFollowerIdsByFolloweeId(feedAuthorId);
         if (followerIds.isEmpty()) {
-            log.debug("[NotificationService] feedCreated 알림 대상 없음: authorId={}, feedId={}", feedAuthorId, feedId);
+            log.debug("[NotificationService] feedCreated 알림 대상 없음: authorId={}, feedId={}",
+                feedAuthorId, feedId);
             return;
         }
 
@@ -266,23 +269,29 @@ public class NotificationServiceImpl implements NotificationService {
         String title = "팔로우한 사용자의 새 피드";
         String content = "%s 님이 새 피드를 등록했어요.".formatted(author.getUsername());
 
-        log.info("[NotificationService] feedCreated 알림 생성 시작: authorId={}, feedId={}, followerCount={}",
-            feedAuthorId, feedId, followerIds.size());
+        // 1) 팔로워 사용자 한 번에 로딩 ( 필요하면 projection으로 최적화 )
+        List<User> receivers = userRepository.findAllById(followerIds);
 
-        for (UUID followerId : followerIds) {
-            User receiver = userRepository.getReferenceById(followerId);
-
-            Notification notification = Notification.builder()
+        // 2) Notification 엔티티를 미리 구성
+        List<Notification> notifications = receivers.stream()
+            .map(receiver -> Notification.builder()
                 .receiver(receiver)
                 .title(title)
                 .content(content)
                 .level(NotificationLevel.INFO)
-                .build();
+                .build())
+            .collect(Collectors.toCollection(ArrayList::new));
 
-            NotificationDto dto = saveAndMap(notification);
+        // 3) 한 번에 저장 — 플러시 횟수 크게 감소
+        List<Notification> saved = notificationRepository.saveAll(notifications);
+        notificationRepository.flush();
+
+        // 4) 기존대로 DTO 변환 + SSE 전송
+        for (Notification notification : saved) {
+            NotificationDto dto = notificationMapper.toDto(notification);
             notificationSseService.sendToClient(dto);
             log.debug("[NotificationService] feedCreated 알림 SSE 전송 완료: followerId={}, notificationId={}",
-                followerId, dto.id());
+                dto.receiverId(), dto.id());
         }
     }
 
@@ -339,6 +348,35 @@ public class NotificationServiceImpl implements NotificationService {
             log.info("[NotificationServiceImpl] SSE 전송 후 알림 삭제 완료 : 알림ID = {}", notificationId);
         } catch (Exception e) {
             log.warn("[NotificationServiceImpl] SSE 전송 실패, 삭제 미실행 : 알림ID = {}, 메시지: {}", notificationId, e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyClothesAttributeDeletedForAllUsers(String attributeName) {
+        log.info("[NotificationService] 의상 속성 삭제 알림 브로드캐스트: {}", attributeName);
+
+        List<User> receivers = userRepository.findAll();
+        if (receivers.isEmpty()) {
+            log.debug("[NotificationService] 삭제 알림 대상 없음");
+            return;
+        }
+
+        List<Notification> notifications = receivers.stream()
+            .map(receiver -> Notification.builder()
+                .receiver(receiver)
+                .title("의상 속성이 삭제되었어요")
+                .content("의상 속성 [%s] 이 삭제되었습니다.".formatted(attributeName))
+                .level(NotificationLevel.INFO)
+                .build())
+            .collect(Collectors.toCollection(ArrayList::new));
+
+        List<Notification> saved = notificationRepository.saveAll(notifications);
+        notificationRepository.flush();
+
+        for (Notification notification : saved) {
+            NotificationDto dto = notificationMapper.toDto(notification);
+            notificationSseService.sendToClient(dto);
         }
     }
 

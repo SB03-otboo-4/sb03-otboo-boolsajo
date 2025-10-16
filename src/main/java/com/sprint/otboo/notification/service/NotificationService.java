@@ -26,4 +26,6 @@ public interface NotificationService {
     void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId);
 
     NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId);
+
+    void notifyClothesAttributeDeletedForAllUsers(String attributeName);
 }
