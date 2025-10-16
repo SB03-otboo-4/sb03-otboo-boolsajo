@@ -79,7 +79,7 @@ public class RecommendationControllerTest {
         // when: API 호출
         mockMvc.perform(get("/api/recommendations")
                 .param("userId", userId.toString())
-                .param("weatherId", weatherId.toString())
+                .param("id", weatherId.toString())
                 .with(user(userId.toString()).roles("USER"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
@@ -96,7 +96,7 @@ public class RecommendationControllerTest {
     @Test
     @WithMockUser(username = "user1", roles = {"USER"})
     void 추천_조회_API_날씨ID_누락_실패() throws Exception {
-        // given: 없음 ( weatherId 누락 )
+        // given: 없음 ( id 누락 )
         // when: userId만 전달하고 호출
         mockMvc.perform(get("/api/recommendations")
                 .param("userId", UUID.randomUUID().toString()) // userId만 전달
@@ -111,7 +111,7 @@ public class RecommendationControllerTest {
         // given : 없음( userId 누락 )
         // when: weatherId만 전달하고 호출
         mockMvc.perform(get("/api/recommendations")
-                .param("weatherId", UUID.randomUUID().toString())
+                .param("id", UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 400 Bad Request
             .andExpect(status().isBadRequest());
@@ -135,7 +135,7 @@ public class RecommendationControllerTest {
 
         // when: ADMIN 권한으로 API 호출
         mockMvc.perform(get("/api/recommendations")
-                .param("weatherId", weatherId.toString())
+                .param("id", weatherId.toString())
                 .param("userId", userId.toString())
                 .with(user(userId.toString()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
@@ -153,7 +153,7 @@ public class RecommendationControllerTest {
     @Test
     @WithMockUser(username = "admin1", roles = {"ADMIN"})
     void 추천_조회_API_날씨ID_누락_실패_관리자() throws Exception {
-        // given: weatherId 누락
+        // given: id 누락
         // 파라미터 없이 호출
         mockMvc.perform(get("/api/recommendations")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -169,7 +169,7 @@ public class RecommendationControllerTest {
 
         // when: 추천 API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("weatherId", weatherId.toString())
+            .param("id", weatherId.toString())
             .with(request -> { request.setUserPrincipal(null); return request; })
             .contentType(MediaType.APPLICATION_JSON));
 
@@ -187,7 +187,7 @@ public class RecommendationControllerTest {
 
         // when: 추천 API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("weatherId", weatherId.toString())
+            .param("id", weatherId.toString())
             .contentType(MediaType.APPLICATION_JSON));
 
         // then: 400 Bad Request 반환
@@ -205,7 +205,7 @@ public class RecommendationControllerTest {
 
         // when: API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("weatherId", weatherId.toString())
+            .param("id", weatherId.toString())
             .with(user(userId.toString()).roles("USER"))
             .contentType(MediaType.APPLICATION_JSON));
 
@@ -223,7 +223,7 @@ public class RecommendationControllerTest {
 
         // when: 다른 사용자 ID로 API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("weatherId", weatherId.toString())
+            .param("id", weatherId.toString())
             .with(user(otherUserId.toString()).roles("USER"))
             .contentType(MediaType.APPLICATION_JSON));
 

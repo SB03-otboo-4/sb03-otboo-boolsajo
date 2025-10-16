@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record WeatherDto(
-    UUID weatherId,                 // 날씨 ID
+    UUID id,                 // 날씨 ID
     Instant forecastedAt,           // 예보된 시간
     Instant forecastAt,             // 예보 대상 시간
     WeatherLocationResponse location, // 위치 (위도/경도/x/y/지명)
