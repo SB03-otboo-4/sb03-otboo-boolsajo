@@ -2,6 +2,7 @@ package com.sprint.otboo.common.exception;
 
 import com.sprint.otboo.clothing.exception.ClothesExtractionException;
 import com.sprint.otboo.common.dto.ErrorResponse;
+import com.sprint.otboo.common.exception.auth.MailSendFailedException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.HashMap;
@@ -15,8 +16,8 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MissingRequestCookieException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -284,6 +285,15 @@ public class GlobalExceptionHandler {
             HttpStatus.FORBIDDEN.value()
         );
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
+    @ExceptionHandler(MailSendFailedException.class)
+    public ResponseEntity<ErrorResponse> handleMailSendFailedException(MailSendFailedException ex) {
+        log.error("메일 전송 서비스 오류 발생: {}", ex.getMessage(), ex.getCause());
+
+        ErrorResponse body = new ErrorResponse(ex);
+
+        return ResponseEntity.status(ex.getErrorCode().getStatus()).body(body);
     }
 
     @ExceptionHandler(ClothesExtractionException.class)
