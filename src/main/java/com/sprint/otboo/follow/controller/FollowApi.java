@@ -1,9 +1,11 @@
 package com.sprint.otboo.follow.controller;
 
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.dto.ErrorResponse;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.dto.request.FollowCreateRequest;
+import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -11,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -64,4 +67,18 @@ public interface FollowApi {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/summary")
     ResponseEntity<FollowSummaryDto> getSummary();
+
+    @Operation(summary = "팔로잉 목록 조회", description = "팔로잉 목록 조회 API")
+    @ApiResponse(responseCode = "200", description = "성공",
+        content = @Content(schema = @Schema(implementation = CursorPageResponse.class)))
+    @ApiResponse(responseCode = "400", description = "실패",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @GetMapping("/followings")
+    ResponseEntity<CursorPageResponse<FollowListItemResponse>> getFollowings(
+        @RequestParam("followerId") UUID followerId,
+        @RequestParam(value = "cursor", required = false) String cursor,
+        @RequestParam(value = "idAfter", required = false) UUID idAfter,
+        @RequestParam("limit") int limit,
+        @RequestParam(value = "nameLike", required = false) String nameLike
+    );
 }

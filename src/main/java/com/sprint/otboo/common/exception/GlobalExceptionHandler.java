@@ -5,6 +5,7 @@ import com.sprint.otboo.common.dto.ErrorResponse;
 import com.sprint.otboo.common.exception.auth.MailSendFailedException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -302,4 +303,25 @@ public class GlobalExceptionHandler {
         return Map.of("message", ex.getMessage());
     }
 
+    @ExceptionHandler(DateTimeParseException.class)
+    public ResponseEntity<ErrorResponse> handleDateTimeParseException(DateTimeParseException e) {
+        log.error("날짜/시간 파싱 실패: {}", e.getMessage());
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("parameterName", "cursor");
+        details.put("expectedFormat", "ISO-8601 Instant (예: 2025-10-14T05:29:40Z)");
+        if (e.getParsedString() != null) {
+            details.put("rejectedValue", e.getParsedString());
+        }
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            ErrorCode.INVALID_INPUT.name(),
+            "cursor 파라미터 형식이 올바르지 않습니다.",
+            details,
+            e.getClass().getSimpleName(),
+            HttpStatus.BAD_REQUEST.value()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
 }
