@@ -62,7 +62,7 @@
   "cpu": "256",
   "executionRoleArn": "arn:aws:iam::920373007592:role/ecsTaskExecutionRole",
   "family": "otboo-tast-definition",
-  "memory": "512",
+  "memory": "1024",
   "networkMode": "bridge",
   "placementConstraints": [],
   "requiresCompatibilities": [
