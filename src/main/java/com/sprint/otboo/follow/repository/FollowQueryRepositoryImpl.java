@@ -5,12 +5,10 @@ import static com.sprint.otboo.follow.entity.QFollow.follow;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.user.dto.response.UserSummaryResponse;
 import com.sprint.otboo.user.entity.QUser;
-import com.sprint.otboo.user.entity.QUserProfile;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,44 +22,39 @@ public class FollowQueryRepositoryImpl implements FollowQueryRepository {
 
     private final JPAQueryFactory jpa;
 
+    /** createdAt DESC, id DESC 기준 커서 조건을 where에 추가 */
+    private void applyCursor(BooleanBuilder where, String cursorCreatedAtIso, UUID idAfter) {
+        if (!StringUtils.hasText(cursorCreatedAtIso)) return;
+        Instant ts = Instant.parse(cursorCreatedAtIso);
+        if (idAfter != null) {
+            where.and(
+                follow.createdAt.lt(ts)
+                    .or(follow.createdAt.eq(ts).and(follow.id.lt(idAfter)))
+            );
+        } else {
+            where.and(follow.createdAt.lt(ts));
+        }
+    }
+
     @Override
     public List<FollowListItemResponse> findFollowingPage(
-        UUID followerId,
-        String cursorCreatedAtIso,
-        UUID idAfter,
-        int limitPlusOne,
-        String nameLike
+        UUID followerId, String cursorCreatedAtIso, UUID idAfter, int limitPlusOne, String nameLike
     ) {
         QUser followee = new QUser("followee");
         QUser followerUser = new QUser("followerUser");
 
-        BooleanBuilder where = new BooleanBuilder()
-            .and(follow.followerId.eq(followerId));
-
+        BooleanBuilder where = new BooleanBuilder().and(follow.followerId.eq(followerId));
         if (StringUtils.hasText(nameLike)) {
             where.and(followee.username.containsIgnoreCase(nameLike));
         }
-
-        if (StringUtils.hasText(cursorCreatedAtIso)) {
-            Instant ts = Instant.parse(cursorCreatedAtIso);
-            if (idAfter != null) {
-                where.and(
-                    follow.createdAt.lt(ts)
-                        .or(follow.createdAt.eq(ts).and(follow.id.lt(idAfter)))
-                );
-            } else {
-                where.and(follow.createdAt.lt(ts));
-            }
-        }
+        applyCursor(where, cursorCreatedAtIso, idAfter);
 
         return jpa
             .select(Projections.constructor(FollowListItemResponse.class,
                 follow.id,
-                // 내가 팔로잉하는 대상(피팔로우, followee) 요약
                 Projections.constructor(UserSummaryResponse.class,
                     followee.id, followee.username, followee.profileImageUrl
                 ),
-                // 나(팔로워, follower) 요약
                 Projections.constructor(UserSummaryResponse.class,
                     followerUser.id, followerUser.username, followerUser.profileImageUrl
                 ),
@@ -101,30 +94,14 @@ public class FollowQueryRepositoryImpl implements FollowQueryRepository {
     ) {
         QUser followerUser = new QUser("followerUser");
 
-        BooleanBuilder where = new BooleanBuilder()
-            .and(follow.followeeId.eq(followeeId));
-
+        BooleanBuilder where = new BooleanBuilder().and(follow.followeeId.eq(followeeId));
         if (StringUtils.hasText(nameLike)) {
             where.and(followerUser.username.containsIgnoreCase(nameLike));
         }
-
-        if (StringUtils.hasText(cursorCreatedAtIso)) {
-            Instant ts = Instant.parse(cursorCreatedAtIso);
-            if (idAfter != null) {
-                where.and(
-                    follow.createdAt.lt(ts)
-                        .or(follow.createdAt.eq(ts).and(follow.id.lt(idAfter)))
-                );
-            } else {
-                where.and(follow.createdAt.lt(ts));
-            }
-        }
+        applyCursor(where, cursorCreatedAtIso, idAfter);
 
         Class<?>[] ctorParamTypes = new Class<?>[] {
-            UUID.class,
-            UserSummaryResponse.class,
-            UserSummaryResponse.class,
-            Instant.class
+            UUID.class, UserSummaryResponse.class, UserSummaryResponse.class, Instant.class
         };
 
         return jpa
@@ -132,7 +109,6 @@ public class FollowQueryRepositoryImpl implements FollowQueryRepository {
                 FollowListItemResponse.class,
                 ctorParamTypes,
                 follow.id,
-                // followeeSummary(나 자신)는 null로 투영 (typed null)
                 Projections.constructor(UserSummaryResponse.class,
                     Expressions.nullExpression(UUID.class),
                     Expressions.nullExpression(String.class),
