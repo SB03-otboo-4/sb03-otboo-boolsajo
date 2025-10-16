@@ -15,4 +15,14 @@ public interface FollowQueryRepository {
     );
 
     long countFollowing(UUID followerId, String nameLike);
+
+    List<FollowListItemResponse> findFollowersPage(
+        UUID followeeId,
+        String cursorCreatedAtIso,
+        UUID idAfter,
+        int limitPlusOne,
+        String nameLike
+    );
+
+    long countFollowers(UUID followeeId, String nameLike);
 }

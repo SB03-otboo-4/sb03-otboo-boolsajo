@@ -119,22 +119,43 @@ public class FollowController implements FollowApi {
         @RequestParam(value = "limit", defaultValue = "20") int limit,
         @RequestParam(value = "nameLike", required = false) String nameLike
     ) {
-        if (limit < 1) {
-            limit = 1;
-        } else if (limit > 100) {
-            limit = 100;
+        try {
+            validateCursorOrThrow(cursor);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
         }
-
-        if (cursor != null && !cursor.isBlank()) {
-            try {
-                Instant.parse(cursor); // 형식만 검증
-            } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
-            }
-        }
-
         return ResponseEntity.ok(
-            service.getFollowings(followerId, cursor, idAfter, limit, nameLike)
+            service.getFollowings(followerId, cursor, idAfter, boundedLimit(limit), nameLike)
         );
+    }
+
+    @GetMapping("/followers")
+    public ResponseEntity<CursorPageResponse<FollowListItemResponse>> getFollowers(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) UUID idAfter,
+        @RequestParam(defaultValue = "20") int limit,
+        @RequestParam(required = false) String nameLike
+    ) {
+        UUID me = requireUserIdFromSecurityContext();
+        try {
+            validateCursorOrThrow(cursor);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
+        }
+        return ResponseEntity.ok(
+            service.getFollowers(me, cursor, idAfter, boundedLimit(limit), nameLike)
+        );
+    }
+
+    private int boundedLimit(int limit) {
+        if (limit < 1) return 1;
+        if (limit > 100) return 100;
+        return limit;
+    }
+
+    private void validateCursorOrThrow(String cursor) {
+        if (cursor == null || cursor.isBlank()) return;
+        // 형식만 검증 (실제 파싱은 Repository에서 다시 수행)
+        Instant.parse(cursor);
     }
 }
