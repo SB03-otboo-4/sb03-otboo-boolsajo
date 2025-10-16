@@ -19,4 +19,6 @@ public interface FollowService {
     CursorPageResponse<FollowListItemResponse> getFollowers(
         UUID userId, String cursor, UUID idAfter, int limit, String nameLike
     );
+
+    void unfollow(UUID followerId, UUID followeeId);
 }

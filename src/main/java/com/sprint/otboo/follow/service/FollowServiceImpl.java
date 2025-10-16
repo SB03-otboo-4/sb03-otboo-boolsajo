@@ -139,4 +139,12 @@ public class FollowServiceImpl implements FollowService {
             "DESCENDING"
         );
     }
+
+    @Override
+    @Transactional
+    public void unfollow(UUID followerId, UUID followeeId) {
+        Follow follow = followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId)
+            .orElseThrow(() -> new FollowException(ErrorCode.FOLLOW_NOT_FOUND));
+        followRepository.delete(follow);
+    }
 }
