@@ -9,12 +9,14 @@ import java.util.UUID;
 public interface FollowService {
 
     FollowDto create(UUID followerId, UUID followeeId);
+
     FollowSummaryDto getMySummary(UUID userId);
+
     CursorPageResponse<FollowListItemResponse> getFollowings(
-        UUID followerId,
-        String cursor,
-        UUID idAfter,
-        int limit,
-        String nameLike
+        UUID followerId, String cursor, UUID idAfter, int limit, String nameLike
+    );
+
+    CursorPageResponse<FollowListItemResponse> getFollowers(
+        UUID userId, String cursor, UUID idAfter, int limit, String nameLike
     );
 }

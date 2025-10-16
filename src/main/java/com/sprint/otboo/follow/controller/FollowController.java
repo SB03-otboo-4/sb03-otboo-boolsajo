@@ -137,4 +137,24 @@ public class FollowController implements FollowApi {
             service.getFollowings(followerId, cursor, idAfter, limit, nameLike)
         );
     }
+
+    @GetMapping("/followers")
+    public ResponseEntity<CursorPageResponse<FollowListItemResponse>> getFollowers(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) UUID idAfter,
+        @RequestParam(defaultValue = "20") int limit,
+        @RequestParam(required = false) String nameLike
+    ) {
+        UUID me = requireUserIdFromSecurityContext();
+
+        if (cursor != null && !cursor.isBlank()) {
+            try { Instant.parse(cursor); }
+            catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
+            }
+        }
+        return ResponseEntity.ok(
+            service.getFollowers(me, cursor, idAfter, limit, nameLike)
+        );
+    }
 }

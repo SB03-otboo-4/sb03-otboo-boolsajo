@@ -97,4 +97,32 @@ public class FollowServiceImpl implements FollowService {
             "DESCENDING"
         );
     }
+
+    @Override
+    public CursorPageResponse<FollowListItemResponse> getFollowers(
+        UUID userId, String cursor, UUID idAfter, int limit, String nameLike
+    ) {
+        int pageSize = (limit <= 0 || limit > 100) ? 20 : limit;
+
+        List<FollowListItemResponse> rows = followQueryRepository.findFollowersPage(
+            userId, cursor, idAfter, pageSize + 1, nameLike
+        );
+
+        boolean hasNext = rows.size() > pageSize;
+        List<FollowListItemResponse> pageRows = hasNext ? rows.subList(0, pageSize) : rows;
+
+        String nextCursor = null;
+        String nextIdAfter = null;
+        if (hasNext && !pageRows.isEmpty()) {
+            FollowListItemResponse tail = pageRows.get(pageRows.size() - 1);
+            nextCursor = tail.createdAt().toString();
+            nextIdAfter = tail.id().toString();
+        }
+
+        long total = followQueryRepository.countFollowers(userId, nameLike);
+
+        return new CursorPageResponse<>(
+            pageRows, nextCursor, nextIdAfter, hasNext, total, "createdAt", "DESCENDING"
+        );
+    }
 }
