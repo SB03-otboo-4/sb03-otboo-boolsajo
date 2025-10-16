@@ -35,12 +35,9 @@ jobs:
       - name: Build Docker image
         run: |
           IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
-          docker build -t "$IMAGE:${{ github.sha }}" .
+          docker build -t "$IMAGE:${GITHUB_SHA}" .
         env:
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Push Docker image
         id: meta
@@ -53,7 +50,7 @@ jobs:
           IMAGE_URI="$REGISTRY/$IMAGE:$SHA"
           docker tag "$IMAGE:$SHA" "$IMAGE_URI"
           docker push "$IMAGE_URI"
-          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"   
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
   deploy:
     needs: build-and-push
@@ -68,12 +65,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      - name: Render task definition (inject image)
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-def.json
           container-name: otboo-container
-          container-image: ${{ needs.build-and-push.outputs.image_uri }}
+          image: ${{ needs.build-and-push.outputs.image_uri }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
           service: ${{ secrets.ECS_SERVICE }}
           cluster: ${{ secrets.ECS_CLUSTER }}
 
