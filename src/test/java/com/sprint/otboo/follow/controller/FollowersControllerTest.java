@@ -1,8 +1,12 @@
 package com.sprint.otboo.follow.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import com.sprint.otboo.common.dto.CursorPageResponse;
@@ -53,7 +57,7 @@ class FollowersControllerTest {
         );
 
         when(followService.getFollowers(
-            Mockito.any(), Mockito.isNull(), Mockito.isNull(), Mockito.anyInt(), Mockito.isNull()))
+            any(), Mockito.isNull(), Mockito.isNull(), Mockito.anyInt(), Mockito.isNull()))
             .thenReturn(resp);
 
         mvc.perform(get("/api/follows/followers")
@@ -65,5 +69,26 @@ class FollowersControllerTest {
             .andExpect(jsonPath("$.totalCount").value(2))
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
+    }
+
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void followers_잘못된_cursor_400() throws Exception {
+        mvc.perform(get("/api/follows/followers")
+                .param("cursor", "nope"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void followers_limit_보정() throws Exception {
+        when(followService.getFollowers(any(), any(), any(), eq(1), any()))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/follows/followers").param("limit", "0"))
+            .andExpect(status().isOk());
+
+        verify(followService).getFollowers(any(), any(), any(), eq(1), any());
     }
 }
