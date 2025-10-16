@@ -6,6 +6,18 @@
     {
       "cpu": 256,
       "environment": [
+        {
+          "name": "SPRING_DATA_REDIS_SSL_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "JVM_OPTS",
+          "value": "-Xms400m -Xmx400m"
+        },
+        {
+          "name": "PROJECT_NAME",
+          "value": "otboo"
+        }
       ],
       "environmentFiles": [],
       "essential": true,
