@@ -2,7 +2,6 @@ package com.sprint.otboo.notification.service.impl;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
-import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
@@ -17,11 +16,10 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
-import java.util.Collections;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -255,16 +253,19 @@ public class NotificationServiceImpl implements NotificationService {
         String title = "팔로우한 사용자의 새 피드";
         String content = "%s 님이 새 피드를 등록했어요.".formatted(author.getUsername());
 
-        List<Notification> notifications = followerIds.stream()
-            .map(followerId -> Notification.builder()
-                .receiver(userRepository.getReferenceById(followerId))
+        for (UUID followerId : followerIds) {
+            User receiver = userRepository.getReferenceById(followerId);
+
+            Notification notification = Notification.builder()
+                .receiver(receiver)
                 .title(title)
                 .content(content)
                 .level(NotificationLevel.INFO)
-                .build())
-            .collect(Collectors.toList());
+                .build();
 
-        notificationRepository.saveAllAndFlush(notifications);
+            NotificationDto dto = saveAndMap(notification);
+            notificationSseService.sendToClient(dto);
+        }
     }
 
     @Override
@@ -280,8 +281,9 @@ public class NotificationServiceImpl implements NotificationService {
             .level(NotificationLevel.INFO)
             .build();
 
-        Notification saved = notificationRepository.saveAndFlush(notification);
-        return notificationMapper.toDto(saved);
+        NotificationDto dto = saveAndMap(notification);
+        notificationSseService.sendToClient(dto);
+        return dto;
     }
 
     /**
