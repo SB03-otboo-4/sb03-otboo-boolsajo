@@ -1,0 +1,65 @@
+{
+  "compatibilities": [
+    "EC2"
+  ],
+  "containerDefinitions": [
+    {
+      "cpu": 256,
+      "environment": [
+      ],
+      "environmentFiles": [],
+      "essential": true,
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/actuator/health || exit 1"
+        ],
+        "interval": 30,
+        "retries": 3,
+        "startPeriod": 180,
+        "timeout": 5
+      },
+      "image": "920373007592.dkr.ecr.ap-northeast-2.amazonaws.com/otboo-aws-deploy:latest",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/otboo-tast-definition",
+          "awslogs-create-group": "true",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        },
+        "secretOptions": []
+      },
+      "memory": 512,
+      "memoryReservation": 205,
+      "mountPoints": [],
+      "name": "otboo-container",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 0,
+          "name": "otboo-container-8080-tcp",
+          "protocol": "tcp"
+        }
+      ],
+      "systemControls": [],
+      "ulimits": [],
+      "volumesFrom": []
+    }
+  ],
+  "cpu": "256",
+  "executionRoleArn": "arn:aws:iam::920373007592:role/ecsTaskExecutionRole",
+  "family": "otboo-tast-definition",
+  "memory": "512",
+  "networkMode": "bridge",
+  "placementConstraints": [],
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "taskRoleArn": "arn:aws:iam::920373007592:role/ecsTaskExecutionRole",
+  "volumes": []
+}

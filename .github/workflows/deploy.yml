@@ -2,13 +2,15 @@ name: CD
 
 on:
   push:
-    branches: [ "main", "dev" ]   # 환경에 맞게 조정
+    branches: [ "main", "dev" ]
   workflow_dispatch:
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      image_uri: ${{ steps.meta.outputs.image_uri }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,28 +33,34 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Build Docker image
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+        run: |
+          IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
+          docker build -t "$IMAGE:${{ github.sha }}" .
         env:
-          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'sb03-app' }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registries: ${{ secrets.ECR_REGISTRY }}
 
       - name: Push Docker image
-        run: |
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "IMAGE_URI=${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_ENV
+        id: meta
         env:
-          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'sb03-app' }}
+          REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          SHA: ${{ github.sha }}
+        run: |
+          IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
+          IMAGE_URI="$REGISTRY/$IMAGE:$SHA"
+          docker tag "$IMAGE:$SHA" "$IMAGE_URI"
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"   
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - uses: actions/checkout@v4
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -64,8 +72,8 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ecs-task-def.json
-          container-name: app
-          container-image: ${{ env.IMAGE_URI }}
+          container-name: otboo-container
+          container-image: ${{ needs.build-and-push.outputs.image_uri }}
           service: ${{ secrets.ECS_SERVICE }}
           cluster: ${{ secrets.ECS_CLUSTER }}
 
