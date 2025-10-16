@@ -2,6 +2,8 @@ package com.sprint.otboo.notification.service.impl;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.feed.repository.FeedRepository;
+import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
@@ -18,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
+    private final FollowRepository followRepository;
 
     /**
      * 알림을 조회해 DTO로 변환하고, 다음 페이지 진입을 위한 커서를 계산
@@ -189,6 +193,47 @@ public class NotificationServiceImpl implements NotificationService {
         Notification saved = notificationRepository.saveAndFlush(notification);
 
         log.debug("[NotificationServiceImpl] 피드 댓글 알림 저장 완료 : 알림ID = {}",saved.getId());
+        return notificationMapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId) {
+        List<UUID> followerIds = followRepository.findFollowerIdsByFolloweeId(feedAuthorId);
+        if (followerIds.isEmpty()) {
+            return;
+        }
+
+        User author = userRepository.getReferenceById(feedAuthorId);
+        String title = "팔로우한 사용자의 새 피드";
+        String content = "%s 님이 새 피드를 등록했어요.".formatted(author.getUsername());
+
+        List<Notification> notifications = followerIds.stream()
+            .map(followerId -> Notification.builder()
+                .receiver(userRepository.getReferenceById(followerId))
+                .title(title)
+                .content(content)
+                .level(NotificationLevel.INFO)
+                .build())
+            .collect(Collectors.toList());
+
+        notificationRepository.saveAllAndFlush(notifications);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId) {
+        User follower = userRepository.getReferenceById(followerId);
+        User followee = userRepository.getReferenceById(followeeId);
+
+        Notification notification = Notification.builder()
+            .receiver(followee)
+            .title("새 팔로워 알림")
+            .content("%s 님이 당신을 팔로우하기 시작했어요.".formatted(follower.getUsername()))
+            .level(NotificationLevel.INFO)
+            .build();
+
+        Notification saved = notificationRepository.saveAndFlush(notification);
         return notificationMapper.toDto(saved);
     }
 

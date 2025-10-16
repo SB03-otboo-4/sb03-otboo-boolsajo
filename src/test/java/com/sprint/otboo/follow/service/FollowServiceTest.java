@@ -16,13 +16,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("팔로우 생성 서비스 테스트")
 class FollowServiceTest {
 
     FollowRepository followRepository = Mockito.mock(FollowRepository.class);
     UserRepository userRepository = Mockito.mock(UserRepository.class);
-    FollowService service = new FollowServiceImpl(followRepository, userRepository);
+    ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+    FollowService service = new FollowServiceImpl(followRepository, userRepository, eventPublisher);
 
     @Test
     void 자기_자신은_팔로우할_수_없다() {

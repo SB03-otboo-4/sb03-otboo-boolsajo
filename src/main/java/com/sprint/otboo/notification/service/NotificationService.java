@@ -19,4 +19,8 @@ public interface NotificationService {
     NotificationDto notifyFeedLiked(UUID feedAuthorId, UUID likedByUserId);
 
     NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId);
+
+    void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId);
+
+    NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId);
 }

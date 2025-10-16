@@ -2,7 +2,9 @@ package com.sprint.otboo.notification.listener;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
+import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
+import com.sprint.otboo.follow.event.FollowCreatedEvent;
 import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import lombok.RequiredArgsConstructor;
@@ -59,5 +61,19 @@ public class NotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleFeedCommented(FeedCommentedEvent event) {
         notificationService.notifyFeedCommented(event.feedAuthorId(), event.commentedByUserId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleFeedCreated(FeedCreatedEvent event) {
+        log.debug("[NotificationListener] handleFeedCreated: feedId={}, authorId={}",
+            event.feedId(), event.authorId());
+        notificationService.notifyFollowersFeedCreated(event.authorId(), event.feedId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleFollowCreated(FollowCreatedEvent event) {
+        log.debug("[NotificationListener] handleFollowCreated: followerId={}, followeeId={}",
+            event.followerId(), event.followeeId());
+        notificationService.notifyUserFollowed(event.followerId(), event.followeeId());
     }
 }
