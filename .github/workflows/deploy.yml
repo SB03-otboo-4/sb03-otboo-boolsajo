@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     outputs:
-      image_uri: ${{ steps.meta.outputs.image_uri }}
+      image_uri: ${{ steps.push-image.outputs.image_uri }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,9 +44,9 @@ jobs:
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
 
       - name: Push Docker image
-        id: meta
+        id: push-image
         env:
-          REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_NAME: ${{ vars.IMAGE_NAME }}
           SHA: ${{ github.sha }}
         run: |
