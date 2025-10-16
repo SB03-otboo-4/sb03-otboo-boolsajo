@@ -150,7 +150,7 @@ public class FollowController implements FollowApi {
         );
     }
 
-    @DeleteMapping("/api/follows/{followeeId}")
+    @DeleteMapping("/{followeeId}") // ← 메서드 레벨 매핑 명시
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unfollow(@PathVariable UUID followeeId) {
         UUID followerId = requireUserIdFromSecurityContext();
