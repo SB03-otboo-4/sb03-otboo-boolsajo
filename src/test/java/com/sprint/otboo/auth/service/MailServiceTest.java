@@ -44,7 +44,6 @@ class MailServiceTest {
         String toEmail = "test@example.com";
         String tempPassword = "tempPassword123!";
 
-        // 👇 [수정] Mock 객체 대신 실제 비어있는 MimeMessage 객체 사용
         MimeMessage mimeMessage = new MimeMessage((Session) null);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
