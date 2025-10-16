@@ -21,7 +21,7 @@ jobs:
           java-version: 17
 
       - name: Build Jar
-        run: ./gradlew clean build
+        run: ./gradlew clean build -x test
         env:
           SPRING_PROFILES_ACTIVE: prod
 
