@@ -89,4 +89,14 @@ class UnfollowControllerTest {
         mockMvc.perform(delete("/api/follows/{followeeId}", followeeId))
             .andExpect(status().isNotFound());
     }
+
+    @Test
+    void 인증_없으면_401() throws Exception {
+        SecurityContextHolder.clearContext();
+
+        UUID followeeId = UUID.randomUUID();
+
+        mockMvc.perform(delete("/api/follows/{followeeId}", followeeId))
+            .andExpect(status().isUnauthorized());
+    }
 }

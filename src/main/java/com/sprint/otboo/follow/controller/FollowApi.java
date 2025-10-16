@@ -17,10 +17,14 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 @Tag(name = "팔로우 관리", description = "팔로우 관련 API")
 @RequestMapping("/api/follows")
@@ -81,4 +85,14 @@ public interface FollowApi {
         @Parameter(description = "사용자 이름 부분 검색(대소문자 구분 없음)", example = "ali")
         @RequestParam(value = "nameLike", required = false) String nameLike
     );
+
+    @Operation(summary = "언팔로우", description = "팔로우 관계를 취소한다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "성공적으로 언팔로우됨"),
+        @ApiResponse(responseCode = "401", description = "인증되지 않음"),
+        @ApiResponse(responseCode = "404", description = "팔로우 관계가 존재하지 않음")
+    })
+    @DeleteMapping("/{followeeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void unfollow(@PathVariable UUID followeeId);
 }
