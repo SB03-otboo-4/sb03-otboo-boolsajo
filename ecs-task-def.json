@@ -12,7 +12,7 @@
         },
         {
           "name": "JVM_OPTS",
-          "value": "-Xms512m -Xmx1024m"
+          "value": "-Xms400m -Xmx400m"
         },
         {
           "name": "PROJECT_NAME",
@@ -28,8 +28,8 @@
         ],
         "interval": 30,
         "retries": 3,
-        "startPeriod": 180,
-        "timeout": 5
+        "startPeriod": 300,
+        "timeout": 10
       },
       "image": "920373007592.dkr.ecr.ap-northeast-2.amazonaws.com/otboo-aws-deploy:latest",
       "logConfiguration": {
