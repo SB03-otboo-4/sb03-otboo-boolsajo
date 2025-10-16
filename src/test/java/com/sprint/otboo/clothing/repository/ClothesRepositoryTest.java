@@ -17,10 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.annotation.Rollback;
-import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
 @Import({ClothesRepositoryImpl.class, QuerydslConfig.class})
@@ -72,7 +69,7 @@ public class ClothesRepositoryTest {
     void 사용자_의상_조회_특정타입_커서있음() {
         // given: 특정 타입과 커서
         Instant cursor = Instant.parse("2025-01-03T10:00:00Z");
-        UUID idAfter = clothesRepository.findByUser_Id(userId).get(2).getId();
+        UUID idAfter = clothesRepository.findByUserIdWithAttributes(userId).get(2).getId();
 
         // when: 의상 조회
         List<Clothes> result = clothesRepositoryImpl.findClothesByOwner(userId, ClothesType.BOTTOM, cursor, idAfter, 5);

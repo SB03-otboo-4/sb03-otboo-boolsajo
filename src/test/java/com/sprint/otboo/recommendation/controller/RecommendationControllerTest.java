@@ -78,8 +78,7 @@ public class RecommendationControllerTest {
 
         // when: API 호출
         mockMvc.perform(get("/api/recommendations")
-                .param("userId", userId.toString())
-                .param("id", weatherId.toString())
+                .param("weatherId", weatherId.toString())
                 .with(user(userId.toString()).roles("USER"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
@@ -135,8 +134,7 @@ public class RecommendationControllerTest {
 
         // when: ADMIN 권한으로 API 호출
         mockMvc.perform(get("/api/recommendations")
-                .param("id", weatherId.toString())
-                .param("userId", userId.toString())
+                .param("weatherId", weatherId.toString())
                 .with(user(userId.toString()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
             // then: 응답 검증
@@ -169,7 +167,7 @@ public class RecommendationControllerTest {
 
         // when: 추천 API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("id", weatherId.toString())
+            .param("weatherId", weatherId.toString())
             .with(request -> { request.setUserPrincipal(null); return request; })
             .contentType(MediaType.APPLICATION_JSON));
 
@@ -205,7 +203,7 @@ public class RecommendationControllerTest {
 
         // when: API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("id", weatherId.toString())
+            .param("weatherId", weatherId.toString())
             .with(user(userId.toString()).roles("USER"))
             .contentType(MediaType.APPLICATION_JSON));
 
@@ -223,7 +221,7 @@ public class RecommendationControllerTest {
 
         // when: 다른 사용자 ID로 API 호출
         ResultActions result = mockMvc.perform(get("/api/recommendations")
-            .param("id", weatherId.toString())
+            .param("weatherId", weatherId.toString())
             .with(user(otherUserId.toString()).roles("USER"))
             .contentType(MediaType.APPLICATION_JSON));
 
