@@ -110,4 +110,39 @@ class FollowersServiceTest {
         assertThat(page.hasNext()).isFalse();
         assertThat(page.nextCursor()).isNull();
     }
+
+    // limit 경계 보정: 0→1, 999→100
+    @Test
+    void limit_경계_보정() {
+        UUID me = UUID.randomUUID();
+
+        when(queryRepository.findFollowersPage(eq(me), isNull(), isNull(), eq(1 + 1), isNull()))
+            .thenReturn(List.of());
+        when(queryRepository.countFollowers(eq(me), isNull())).thenReturn(0L);
+
+        service.getFollowers(me, null, null, 0, null);
+        Mockito.verify(queryRepository).findFollowersPage(eq(me), isNull(), isNull(), eq(2), isNull());
+
+        Mockito.reset(queryRepository);
+        when(queryRepository.findFollowersPage(eq(me), isNull(), isNull(), eq(100 + 1), isNull()))
+            .thenReturn(List.of());
+        when(queryRepository.countFollowers(eq(me), isNull())).thenReturn(0L);
+
+        service.getFollowers(me, null, null, 999, null);
+        Mockito.verify(queryRepository).findFollowersPage(eq(me), isNull(), isNull(), eq(101), isNull());
+    }
+
+    // nameLike blank → null 정규화
+    @Test
+    void nameLike_blank_정규화() {
+        UUID me = UUID.randomUUID();
+
+        when(queryRepository.findFollowersPage(eq(me), isNull(), isNull(), Mockito.anyInt(), isNull()))
+            .thenReturn(List.of());
+        when(queryRepository.countFollowers(eq(me), isNull())).thenReturn(0L);
+
+        service.getFollowers(me, null, null, 20, "   "); // blank
+        Mockito.verify(queryRepository).findFollowersPage(eq(me), isNull(), isNull(), eq(21), isNull());
+        Mockito.verify(queryRepository).countFollowers(eq(me), isNull());
+    }
 }

@@ -22,10 +22,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 
 @DataJpaTest
-@Import(FollowQueryRepositoryImplTest.QuerydslTestConfig.class)
+@Import(FollowFollowingQueryRepositoryTest.QuerydslTestConfig.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
-@DisplayName("쿼리 레포지토리 테스트")
-class FollowQueryRepositoryImplTest {
+@DisplayName("FollowQueryRepositoryImpl 팔로잉 쿼리 테스트")
+class FollowFollowingQueryRepositoryTest {
 
     @TestConfiguration
     static class QuerydslTestConfig {
@@ -199,5 +199,53 @@ class FollowQueryRepositoryImplTest {
 
         // 커서 이후 더 과거 레코드가 최소 0~1건 범위로 반환 (환경 따라 createdAt 동일성 보장X → 존재성만 검증)
         assertThat(next.size()).isBetween(0, 1);
+    }
+
+    // nameLike: 대소문자 무시 확인 (containsIgnoreCase)
+    @Test
+    void nameLike_대소문자무시() {
+        List<FollowListItemResponse> page = followQueryRepository.findFollowingPage(
+            followerId, null, null, 10, "SLI" // 대문자
+        );
+
+        assertThat(page).hasSize(1);
+        assertThat(page.get(0).followee().name()).isEqualTo("slinky");
+    }
+
+    // idAfter만 있고 cursor는 없는 경우: 서비스 규칙상 모호하므로 레포는 'idAfter 무시' → cursor 없는 첫 페이지와 동일 동작
+    @Test
+    void cursor없고_idAfter만_있으면_idAfter_무시() {
+        // 기준: cursor=null, idAfter=null 로 조회한 첫 페이지
+        List<FollowListItemResponse> baseline = followQueryRepository.findFollowingPage(
+            followerId, null, null, 2, null
+        );
+
+        // 같은 limitPlusOne, cursor=null, idAfter=임의값 으로 호출
+        List<FollowListItemResponse> withIdAfterOnly = followQueryRepository.findFollowingPage(
+            followerId, null, UUID.randomUUID(), 2, null
+        );
+
+        assertThat(withIdAfterOnly).hasSize(baseline.size());
+        // 순서/내용이 동일하다고 단정하기 어렵다면 사이즈만 비교해도 OK
+    }
+
+    // limitPlusOne=1 일 때도 최신 1건 반환(내림차순 정렬 유지) 확인
+    @Test
+    void limitPlusOne_최소값에서도_정렬유지() {
+        List<FollowListItemResponse> page = followQueryRepository.findFollowingPage(
+            followerId, null, null, 1, null
+        );
+        assertThat(page).hasSize(1);
+        // 가장 최신 followee 중 하나여야 함
+        assertThat(page.get(0).followee().name()).isIn("rex", "jessie", "slinky");
+    }
+
+    // nameLike가 매칭되지 않으면 빈 리스트
+    @Test
+    void nameLike_불일치시_빈목록() {
+        List<FollowListItemResponse> page = followQueryRepository.findFollowingPage(
+            followerId, null, null, 10, "zzz"
+        );
+        assertThat(page).isEmpty();
     }
 }

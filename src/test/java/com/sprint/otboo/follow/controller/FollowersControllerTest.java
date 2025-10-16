@@ -91,4 +91,28 @@ class FollowersControllerTest {
 
         verify(followService).getFollowers(any(), any(), any(), eq(1), any());
     }
+
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void 커서가_빈_문자열이면_검증_통과() throws Exception {
+        when(followService.getFollowers(any(), any(), any(), eq(20), any()))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/follows/followers")
+                .param("cursor", ""))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void followers_limit_상한_보정() throws Exception {
+        when(followService.getFollowers(any(), any(), any(), eq(100), any()))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/follows/followers")
+                .param("limit", "999"))
+            .andExpect(status().isOk());
+
+        verify(followService).getFollowers(any(), any(), any(), eq(100), any());
+    }
 }

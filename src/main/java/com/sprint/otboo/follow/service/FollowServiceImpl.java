@@ -100,12 +100,20 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     public CursorPageResponse<FollowListItemResponse> getFollowers(
-        UUID userId, String cursor, UUID idAfter, int limit, String nameLike
+        UUID me, String cursor, UUID idAfter, int limit, String nameLike
     ) {
-        int pageSize = (limit <= 0 || limit > 100) ? 20 : limit;
+        // limit 보정: [1, 100]
+        int pageSize = limit;
+        if (pageSize < 1) pageSize = 1;
+        else if (pageSize > 100) pageSize = 100;
 
+        // nameLike 정규화: blank → null
+        String normalizedNameLike =
+            (nameLike != null && !nameLike.isBlank()) ? nameLike : null;
+
+        // Repository 호출 시 limitPlusOne = pageSize + 1
         List<FollowListItemResponse> rows = followQueryRepository.findFollowersPage(
-            userId, cursor, idAfter, pageSize + 1, nameLike
+            me, cursor, idAfter, pageSize + 1, normalizedNameLike
         );
 
         boolean hasNext = rows.size() > pageSize;
@@ -113,16 +121,22 @@ public class FollowServiceImpl implements FollowService {
 
         String nextCursor = null;
         String nextIdAfter = null;
-        if (hasNext && !pageRows.isEmpty()) {
-            FollowListItemResponse tail = pageRows.get(pageRows.size() - 1);
-            nextCursor = tail.createdAt().toString();
-            nextIdAfter = tail.id().toString();
+        if (hasNext) {
+            FollowListItemResponse last = pageRows.get(pageRows.size() - 1);
+            nextCursor = last.createdAt().toString();
+            nextIdAfter = last.id().toString();
         }
 
-        long total = followQueryRepository.countFollowers(userId, nameLike);
+        long total = followQueryRepository.countFollowers(me, normalizedNameLike);
 
         return new CursorPageResponse<>(
-            pageRows, nextCursor, nextIdAfter, hasNext, total, "createdAt", "DESCENDING"
+            pageRows,
+            nextCursor,
+            nextIdAfter,
+            hasNext,
+            total,
+            "createdAt",
+            "DESCENDING"
         );
     }
 }

@@ -94,14 +94,30 @@ public class FollowQueryRepositoryImpl implements FollowQueryRepository {
     ) {
         QUser followerUser = new QUser("followerUser");
 
-        BooleanBuilder where = new BooleanBuilder().and(follow.followeeId.eq(followeeId));
+        BooleanBuilder where = new BooleanBuilder()
+            .and(follow.followeeId.eq(followeeId));
+
         if (StringUtils.hasText(nameLike)) {
             where.and(followerUser.username.containsIgnoreCase(nameLike));
         }
-        applyCursor(where, cursorCreatedAtIso, idAfter);
+
+        if (StringUtils.hasText(cursorCreatedAtIso)) {
+            Instant ts = Instant.parse(cursorCreatedAtIso);
+            if (idAfter != null) {
+                where.and(
+                    follow.createdAt.lt(ts)
+                        .or(follow.createdAt.eq(ts).and(follow.id.lt(idAfter)))
+                );
+            } else {
+                where.and(follow.createdAt.lt(ts));
+            }
+        }
 
         Class<?>[] ctorParamTypes = new Class<?>[] {
-            UUID.class, UserSummaryResponse.class, UserSummaryResponse.class, Instant.class
+            UUID.class,                // follow id
+            UserSummaryResponse.class, // followeeSummary (null 참조)
+            UserSummaryResponse.class, // followerSummary
+            Instant.class              // createdAt
         };
 
         return jpa
@@ -109,11 +125,7 @@ public class FollowQueryRepositoryImpl implements FollowQueryRepository {
                 FollowListItemResponse.class,
                 ctorParamTypes,
                 follow.id,
-                Projections.constructor(UserSummaryResponse.class,
-                    Expressions.nullExpression(UUID.class),
-                    Expressions.nullExpression(String.class),
-                    Expressions.nullExpression(String.class)
-                ),
+                Expressions.nullExpression(UserSummaryResponse.class),
                 Projections.constructor(UserSummaryResponse.class,
                     followerUser.id, followerUser.username, followerUser.profileImageUrl
                 ),
