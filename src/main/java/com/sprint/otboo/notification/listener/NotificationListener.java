@@ -63,6 +63,11 @@ public class NotificationListener {
         notificationService.notifyFeedCommented(event.feedAuthorId(), event.commentedByUserId());
     }
 
+    /**
+     * 피드 생성 이벤트를 받아 팔로워 전용 알림 생성을 위임
+     *
+     * @param event 피드 ID와 작성자 ID가 담긴 이벤트
+     * */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleFeedCreated(FeedCreatedEvent event) {
         log.debug("[NotificationListener] handleFeedCreated: feedId={}, authorId={}",
@@ -70,6 +75,11 @@ public class NotificationListener {
         notificationService.notifyFollowersFeedCreated(event.authorId(), event.feedId());
     }
 
+    /**
+     * 팔로우 생성 이벤트를 받아 새 팔로워 알림 생성을 위임
+     *
+     * @param event 팔로워 ID와 팔로이 ID가 담긴 이벤트
+     * */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleFollowCreated(FollowCreatedEvent event) {
         log.debug("[NotificationListener] handleFollowCreated: followerId={}, followeeId={}",

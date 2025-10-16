@@ -241,17 +241,33 @@ public class NotificationServiceImpl implements NotificationService {
         return dto;
     }
 
+    /**
+     * 팔로우 중인 사용자가 새 피드를 등록했을 때 팔로워 전원에게 알림을 저장하고 SSE로 전달
+     *
+     * <ul>
+     *   <li>팔로워 목록을 조회해 개별 Notification 엔티티를 생성·저장</li>
+     *   <li>저장된 알림을 DTO로 변환한 뒤 즉시 SSE로 전송</li>
+     *   <li>팔로워가 없으면 아무 작업도 하지 않는다</li>
+     * </ul>
+     *
+     * @param feedAuthorId 피드를 작성한 사용자 ID
+     * @param feedId       생성된 피드 ID (로깅 용도)
+     * */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId) {
         List<UUID> followerIds = followRepository.findFollowerIdsByFolloweeId(feedAuthorId);
         if (followerIds.isEmpty()) {
+            log.debug("[NotificationService] feedCreated 알림 대상 없음: authorId={}, feedId={}", feedAuthorId, feedId);
             return;
         }
 
         User author = userRepository.getReferenceById(feedAuthorId);
         String title = "팔로우한 사용자의 새 피드";
         String content = "%s 님이 새 피드를 등록했어요.".formatted(author.getUsername());
+
+        log.info("[NotificationService] feedCreated 알림 생성 시작: authorId={}, feedId={}, followerCount={}",
+            feedAuthorId, feedId, followerIds.size());
 
         for (UUID followerId : followerIds) {
             User receiver = userRepository.getReferenceById(followerId);
@@ -265,9 +281,18 @@ public class NotificationServiceImpl implements NotificationService {
 
             NotificationDto dto = saveAndMap(notification);
             notificationSseService.sendToClient(dto);
+            log.debug("[NotificationService] feedCreated 알림 SSE 전송 완료: followerId={}, notificationId={}",
+                followerId, dto.id());
         }
     }
 
+    /**
+     * 새로운 팔로워가 생겼을 때 해당 사용자에게 알림을 저장하고 SSE로 즉시 전송
+     *
+     * @param followerId 팔로우한 사용자 ID
+     * @param followeeId 팔로우를 받은 사용자 ID
+     * @return 저장된 알림 DTO
+     * */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId) {
@@ -283,6 +308,8 @@ public class NotificationServiceImpl implements NotificationService {
 
         NotificationDto dto = saveAndMap(notification);
         notificationSseService.sendToClient(dto);
+        log.info("[NotificationService] followCreated 알림 전송: followerId={}, followeeId={}, notificationId={}",
+            followerId, followeeId, dto.id());
         return dto;
     }
 
