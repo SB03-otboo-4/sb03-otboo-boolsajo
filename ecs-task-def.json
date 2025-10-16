@@ -12,7 +12,7 @@
         },
         {
           "name": "JVM_OPTS",
-          "value": "-Xms400m -Xmx400m"
+          "value": "-Xms512m -Xmx1024m"
         },
         {
           "name": "PROJECT_NAME",
@@ -42,8 +42,8 @@
         },
         "secretOptions": []
       },
-      "memory": 512,
-      "memoryReservation": 205,
+      "memory": 1024,
+      "memoryReservation": 512,
       "mountPoints": [],
       "name": "otboo-container",
       "portMappings": [
