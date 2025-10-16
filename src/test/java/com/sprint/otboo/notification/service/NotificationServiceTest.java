@@ -3,10 +3,12 @@ package com.sprint.otboo.notification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
@@ -25,8 +27,8 @@ import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +51,9 @@ public class NotificationServiceTest {
     private NotificationMapper notificationMapper;
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private NotificationSseService notificationSseService;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -213,22 +218,31 @@ public class NotificationServiceTest {
 
         given(userRepository.findAll()).willReturn(List.of(user1, user2));
 
-        List<Notification> saved = List.of(
-            notificationEntityOwnedBy(user1, NotificationLevel.INFO),
-            notificationEntityOwnedBy(user2, NotificationLevel.INFO)
-        );
-        given(notificationRepository.saveAllAndFlush(anyList())).willReturn(saved);
+        Notification saved1 = notificationEntityOwnedBy(user1, NotificationLevel.INFO);
+        Notification saved2 = notificationEntityOwnedBy(user2, NotificationLevel.INFO);
+
+        // saveAndFlush가 연속 호출될 때 순서대로 반환되도록 설정
+        given(notificationRepository.saveAndFlush(any(Notification.class)))
+            .willReturn(saved1, saved2);
+
+        // 서비스는 DB에 저장된 DTO(-> mapper)를 만들어 sendToClient 호출
+        NotificationDto dto1 = notificationDto(saved1);
+        NotificationDto dto2 = notificationDto(saved2);
+        given(notificationMapper.toDto(saved1)).willReturn(dto1);
+        given(notificationMapper.toDto(saved2)).willReturn(dto2);
+
+        // notificationSseService.sendToClient 호출은 아무 동작 없이 통과
+        doNothing().when(notificationSseService).sendToClient(any(NotificationDto.class));
 
         // when
         notificationService.notifyClothesAttributeCreatedForAllUsers(attributeName);
 
         // then
-        then(notificationRepository).should().saveAllAndFlush(argThat(iterable -> {
-            List<Notification> list = StreamSupport.stream(iterable.spliterator(), false).toList();
-            return list.size() == 2 &&
-                list.stream().allMatch(n -> "새 의상 속성이 등록되었습니다.".equals(n.getTitle()));
-        }));
+        then(notificationRepository).should(times(2)).saveAndFlush(any(Notification.class));
+        // sendToClient가 사용자 수만큼 호출되는지 검증
+        then(notificationSseService).should(times(2)).sendToClient(any(NotificationDto.class));
     }
+
 
     @Test
     void 피드_좋아요_알림을_저장하고_DTO를_반환() {
@@ -280,13 +294,37 @@ public class NotificationServiceTest {
     void 알림_삭제_시_Repository에서_제거() {
         // given
         UUID notificationId = UUID.randomUUID();
-        given(notificationRepository.existsById(notificationId)).willReturn(true);
+        User owner = user(UUID.randomUUID());
+        Notification existing = Notification.builder()
+            .id(notificationId)
+            .createdAt(Instant.now())
+            .receiver(owner)
+            .title("삭제 대상")
+            .content("내용")
+            .level(NotificationLevel.INFO)
+            .build();
+
+        NotificationDto dto = new NotificationDto(
+            existing.getId(),
+            existing.getCreatedAt(),
+            existing.getReceiver().getId(),
+            existing.getTitle(),
+            existing.getContent(),
+            existing.getLevel()
+        );
+
+        given(notificationRepository.findById(notificationId)).willReturn(Optional.of(existing));
+        given(notificationMapper.toDto(existing)).willReturn(dto);
+
+        // sendToClient 정상 동작하도록 설정
+        doNothing().when(notificationSseService).sendToClient(dto);
 
         // when
         notificationService.deleteNotification(notificationId);
 
         // then
-        then(notificationRepository).should().existsById(notificationId);
+        then(notificationRepository).should().findById(notificationId);
+        then(notificationSseService).should().sendToClient(dto);
         then(notificationRepository).should().deleteById(notificationId);
     }
 
@@ -294,7 +332,7 @@ public class NotificationServiceTest {
     void 존재하지_않는_알림_삭제_시_예외_발생() {
         // given
         UUID notificationId = UUID.randomUUID();
-        given(notificationRepository.existsById(notificationId)).willReturn(false);
+        given(notificationRepository.findById(notificationId)).willReturn(Optional.empty());
 
         // when
         Throwable thrown = catchThrowable(() ->
@@ -306,5 +344,118 @@ public class NotificationServiceTest {
             .isInstanceOf(CustomException.class)
             .extracting("errorCode")
             .isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+        // findById가 호출되었음을 체크
+        then(notificationRepository).should().findById(notificationId);
+        // deleteById는 호출되지 않아야 함
+        then(notificationRepository).should(never()).deleteById(any());
+    }
+
+    @Test
+    void lastEventId_null이면_빈_리스트_반환() {
+        // given: receiverId와 lastEventId가 null
+        UUID receiverId = UUID.randomUUID();
+
+        // when: 누락 알림 조회 실행
+        List<NotificationDto> result = notificationService.getMissedNotifications(receiverId, null);
+
+        // then: 결과가 빈 리스트임을 검증
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void lastEventId_잘못된_형식이면_빈_리스트_반환() {
+        // given: receiverId와 잘못된 lastEventId
+        UUID receiverId = UUID.randomUUID();
+        String invalidId = "not-a-uuid";
+
+        // when: 누락 알림 조회 실행
+        List<NotificationDto> result = notificationService.getMissedNotifications(receiverId, invalidId);
+
+        // then: 결과가 빈 리스트임을 검증
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 누락_알림_조회_및_Dto_변환() {
+        // given: receiverId, 누락 알림 2개, 마지막 수신 이벤트 ID
+        UUID receiverId = UUID.randomUUID();
+        Notification n1 = notificationEntity(receiverId, NotificationLevel.INFO);
+        Notification n2 = notificationEntity(receiverId, NotificationLevel.INFO);
+        String lastEventId = UUID.randomUUID().toString();
+
+        given(notificationRepository.findByReceiverIdAndIdAfter(receiverId, UUID.fromString(lastEventId)))
+            .willReturn(List.of(n1, n2));
+        given(notificationMapper.toDto(n1)).willReturn(notificationDto(n1));
+        given(notificationMapper.toDto(n2)).willReturn(notificationDto(n2));
+
+        // when: 누락 알림 조회 실행
+        List<NotificationDto> result = notificationService.getMissedNotifications(receiverId, lastEventId);
+
+        // then: 결과가 2건이며 ID 순서가 예상과 일치함을 검증
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(NotificationDto::id)
+            .containsExactly(n1.getId(), n2.getId());
+    }
+
+    @Test
+    void repository에서_누락_알림_없으면_빈_리스트_반환() {
+        // given: receiverId와 마지막 수신 이벤트 ID, repository에서 누락 알림이 없도록 설정
+        UUID receiverId = UUID.randomUUID();
+        String lastEventId = UUID.randomUUID().toString();
+
+        given(notificationRepository.findByReceiverIdAndIdAfter(receiverId, UUID.fromString(lastEventId)))
+            .willReturn(List.of());
+
+        // when: 누락 알림 조회 실행
+        List<NotificationDto> result = notificationService.getMissedNotifications(receiverId, lastEventId);
+
+        // then: 결과가 빈 리스트임을 검증
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 알림_삭제_중_SSE_전송_실패시_DB_삭제_되지_않음() {
+        // given: 존재하는 알림과 매핑된 DTO, 전송 실패 설정
+        UUID notificationId = UUID.randomUUID();
+        User receiver = user(UUID.randomUUID());
+        Notification existing = Notification.builder()
+            .id(notificationId)
+            .createdAt(Instant.now())
+            .receiver(receiver)
+            .title("삭제 테스트")
+            .content("전송 실패 케이스")
+            .level(NotificationLevel.INFO)
+            .build();
+
+        NotificationDto dto = notificationDto(existing);
+
+        given(notificationRepository.findById(notificationId)).willReturn(Optional.of(existing));
+        given(notificationMapper.toDto(existing)).willReturn(dto);
+
+        // sendToClient가 예외 발생시키도록 설정
+        willThrow(new RuntimeException("전송 실패"))
+            .given(notificationSseService).sendToClient(dto);
+
+        // when: 알림 삭제 요청 실행
+        notificationService.deleteNotification(notificationId);
+
+        // then: DB 삭제는 수행되지 않아야 함
+        then(notificationRepository).should().findById(notificationId);
+        then(notificationSseService).should().sendToClient(dto);
+        then(notificationRepository).should(never()).deleteById(notificationId);
+    }
+
+    @Test
+    void 의상_속성_추가시_사용자_없으면_전송_스킵() {
+        // given: 사용자 목록이 비어 있음
+        String attributeName = "신규 속성";
+        given(userRepository.findAll()).willReturn(List.of());
+
+        // when: 모든 사용자에게 속성 생성 알림 브로드캐스트 실행
+        notificationService.notifyClothesAttributeCreatedForAllUsers(attributeName);
+
+        // then: DB 저장 및 SSE 전송이 수행되지 않음
+        then(notificationRepository).should(never()).saveAndFlush(any());
+        then(notificationSseService).should(never()).sendToClient(any());
     }
 }
