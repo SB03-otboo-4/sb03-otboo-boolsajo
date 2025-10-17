@@ -29,6 +29,181 @@ public class RecommendationUtilTest {
     }
 
     @Test
+    void 최고최저_온도_기준_일반_케이스() {
+        // given: 최고/최저 온도, 풍속, 민감도
+        double maxTemp = 25.0;
+        double minTemp = 15.0;
+        double windSpeed = 2.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 결과 검증
+        assertThat(result).isEqualTo(17.0); // 평균 20, 풍속 2 -> 18, 민감도 -1 -> 17
+    }
+
+    @Test
+    void 최고최저_온도_기준_풍속0_테스트() {
+        // given: 최고/최저 온도, 풍속 0, 민감도
+        double maxTemp = 20;
+        double minTemp = 10;
+        double windSpeed = 0.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 결과 검증
+        assertThat(result).isEqualTo(14.0); // 평균 15, 풍속 0, 민감도 -1 -> 14
+    }
+
+    @Test
+    void 현재_온도_기준_일반_케이스() {
+        // given: 현재 온도, 풍속, 민감도
+        double currentTemp = 20.0;
+        double windSpeed = 2.0;
+        double windFactor = 1.0;
+        int sensitivity = 3;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(currentTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 결과 검증
+        assertThat(result).isEqualTo(19.0); // 20-2+1
+    }
+
+    @Test
+    void 현재_온도_기준_풍속0_테스트() {
+        // given: 현재 온도, 풍속 0, 민감도
+        double currentTemp = 15.0;
+        double windSpeed = 0.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(currentTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 결과 검증
+        assertThat(result).isEqualTo(14.0); // 15-0+(-1)
+    }
+
+    @Test
+    void 소수점_반올림_테스트() {
+        // given: 최고/최저 온도, 풍속, 민감도
+        double maxTemp = 20.666;
+        double minTemp = 20.0;
+        double windSpeed = 1.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 소수점 반올림 결과 확인
+        assertThat(result).isEqualTo(18.33); // 18.333 -> 반올림 18.33
+    }
+
+    @Test
+    void 최고최저_현재_온도_계산_일관성_확인() {
+        // given: 최고/최저 평균과 현재 온도, 풍속, 민감도
+        double maxTemp = 20;
+        double minTemp = 10;
+        double windSpeed = 2.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 두 계산 방식으로 체감 온도 계산
+        double maxMin = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+        double current = WeatherUtils.calculatePerceivedTemperature(15, 2.0, 1.0, 2);
+
+        // then: 두 계산 방식이 동일한지 검증
+        assertThat(current).isEqualTo(maxMin);
+    }
+
+    @Test
+    void 민감도_범위_벗어날_때_기본값_적용() {
+        // given: 최고/최저 온도, 풍속, 민감도 범위 벗어남 (-1, 6)
+        double maxTemp = 20.0;
+        double minTemp = 10.0;
+        double windSpeed = 2.0;
+        double windFactor = 1.0;
+
+        // when: 체감 온도 계산
+        double resultLow = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, -1);
+        double resultHigh = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, 6);
+
+        // then: 안전하게 민감도 0 적용, 계산 결과 검증
+        assertThat(resultLow).isEqualTo(13.0);
+        assertThat(resultHigh).isEqualTo(13.0);
+    }
+
+    @Test
+    void 최고기온이_최저기온보다_낮을_때() {
+        // given: 최고 < 최저 온도, 풍속, 민감도
+        double maxTemp = 5.0;
+        double minTemp = 10.0;
+        double windSpeed = 1.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 평균 계산 정상, 음수 값 가능
+        assertThat(result).isEqualTo(5.5);
+    }
+
+    @Test
+    void 극단적인_풍속_값() {
+        // given: 최고/최저 온도, 풍속 100 m/s, 민감도
+        double maxTemp = 25.0;
+        double minTemp = 15.0;
+        double windSpeed = 100.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 평균 20, 풍속 100 -> -80, 민감도 -1 -> -81
+        assertThat(result).isEqualTo(-81.0);
+    }
+
+    @Test
+    void 현재온도_체감_계산_예외() {
+        // given: 현재 온도, 음수 풍속, 민감도
+        double currentTemp = 10.0;
+        double windSpeed = -5.0;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(currentTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 음수 풍속 적용
+        assertThat(result).isEqualTo(14.0); // 10 - (-5) -1 -> 14
+    }
+
+    @Test
+    void 소수점_정확도_검증() {
+        // given: 최고/최저 온도, 풍속, 민감도, 소수점 존재
+        double maxTemp = 20.555;
+        double minTemp = 20.444;
+        double windSpeed = 0.111;
+        double windFactor = 1.0;
+        int sensitivity = 2;
+
+        // when: 체감 온도 계산
+        double result = WeatherUtils.calculatePerceivedTemperature(maxTemp, minTemp, windSpeed, windFactor, sensitivity);
+
+        // then: 평균 20.4995, 풍속 보정 -0.111 -> 20.3885, 민감도 -1 -> 19.3885, 반올림 -> 19.39
+        assertThat(result).isEqualTo(19.39);
+    }
+
+    @Test
     void 계절과_체감_온도에_따른_추천_의상() {
         // given: 테스트용 의상
         Clothes springTop = Clothes.builder()
@@ -813,6 +988,171 @@ public class RecommendationUtilTest {
         // then: 모든 타입이 규칙에 따라 추천되어야 함
         assertThat(recommended).containsExactlyInAnyOrder(outer, hat, scarf);
     }
+
+    @Test
+    void 의상속성없는경우_기본추천통과() {
+        // given: 속성 없는 기본 의상과 날씨
+        Clothes basic = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(20.0)
+            .minC(15.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = 18.0;
+
+        // when: 추천 엔진 호출
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(basic), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함
+        assertThat(recommended).contains(basic);
+    }
+
+    @Test
+    void 의상_계절속성_잘못된_경우() {
+        // given: 계절 속성이 INVALID인 의상
+        Clothes unknownSeason = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "INVALID")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(25.0)
+            .minC(20.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = 22.0; // SPRING
+
+        // when: 추천 엔진 호출
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(unknownSeason), perceivedTemp, weather, false);
+
+        // then: 추천 통과
+        assertThat(recommended).contains(unknownSeason);
+    }
+
+    @Test
+    void 드레스_제외_플래그_동작확인() {
+        // given: DRESS와 TOP 의상, DRESS 제외 플래그
+        Clothes dress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.DRESS)
+            .build();
+
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(30.0)
+            .minC(25.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = 28.0; // SUMMER
+
+        // when: 추천 엔진 호출
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(dress, top), perceivedTemp, weather, true);
+
+        // then: DRESS 제외, TOP 포함
+        assertThat(recommended).doesNotContain(dress);
+        assertThat(recommended).contains(top);
+    }
+
+    @Test
+    void 아우터_일교차_강제추천() {
+        // given: OUTER 의상, 봄 계절, 일교차 7도
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(25.0)
+            .minC(18.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = 20.0; // SPRING, LOW/HIGH 상관없이 일교차 7도
+
+        // when: 추천 엔진 호출
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(outer), perceivedTemp, weather, false);
+
+        // then: 추천 결과에 포함
+        assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void 두께규칙위반_추천제외() {
+        // given: WINTER, LOW, LIGHT 두께 TOP
+        Clothes winterTop = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null,
+                    ClothesAttributeDef.builder().name("thickness").build(),
+                    "LIGHT")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(-1.0)
+            .minC(-5.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.SNOW)
+            .build();
+
+        double perceivedTemp = -3.0; // WINTER, LOW
+
+        // when: 추천 엔진 호출
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(winterTop), perceivedTemp, weather, false);
+
+        // then: 추천에서 제외
+        assertThat(recommended).doesNotContain(winterTop);
+    }
+
+    @Test
+    void 날씨정보Null_안전처리() {
+        // given: 날씨 DTO null 필드, 기본 TOP 의상
+        Clothes top = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(null)
+            .minC(null)
+            .speedMs(null)
+            .skyStatus(null)
+            .type(null)
+            .build();
+
+        double perceivedTemp = 20.0;
+
+        // when: 추천 엔진 호출
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(top), perceivedTemp, weather, false);
+
+        // then: 추천 결과 포함
+        assertThat(recommended).contains(top);
+    }
+
 
     @Test
     void 모든타입_추천_및_제외_통합_첫번째선택() {
