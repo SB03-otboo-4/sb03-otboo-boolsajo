@@ -2,6 +2,8 @@ package com.sprint.otboo.recommendation.util;
 
 import com.sprint.otboo.clothing.entity.attribute.Season;
 import com.sprint.otboo.recommendation.entity.TemperatureCategory;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * 날씨 관련 유틸리티 클래스
@@ -17,7 +19,7 @@ public class WeatherUtils {
      * @param minTemp 최저 기온 (°C)
      * @param windSpeed 풍속 (m/s)
      * @param windFactor 바람 세기 보정 계수 (기본 1.0)
-     * @param sensitivity 개인 온도 민감도 (0~5, 양수: 더 덥게, 음수: 더 춥게)
+     * @param sensitivity 개인 온도 민감도 (0~2: 추위에 민감, 3~5: 더위에 민감)
      * @return 체감 온도 (°C)
      */
     public static double calculatePerceivedTemperature(
@@ -42,7 +44,52 @@ public class WeatherUtils {
         };
 
         // 4. 최종 체감 온도
-        return windChill + adjustedSensitivity;
+        double finalTemp = windChill + adjustedSensitivity;
+
+        // 소수점 2자리 반올림
+        return BigDecimal.valueOf(finalTemp)
+            .setScale(2, RoundingMode.HALF_UP)
+            .doubleValue();
+    }
+
+    /**
+     * 체감 온도 계산 (현재 온도 기준)
+     *
+     * <p>
+     * - 최고/최저 온도 정보가 없을 때 사용
+     * - 풍속 및 사용자 온도 민감도 반영
+     * - 계산 결과는 소수점 2자리로 반올림
+     *
+     * @param currentTemp 현재 온도 (°C)
+     * @param windSpeed 풍속 (m/s)
+     * @param windFactor 바람 세기 보정 계수 (기본 1.0)
+     * @param sensitivity 개인 온도 민감도 (0~2: 추위에 민감, 3~5: 더위에 민감)
+     * @return 체감 온도 (°C)
+     */
+    public static double calculatePerceivedTemperature(
+        double currentTemp, double windSpeed, double windFactor, int sensitivity
+    ) {
+        // 1. 평균 기온
+        double windChill = currentTemp - (windSpeed * windFactor);
+
+        // 2. 개인 온도 민감도 조정( 추위 0 ~ 2 <- ± -> 더위 3 ~ 5 )
+        int adjustedSensitivity = switch (sensitivity) {
+            case 0 -> -3;
+            case 1 -> -2;
+            case 2 -> -1;
+            case 3 -> 1;
+            case 4 -> 2;
+            case 5 -> 3;
+            default -> 0;
+        };
+
+        // 3. 최종 체감 온도
+        double finalTemp = windChill + adjustedSensitivity;
+
+        // 소수점 2자리 반올림
+        return BigDecimal.valueOf(finalTemp)
+            .setScale(2, RoundingMode.HALF_UP)
+            .doubleValue();
     }
 
     /**
