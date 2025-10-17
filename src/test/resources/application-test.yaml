@@ -51,3 +51,10 @@ test-jwt:
   refresh-token:
     secret: "another-long-and-secure-secret-key-for-refresh-token-in-test-environment"
     expiration: 604800000
+
+app:
+  index:
+    run-on-startup: false
+es:
+  host: ${ELASTICSEARCH_HOST}
+  api-key: ${ELASTICSEARCH_API_KEY}
