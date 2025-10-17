@@ -281,4 +281,25 @@ class WeatherRepositoryTest {
         assertThat(byDefault.get(2).getForecastedAt()).isEqualTo(at2New.getForecastedAt());
         assertThat(byDefault.get(3).getForecastedAt()).isEqualTo(at2Old.getForecastedAt());
     }
+
+    @Test
+    void 위치정보포함_Weather조회_성공() {
+        // given: Location과 Weather 저장
+        WeatherLocation location = saveLocation(37.5665, 126.9780, 123, 456, "Seoul");
+        Instant forecastAt = Instant.parse("2025-10-17T00:00:00Z");
+        Instant forecastedAt = Instant.parse("2025-10-17T03:00:00Z");
+        Weather savedWeather = saveWeather(location, forecastAt, forecastedAt);
+        UUID weatherId = savedWeather.getId();
+
+        // when: Weather 조회 (Location과 함께 fetch)
+        Optional<Weather> maybeWeather = weatherRepository.findByIdWithLocation(weatherId);
+
+        // then: 결과 검증
+        assertThat(maybeWeather).isPresent();
+        Weather weather = maybeWeather.get();
+        assertThat(weather.getId()).isEqualTo(weatherId);
+        assertThat(weather.getLocation()).isNotNull();
+        assertThat(weather.getLocation().getId()).isEqualTo(location.getId());
+        assertThat(weather.getLocation().getLocationNames()).isEqualTo("Seoul");
+    }
 }
