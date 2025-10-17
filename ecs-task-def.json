@@ -42,8 +42,8 @@
         },
         "secretOptions": []
       },
-      "memory": 1024,
-      "memoryReservation": 512,
+      "memory": 512,
+      "memoryReservation": 205,
       "mountPoints": [],
       "name": "otboo-container",
       "portMappings": [
@@ -62,7 +62,7 @@
   "cpu": "256",
   "executionRoleArn": "arn:aws:iam::920373007592:role/ecsTaskExecutionRole",
   "family": "otboo-tast-definition",
-  "memory": "1024",
+  "memory": "512",
   "networkMode": "bridge",
   "placementConstraints": [],
   "requiresCompatibilities": [
