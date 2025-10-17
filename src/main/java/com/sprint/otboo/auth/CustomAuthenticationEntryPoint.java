@@ -13,12 +13,24 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
+/**
+ * Spring Security에서 인증되지 않은 사용자의 요청 처리 시,
+ * 커스텀 에러 응답을 생성한다
+ */
 @Component
 @RequiredArgsConstructor
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * 인증 실패 시 호출되어, ErrorCode에 맞는 JSON 에러 응답을 생성한다
+     *
+     * @param request       요청 객체
+     * @param response      응답 객체
+     * @param authException 인증 과정에서 발생한 예외
+     * @throws IOException 응답 작성 중 I/O 오류 발생 시
+     */
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
         AuthenticationException authException) throws IOException, ServletException {
