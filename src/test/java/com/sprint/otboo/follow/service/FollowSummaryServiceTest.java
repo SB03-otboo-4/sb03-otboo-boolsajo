@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("팔로우 요약 정보 서비스 테스트")
 class FollowSummaryServiceTest {
@@ -18,9 +19,10 @@ class FollowSummaryServiceTest {
     private final FollowRepository followRepository = Mockito.mock(FollowRepository.class);
     private final UserRepository userRepository = Mockito.mock(UserRepository.class);
     private final FollowQueryRepository followQueryRepository = Mockito.mock(FollowQueryRepository.class);
+    ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
 
     private final FollowService service =
-        new FollowServiceImpl(followRepository, userRepository, followQueryRepository);
+        new FollowServiceImpl(followRepository, userRepository, followQueryRepository, eventPublisher);
 
     @Test
     void follower_following_카운트를_반환한다() {

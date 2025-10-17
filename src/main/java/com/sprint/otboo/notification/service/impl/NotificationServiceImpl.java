@@ -2,6 +2,7 @@ package com.sprint.otboo.notification.service.impl;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
@@ -15,10 +16,12 @@ import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.time.Instant;
-import java.util.Collections;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final UserRepository userRepository;
+    private final FollowRepository followRepository;
     private final NotificationSseService notificationSseService;
 
     /**
@@ -240,6 +244,85 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
+     * 팔로우 중인 사용자가 새 피드를 등록했을 때 팔로워 전원에게 알림을 저장하고 SSE로 전달
+     *
+     * <ul>
+     *   <li>팔로워 목록을 조회해 개별 Notification 엔티티를 생성·저장</li>
+     *   <li>저장된 알림을 DTO로 변환한 뒤 즉시 SSE로 전송</li>
+     *   <li>팔로워가 없으면 아무 작업도 하지 않는다</li>
+     * </ul>
+     *
+     * @param feedAuthorId 피드를 작성한 사용자 ID
+     * @param feedId       생성된 피드 ID (로깅 용도)
+     * */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId) {
+        List<UUID> followerIds = followRepository.findFollowerIdsByFolloweeId(feedAuthorId);
+        if (followerIds.isEmpty()) {
+            log.debug("[NotificationService] feedCreated 알림 대상 없음: authorId={}, feedId={}",
+                feedAuthorId, feedId);
+            return;
+        }
+
+        User author = userRepository.getReferenceById(feedAuthorId);
+        String title = "팔로우한 사용자의 새 피드";
+        String content = "%s 님이 새 피드를 등록했어요.".formatted(author.getUsername());
+
+        // 1) 팔로워 사용자 한 번에 로딩 ( 필요하면 projection으로 최적화 )
+        List<User> receivers = userRepository.findAllById(followerIds);
+
+        // 2) Notification 엔티티를 미리 구성
+        List<Notification> notifications = receivers.stream()
+            .map(receiver -> Notification.builder()
+                .receiver(receiver)
+                .title(title)
+                .content(content)
+                .level(NotificationLevel.INFO)
+                .build())
+            .collect(Collectors.toCollection(ArrayList::new));
+
+        // 3) 한 번에 저장 — 플러시 횟수 크게 감소
+        List<Notification> saved = notificationRepository.saveAll(notifications);
+        notificationRepository.flush();
+
+        // 4) 기존대로 DTO 변환 + SSE 전송
+        for (Notification notification : saved) {
+            NotificationDto dto = notificationMapper.toDto(notification);
+            notificationSseService.sendToClient(dto);
+            log.debug("[NotificationService] feedCreated 알림 SSE 전송 완료: followerId={}, notificationId={}",
+                dto.receiverId(), dto.id());
+        }
+    }
+
+    /**
+     * 새로운 팔로워가 생겼을 때 해당 사용자에게 알림을 저장하고 SSE로 즉시 전송
+     *
+     * @param followerId 팔로우한 사용자 ID
+     * @param followeeId 팔로우를 받은 사용자 ID
+     * @return 저장된 알림 DTO
+     * */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId) {
+        User follower = userRepository.getReferenceById(followerId);
+        User followee = userRepository.getReferenceById(followeeId);
+
+        Notification notification = Notification.builder()
+            .receiver(followee)
+            .title("새 팔로워 알림")
+            .content("%s 님이 당신을 팔로우하기 시작했어요.".formatted(follower.getUsername()))
+            .level(NotificationLevel.INFO)
+            .build();
+
+        NotificationDto dto = saveAndMap(notification);
+        notificationSseService.sendToClient(dto);
+        log.info("[NotificationService] followCreated 알림 전송: followerId={}, followeeId={}, notificationId={}",
+            followerId, followeeId, dto.id());
+        return dto;
+    }
+
+    /**
      * 특정 알림을 삭제합니다.
      *
      * <ul>
@@ -265,6 +348,35 @@ public class NotificationServiceImpl implements NotificationService {
             log.info("[NotificationServiceImpl] SSE 전송 후 알림 삭제 완료 : 알림ID = {}", notificationId);
         } catch (Exception e) {
             log.warn("[NotificationServiceImpl] SSE 전송 실패, 삭제 미실행 : 알림ID = {}, 메시지: {}", notificationId, e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyClothesAttributeDeletedForAllUsers(String attributeName) {
+        log.info("[NotificationService] 의상 속성 삭제 알림 브로드캐스트: {}", attributeName);
+
+        List<User> receivers = userRepository.findAll();
+        if (receivers.isEmpty()) {
+            log.debug("[NotificationService] 삭제 알림 대상 없음");
+            return;
+        }
+
+        List<Notification> notifications = receivers.stream()
+            .map(receiver -> Notification.builder()
+                .receiver(receiver)
+                .title("의상 속성이 삭제되었어요")
+                .content("의상 속성 [%s] 이 삭제되었습니다.".formatted(attributeName))
+                .level(NotificationLevel.INFO)
+                .build())
+            .collect(Collectors.toCollection(ArrayList::new));
+
+        List<Notification> saved = notificationRepository.saveAll(notifications);
+        notificationRepository.flush();
+
+        for (Notification notification : saved) {
+            NotificationDto dto = notificationMapper.toDto(notification);
+            notificationSseService.sendToClient(dto);
         }
     }
 

@@ -3,6 +3,7 @@ package com.sprint.otboo.notification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.times;
 
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.notification.dto.request.NotificationQueryParams;
 import com.sprint.otboo.notification.dto.response.NotificationCursorResponse;
 import com.sprint.otboo.notification.dto.response.NotificationDto;
@@ -51,9 +53,10 @@ public class NotificationServiceTest {
     private NotificationMapper notificationMapper;
     @Mock
     private UserRepository userRepository;
-
     @Mock
     private NotificationSseService notificationSseService;
+    @Mock
+    private FollowRepository followRepository;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -457,5 +460,113 @@ public class NotificationServiceTest {
         // then: DB 저장 및 SSE 전송이 수행되지 않음
         then(notificationRepository).should(never()).saveAndFlush(any());
         then(notificationSseService).should(never()).sendToClient(any());
+    }
+
+    @Test
+    void 팔로워가_없으면_피드_알림을_미생성() {
+        // given
+        UUID authorId = UUID.randomUUID();
+        given(followRepository.findFollowerIdsByFolloweeId(authorId)).willReturn(List.of());
+
+        // when
+        notificationService.notifyFollowersFeedCreated(authorId, UUID.randomUUID());
+
+        // then
+        then(notificationRepository).shouldHaveNoInteractions();
+        then(notificationMapper).shouldHaveNoInteractions();
+        then(notificationSseService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void 팔로워들에게_피드_알림을_저장하고_SSE로_전송() {
+        // given
+        UUID authorId = UUID.randomUUID();
+        UUID follower1Id = UUID.randomUUID();
+        UUID follower2Id = UUID.randomUUID();
+
+        User author = user(authorId);
+        User follower1 = user(follower1Id);
+        User follower2 = user(follower2Id);
+
+        Notification saved1 = notificationEntityOwnedBy(follower1, NotificationLevel.INFO);
+        Notification saved2 = notificationEntityOwnedBy(follower2, NotificationLevel.INFO);
+        NotificationDto dto1 = notificationDto(saved1);
+        NotificationDto dto2 = notificationDto(saved2);
+
+        given(followRepository.findFollowerIdsByFolloweeId(authorId))
+            .willReturn(List.of(follower1Id, follower2Id));
+        given(userRepository.getReferenceById(authorId)).willReturn(author);
+        given(userRepository.findAllById(List.of(follower1Id, follower2Id)))
+            .willReturn(List.of(follower1, follower2));
+        given(notificationRepository.saveAll(anyList()))
+            .willReturn(List.of(saved1,saved2));
+        given(notificationMapper.toDto(saved1)).willReturn(dto1);
+        given(notificationMapper.toDto(saved2)).willReturn(dto2);
+
+        // when
+        notificationService.notifyFollowersFeedCreated(authorId, UUID.randomUUID());
+
+        // then
+        then(notificationRepository).should().saveAll(anyList());
+        then(notificationRepository).should().flush();
+        then(notificationMapper).should().toDto(saved1);
+        then(notificationMapper).should().toDto(saved2);
+        then(notificationSseService).should().sendToClient(dto1);
+        then(notificationSseService).should().sendToClient(dto2);
+    }
+
+    @Test
+    void 새_팔로워_알림을_저장하고_SSE로_전송() {
+        // given
+        UUID followerId = UUID.randomUUID();
+        UUID followeeId = UUID.randomUUID();
+
+        User follower = user(followerId);
+        User followee = user(followeeId);
+
+        Notification saved = notificationEntityOwnedBy(followee, NotificationLevel.INFO);
+        NotificationDto dto = notificationDto(saved);
+
+        given(userRepository.getReferenceById(followerId)).willReturn(follower);
+        given(userRepository.getReferenceById(followeeId)).willReturn(followee);
+        given(notificationRepository.saveAndFlush(any(Notification.class))).willReturn(saved);
+        given(notificationMapper.toDto(saved)).willReturn(dto);
+
+        // when
+        NotificationDto result = notificationService.notifyUserFollowed(followerId, followeeId);
+
+        // then
+        assertThat(result).isEqualTo(dto);
+        then(notificationRepository).should().saveAndFlush(any(Notification.class));
+        then(notificationMapper).should().toDto(saved);
+        then(notificationSseService).should().sendToClient(dto);
+    }
+
+    @Test
+    void 의상_속성_삭제_알림은_모든_사용자에게_전송() {
+        // given
+        String attributeName = "색감";
+        User user1 = user(UUID.randomUUID());
+        User user2 = user(UUID.randomUUID());
+
+        Notification saved1 = notificationEntityOwnedBy(user1, NotificationLevel.INFO);
+        Notification saved2 = notificationEntityOwnedBy(user2, NotificationLevel.INFO);
+
+        NotificationDto dto1 = notificationDto(saved1);
+        NotificationDto dto2 = notificationDto(saved2);
+
+        given(userRepository.findAll()).willReturn(List.of(user1, user2));
+        given(notificationRepository.saveAll(anyList())).willReturn(List.of(saved1, saved2));
+        given(notificationMapper.toDto(saved1)).willReturn(dto1);
+        given(notificationMapper.toDto(saved2)).willReturn(dto2);
+
+        // when
+        notificationService.notifyClothesAttributeDeletedForAllUsers(attributeName);
+
+        // then
+        then(notificationRepository).should().saveAll(anyList());
+        then(notificationRepository).should().flush();
+        then(notificationSseService).should().sendToClient(dto1);
+        then(notificationSseService).should().sendToClient(dto2);
     }
 }

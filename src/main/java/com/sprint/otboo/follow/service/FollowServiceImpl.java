@@ -7,11 +7,13 @@ import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.entity.Follow;
+import com.sprint.otboo.follow.event.FollowCreatedEvent;
 import com.sprint.otboo.follow.repository.FollowQueryRepository;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +23,13 @@ public class FollowServiceImpl implements FollowService {
 
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final FollowQueryRepository followQueryRepository;
 
-    public FollowServiceImpl(FollowRepository followRepository, UserRepository userRepository, FollowQueryRepository followQueryRepository) {
+    public FollowServiceImpl(FollowRepository followRepository, UserRepository userRepository, FollowQueryRepository followQueryRepository, ApplicationEventPublisher eventPublisher) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
+        this.eventPublisher = eventPublisher;
         this.followQueryRepository = followQueryRepository;
     }
 
@@ -49,6 +53,7 @@ public class FollowServiceImpl implements FollowService {
         }
 
         Follow saved = followRepository.save(Follow.of(followerId, followeeId));
+        eventPublisher.publishEvent(new FollowCreatedEvent(saved.getFollowerId(), saved.getFolloweeId()));
         return new FollowDto(saved.getId(), saved.getFollowerId(), saved.getFolloweeId());
     }
 
