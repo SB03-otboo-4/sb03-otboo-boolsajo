@@ -2,8 +2,10 @@ package com.sprint.otboo.common.exception;
 
 import com.sprint.otboo.clothing.exception.ClothesExtractionException;
 import com.sprint.otboo.common.dto.ErrorResponse;
+import com.sprint.otboo.common.exception.auth.MailSendFailedException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +17,8 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MissingRequestCookieException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -286,10 +288,40 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
+    @ExceptionHandler(MailSendFailedException.class)
+    public ResponseEntity<ErrorResponse> handleMailSendFailedException(MailSendFailedException ex) {
+        log.error("메일 전송 서비스 오류 발생: {}", ex.getMessage(), ex.getCause());
+
+        ErrorResponse body = new ErrorResponse(ex);
+
+        return ResponseEntity.status(ex.getErrorCode().getStatus()).body(body);
+    }
+
     @ExceptionHandler(ClothesExtractionException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleClothesExtractionException(ClothesExtractionException ex) {
         return Map.of("message", ex.getMessage());
     }
 
+    @ExceptionHandler(DateTimeParseException.class)
+    public ResponseEntity<ErrorResponse> handleDateTimeParseException(DateTimeParseException e) {
+        log.error("날짜/시간 파싱 실패: {}", e.getMessage());
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("parameterName", "cursor");
+        details.put("expectedFormat", "ISO-8601 Instant (예: 2025-10-14T05:29:40Z)");
+        if (e.getParsedString() != null) {
+            details.put("rejectedValue", e.getParsedString());
+        }
+
+        ErrorResponse body = new ErrorResponse(
+            Instant.now(),
+            ErrorCode.INVALID_INPUT.name(),
+            "cursor 파라미터 형식이 올바르지 않습니다.",
+            details,
+            e.getClass().getSimpleName(),
+            HttpStatus.BAD_REQUEST.value()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
 }

@@ -113,3 +113,7 @@ storage:
 admin:
   default:
     password: ${ADMIN_DEFAULT_PASSWORD}
+
+es:
+  host: ${ELASTICSEARCH_HOST}
+  api-key: ${ELASTICSEARCH_API_KEY}
