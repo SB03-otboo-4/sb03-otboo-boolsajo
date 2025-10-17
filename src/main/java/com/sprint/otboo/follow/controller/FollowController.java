@@ -1,14 +1,18 @@
 package com.sprint.otboo.follow.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.dto.request.FollowCreateRequest;
+import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.service.FollowService;
 import jakarta.validation.Valid;
 import java.lang.reflect.Method;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -103,5 +108,54 @@ public class FollowController implements FollowApi {
         throw new FollowException(
             ErrorCode.UNAUTHORIZED
         );
+    }
+
+    @Override
+    @GetMapping("/followings")
+    public ResponseEntity<CursorPageResponse<FollowListItemResponse>> getFollowings(
+        @RequestParam("followerId") UUID followerId,
+        @RequestParam(value = "cursor", required = false) String cursor,
+        @RequestParam(value = "idAfter", required = false) UUID idAfter,
+        @RequestParam(value = "limit", defaultValue = "20") int limit,
+        @RequestParam(value = "nameLike", required = false) String nameLike
+    ) {
+        try {
+            validateCursorOrThrow(cursor);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
+        }
+        return ResponseEntity.ok(
+            service.getFollowings(followerId, cursor, idAfter, boundedLimit(limit), nameLike)
+        );
+    }
+
+    @GetMapping("/followers")
+    public ResponseEntity<CursorPageResponse<FollowListItemResponse>> getFollowers(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) UUID idAfter,
+        @RequestParam(defaultValue = "20") int limit,
+        @RequestParam(required = false) String nameLike
+    ) {
+        UUID me = requireUserIdFromSecurityContext();
+        try {
+            validateCursorOrThrow(cursor);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("cursor 파라미터 형식이 올바르지 않습니다.");
+        }
+        return ResponseEntity.ok(
+            service.getFollowers(me, cursor, idAfter, boundedLimit(limit), nameLike)
+        );
+    }
+
+    private int boundedLimit(int limit) {
+        if (limit < 1) return 1;
+        if (limit > 100) return 100;
+        return limit;
+    }
+
+    private void validateCursorOrThrow(String cursor) {
+        if (cursor == null || cursor.isBlank()) return;
+        // 형식만 검증 (실제 파싱은 Repository에서 다시 수행)
+        Instant.parse(cursor);
     }
 }
