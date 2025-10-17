@@ -81,7 +81,7 @@ public class FeedIndexBatchService {
      */
     private CursorDto cursor = CursorDto.epoch();
 
-    @Value("${app.index.run-on-startup:false}")
+    @Value("${app.index.run-on-startup:true}")
     private boolean runOnStartup;
     @Value("${app.index.write-alias:feed-write}")
     private String writeAlias;
