@@ -22,36 +22,47 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class UnfollowServiceTest {
 
     @Mock FollowRepository followRepository;
-    @Mock UserRepository userRepository;
-
     @InjectMocks FollowServiceImpl service;
 
     @Test
-    @DisplayName("팔로우 관계가 존재하면 정상적으로 언팔로우된다")
-    void 팔로우_관계가_존재하면_언팔로우_성공() {
+    void 관계ID_존재하면_언팔로우_성공() {
         UUID followerId = UUID.randomUUID();
-        UUID followeeId = UUID.randomUUID();
-        Follow follow = mock(Follow.class); // 생성자 문제 피하기 위해 mock 사용
+        UUID followId   = UUID.randomUUID();
 
-        when(followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId))
-            .thenReturn(Optional.of(follow));
+        Follow follow = mock(Follow.class);
+        when(followRepository.findById(followId)).thenReturn(Optional.of(follow));
+        when(follow.getFollowerId()).thenReturn(followerId);
 
-        service.unfollow(followerId, followeeId);
+        service.unfollowById(followerId, followId);
 
         verify(followRepository).delete(follow);
     }
 
     @Test
-    @DisplayName("팔로우 관계가 없으면 예외가 발생한다")
-    void 팔로우_관계가_없으면_예외_발생() {
+    void 관계ID_없으면_예외_발생() {
         UUID followerId = UUID.randomUUID();
-        UUID followeeId = UUID.randomUUID();
+        UUID followId   = UUID.randomUUID();
 
-        when(followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId))
-            .thenReturn(Optional.empty());
+        when(followRepository.findById(followId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.unfollow(followerId, followeeId))
+        assertThatThrownBy(() -> service.unfollowById(followerId, followId))
             .isInstanceOf(FollowException.class)
+            .hasMessageContaining(ErrorCode.FOLLOW_NOT_FOUND.getMessage());
+    }
+
+    @Test
+    void 다른사람_관계면_예외_발생() {
+        UUID me       = UUID.randomUUID();
+        UUID other    = UUID.randomUUID();
+        UUID followId = UUID.randomUUID();
+
+        Follow follow = mock(Follow.class);
+        when(followRepository.findById(followId)).thenReturn(Optional.of(follow));
+        when(follow.getFollowerId()).thenReturn(other);
+
+        assertThatThrownBy(() -> service.unfollowById(me, followId))
+            .isInstanceOf(FollowException.class)
+            // 구현에서 ACCESS_DENIED가 아니라 NOT_FOUND로 통일했으면 아래도 NOT_FOUND로 확인
             .hasMessageContaining(ErrorCode.FOLLOW_NOT_FOUND.getMessage());
     }
 }

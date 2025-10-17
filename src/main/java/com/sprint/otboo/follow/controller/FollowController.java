@@ -5,10 +5,13 @@ import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
-import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.dto.request.FollowCreateRequest;
+import com.sprint.otboo.follow.dto.response.FollowCreateResponse;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
+import com.sprint.otboo.follow.dto.response.FollowSummaryResponse;
 import com.sprint.otboo.follow.service.FollowService;
+import com.sprint.otboo.user.dto.response.UserSummaryResponse;
+import com.sprint.otboo.user.service.UserQueryService;
 import jakarta.validation.Valid;
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -34,24 +37,44 @@ import org.springframework.web.bind.annotation.RestController;
 public class FollowController implements FollowApi {
 
     private final FollowService service;
+    private final UserQueryService userQueryService;
 
-    public FollowController(FollowService service) {
+    public FollowController(FollowService service, UserQueryService userQueryService) {
         this.service = service;
+        this.userQueryService = userQueryService;
     }
 
     @Override
     @PostMapping("")
-    public ResponseEntity<FollowDto> create(@Valid @RequestBody FollowCreateRequest request) {
+    public ResponseEntity<FollowCreateResponse> create(@Valid @RequestBody FollowCreateRequest request) {
         UUID followerId = requireUserIdFromSecurityContext();
+
+        // 1) 팔로우 관계 생성 (서비스는 기존대로 FollowDto 반환)
         FollowDto dto = service.create(followerId, request.followeeId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+
+        // 2) 응답에 들어갈 요약정보 조회
+        UserSummaryResponse followerSummary = userQueryService.getSummary(followerId);
+        UserSummaryResponse followeeSummary = userQueryService.getSummary(request.followeeId());
+
+        // 3) 프로토타입 스키마로 응답 생성 (200 OK)
+        FollowCreateResponse body = new FollowCreateResponse(
+            dto.id(),
+            followeeSummary,
+            followerSummary
+        );
+        return ResponseEntity.ok(body);
     }
 
     @Override
     @GetMapping("/summary")
-    public ResponseEntity<FollowSummaryDto> getSummary() {
-        UUID userId = requireUserIdFromSecurityContext();
-        return ResponseEntity.ok(service.getMySummary(userId));
+    public ResponseEntity<FollowSummaryResponse> getSummary(
+        @RequestParam(value = "userId", required = false) UUID userId
+    ) {
+        UUID viewerId = requireUserIdFromSecurityContext();
+        UUID targetId = (userId != null) ? userId : viewerId;
+
+        FollowSummaryResponse resp = service.getSummary(targetId, viewerId);
+        return ResponseEntity.ok(resp);
     }
 
     // 공통 추출 로직
@@ -150,11 +173,11 @@ public class FollowController implements FollowApi {
         );
     }
 
-    @DeleteMapping("/{followeeId}") // ← 메서드 레벨 매핑 명시
+    @DeleteMapping("/{followId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unfollow(@PathVariable UUID followeeId) {
-        UUID followerId = requireUserIdFromSecurityContext();
-        service.unfollow(followerId, followeeId);
+    public void unfollow(@PathVariable UUID followId) {
+        UUID me = requireUserIdFromSecurityContext();
+        service.unfollowById(me, followId);
     }
 
     private int boundedLimit(int limit) {

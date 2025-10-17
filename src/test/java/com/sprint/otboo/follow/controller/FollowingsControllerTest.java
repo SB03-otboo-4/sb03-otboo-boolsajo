@@ -17,6 +17,7 @@ import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.service.FollowService;
 import com.sprint.otboo.user.dto.response.UserSummaryResponse;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -66,6 +67,9 @@ class FollowingsControllerTest {
 
     @MockitoBean
     JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    UserQueryService userQueryService;
 
     @Test
     void 팔로잉_목록_조회_성공_200반환() throws Exception {

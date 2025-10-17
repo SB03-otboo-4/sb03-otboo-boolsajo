@@ -14,6 +14,7 @@ import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.service.FollowService;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -63,6 +64,9 @@ class FollowersControllerTest {
 
     @MockitoBean
     JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    UserQueryService userQueryService;
 
     @Test
     @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")

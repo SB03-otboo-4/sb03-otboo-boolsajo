@@ -13,6 +13,8 @@ import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.dto.data.FollowDto;
 import com.sprint.otboo.follow.service.FollowService;
+import com.sprint.otboo.user.dto.response.UserSummaryResponse;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,25 +64,37 @@ class FollowControllerTest {
     @MockitoBean
     JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockitoBean
+    UserQueryService userQueryService;
+
     @Test
     @WithMockUser(username = AUTH_USER)
-    void 팔로우를_생성하면_201과_응답을_반환해야_한다() throws Exception {
+    void 팔로우를_생성하면_200과_프로토타입_응답을_반환한다() throws Exception {
         UUID followerId = UUID.fromString(AUTH_USER);
         UUID followeeId = UUID.randomUUID();
         UUID followId = UUID.randomUUID();
 
+        // service.create → 기존대로 FollowDto 반환
         when(followService.create(followerId, followeeId))
             .thenReturn(new FollowDto(followId, followerId, followeeId));
+
+        // ✅ followee/follower 요약 스텁
+        when(userQueryService.getSummary(followerId))
+            .thenReturn(new UserSummaryResponse(followerId, "me", null));
+        when(userQueryService.getSummary(followeeId))
+            .thenReturn(new UserSummaryResponse(followeeId, "target", "https://example.com/p.png"));
 
         String body = "{ \"followeeId\": \"" + followeeId + "\" }";
 
         mockMvc.perform(post("/api/follows")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isCreated())
+            .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(followId.toString()))
-            .andExpect(jsonPath("$.followerId").value(followerId.toString()))
-            .andExpect(jsonPath("$.followeeId").value(followeeId.toString()));
+            .andExpect(jsonPath("$.follower.userId").value(followerId.toString()))
+            .andExpect(jsonPath("$.follower.name").value("me"))
+            .andExpect(jsonPath("$.followee.userId").value(followeeId.toString()))
+            .andExpect(jsonPath("$.followee.name").value("target"));
     }
 
     @Test

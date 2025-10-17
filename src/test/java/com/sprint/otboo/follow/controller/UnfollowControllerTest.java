@@ -9,6 +9,7 @@ import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.common.exception.follow.FollowException;
 import com.sprint.otboo.follow.service.FollowService;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,39 +55,42 @@ class UnfollowControllerTest {
     FollowService followService;
 
     @MockitoBean
+    UserQueryService userQueryService;
+
+    @MockitoBean
     JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     @WithMockUser(username="11111111-1111-1111-1111-111111111111")
     void 언팔로우_성공_204() throws Exception {
-        UUID follower = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        UUID followee = UUID.randomUUID();
+        UUID me       = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID followId = UUID.randomUUID();
 
-        Mockito.doNothing().when(followService).unfollow(follower, followee);
+        Mockito.doNothing().when(followService).unfollowById(me, followId);
 
-        mvc.perform(delete("/api/follows/{id}", followee))
+        mvc.perform(delete("/api/follows/{followId}", followId))
             .andExpect(status().isNoContent());
 
-        Mockito.verify(followService).unfollow(follower, followee);
+        Mockito.verify(followService).unfollowById(me, followId);
     }
 
     @Test
     @WithMockUser(username="11111111-1111-1111-1111-111111111111")
     void 언팔로우_대상없음_404() throws Exception {
-        UUID follower = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        UUID followee = UUID.randomUUID();
+        UUID me       = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID followId = UUID.randomUUID();
 
         Mockito.doThrow(new FollowException(ErrorCode.FOLLOW_NOT_FOUND))
-            .when(followService).unfollow(follower, followee);
+            .when(followService).unfollowById(me, followId);
 
-        mvc.perform(delete("/api/follows/{id}", followee))
+        mvc.perform(delete("/api/follows/{followId}", followId))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("FOLLOW_NOT_FOUND"));
     }
 
     @Test
     void 언팔로우_인증없음_401() throws Exception {
-        mvc.perform(delete("/api/follows/{id}", UUID.randomUUID()))
+        mvc.perform(delete("/api/follows/{followId}", UUID.randomUUID()))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
