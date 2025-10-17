@@ -3,6 +3,7 @@ package com.sprint.otboo.auth.jwt;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.dto.JwtInformation;
+import com.sprint.otboo.common.exception.auth.SerializationFailedException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -74,7 +75,7 @@ public class RedisJwtRegistry implements JwtRegistry {
                     ops.opsForValue().set(jwtInfoKey(jwtInformation.refreshToken()), jwtInfoJson,
                         refreshTokenValidityInSeconds, TimeUnit.SECONDS);
                 } catch (JsonProcessingException e) {
-                    throw new RuntimeException("JwtInformation 직렬화 실패", e);
+                    throw new SerializationFailedException(e);
                 }
 
                 // 유효한 토큰 Set에 추가
@@ -121,6 +122,7 @@ public class RedisJwtRegistry implements JwtRegistry {
             });
         } catch (JsonProcessingException e) {
             log.error("JwtInformation 역직렬화 실패 Refresh Token: {}", refreshToken, e);
+            throw new SerializationFailedException(e);
         }
     }
 
