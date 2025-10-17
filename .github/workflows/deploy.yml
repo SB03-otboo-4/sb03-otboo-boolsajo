@@ -95,6 +95,8 @@ jobs:
             SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
             SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }}
             ADMIN_DEFAULT_PASSWORD=${{ secrets.ADMIN_DEFAULT_PASSWORD }}
+            ELASTICSEARCH_HOST=${{ secrets.ELASTICSEARCH_HOST }}
+            ELASTICSEARCH_API_KEY=${{ secrets.ELASTICSEARCH_API_KEY }}
 
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
