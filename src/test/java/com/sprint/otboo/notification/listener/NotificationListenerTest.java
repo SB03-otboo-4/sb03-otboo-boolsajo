@@ -3,6 +3,7 @@ package com.sprint.otboo.notification.listener;
 import static org.mockito.BDDMockito.then;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
+import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
@@ -103,5 +104,18 @@ public class NotificationListenerTest {
         // then
         then(notificationService).should()
             .notifyUserFollowed(followerId, followeeId);
+    }
+
+    @Test
+    void 의상_속성_삭제_이벤트는_브로드캐스트를_위임() {
+        // given
+        ClothesAttributeDefDeletedEvent event = new ClothesAttributeDefDeletedEvent("색감");
+
+        // when
+        notificationListener.handleClothesAttributeDeleted(event);
+
+        // then
+        then(notificationService).should()
+            .notifyClothesAttributeDeletedForAllUsers("색감");
     }
 }

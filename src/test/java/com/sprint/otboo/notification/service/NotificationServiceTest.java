@@ -3,6 +3,7 @@ package com.sprint.otboo.notification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -495,10 +496,10 @@ public class NotificationServiceTest {
         given(followRepository.findFollowerIdsByFolloweeId(authorId))
             .willReturn(List.of(follower1Id, follower2Id));
         given(userRepository.getReferenceById(authorId)).willReturn(author);
-        given(userRepository.getReferenceById(follower1Id)).willReturn(follower1);
-        given(userRepository.getReferenceById(follower2Id)).willReturn(follower2);
-        given(notificationRepository.saveAndFlush(any(Notification.class)))
-            .willReturn(saved1, saved2);
+        given(userRepository.findAllById(List.of(follower1Id, follower2Id)))
+            .willReturn(List.of(follower1, follower2));
+        given(notificationRepository.saveAll(anyList()))
+            .willReturn(List.of(saved1,saved2));
         given(notificationMapper.toDto(saved1)).willReturn(dto1);
         given(notificationMapper.toDto(saved2)).willReturn(dto2);
 
@@ -506,8 +507,10 @@ public class NotificationServiceTest {
         notificationService.notifyFollowersFeedCreated(authorId, UUID.randomUUID());
 
         // then
-        then(notificationRepository).should(times(2)).saveAndFlush(any(Notification.class));
-        then(notificationMapper).should(times(2)).toDto(any(Notification.class));
+        then(notificationRepository).should().saveAll(anyList());
+        then(notificationRepository).should().flush();
+        then(notificationMapper).should().toDto(saved1);
+        then(notificationMapper).should().toDto(saved2);
         then(notificationSseService).should().sendToClient(dto1);
         then(notificationSseService).should().sendToClient(dto2);
     }
@@ -537,5 +540,33 @@ public class NotificationServiceTest {
         then(notificationRepository).should().saveAndFlush(any(Notification.class));
         then(notificationMapper).should().toDto(saved);
         then(notificationSseService).should().sendToClient(dto);
+    }
+
+    @Test
+    void 의상_속성_삭제_알림은_모든_사용자에게_전송() {
+        // given
+        String attributeName = "색감";
+        User user1 = user(UUID.randomUUID());
+        User user2 = user(UUID.randomUUID());
+
+        Notification saved1 = notificationEntityOwnedBy(user1, NotificationLevel.INFO);
+        Notification saved2 = notificationEntityOwnedBy(user2, NotificationLevel.INFO);
+
+        NotificationDto dto1 = notificationDto(saved1);
+        NotificationDto dto2 = notificationDto(saved2);
+
+        given(userRepository.findAll()).willReturn(List.of(user1, user2));
+        given(notificationRepository.saveAll(anyList())).willReturn(List.of(saved1, saved2));
+        given(notificationMapper.toDto(saved1)).willReturn(dto1);
+        given(notificationMapper.toDto(saved2)).willReturn(dto2);
+
+        // when
+        notificationService.notifyClothesAttributeDeletedForAllUsers(attributeName);
+
+        // then
+        then(notificationRepository).should().saveAll(anyList());
+        then(notificationRepository).should().flush();
+        then(notificationSseService).should().sendToClient(dto1);
+        then(notificationSseService).should().sendToClient(dto2);
     }
 }
