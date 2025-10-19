@@ -15,7 +15,6 @@ import com.sprint.otboo.user.entity.Role;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.redis.DataRedisTest;
@@ -63,8 +62,7 @@ class RedisJwtRegistryExceptionTest {
     }
 
     @Test
-    @DisplayName("세션 등록 시 직렬화에 실패하면 SerializationFailedException 예외가 발생한다")
-    void register_throwsException_onSerializationFailure() throws JsonProcessingException {
+    void 세션_등록_시_직렬화에_실패하면_SerializationFailedException_예외가_발생한다() throws JsonProcessingException {
         // given
         JwtInformation session = createTestSession("access-token-1", "refresh-token-1");
         given(mockObjectMapper.writeValueAsString(any(JwtInformation.class)))

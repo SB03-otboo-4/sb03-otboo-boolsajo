@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,8 +52,7 @@ class RedisJwtRegistryTest {
     }
 
     @Test
-    @DisplayName("새로운 JWT 세션을 등록하면 Redis에 관련 데이터가 모두 저장된다")
-    void register() {
+    void 새로운_jwt세션을_등록하면_Redis에_관련_데이터가_모두_저장된다() {
         // given
         JwtInformation session = createTestSession("access-token-1", "refresh-token-1");
         UserDto userDto = session.userDto();
@@ -77,8 +75,7 @@ class RedisJwtRegistryTest {
     }
 
     @Test
-    @DisplayName("최대 세션 수를 초과하여 로그인하면 가장 오래된 세션이 삭제된다")
-    void register_evictOldestSession() {
+    void 최대_세션_수를_초과하여_로그인하면_가장_오래된_세션이_삭제된다() {
         // given
         JwtInformation oldestSession = createTestSession("access-token-old", "refresh-token-old");
         JwtInformation newSession = new JwtInformation(oldestSession.userDto(), "access-token-new", "refresh-token-new");
@@ -100,8 +97,7 @@ class RedisJwtRegistryTest {
     }
 
     @Test
-    @DisplayName("등록된 토큰은 유효성 검사를 통과한다")
-    void isTokenValid() {
+    void 등록된_토큰은_유효성_검사를_통과한다() {
         // given
         JwtInformation session = createTestSession("access-token-valid", "refresh-token-valid");
         jwtRegistry.register(session);
@@ -118,8 +114,7 @@ class RedisJwtRegistryTest {
     }
 
     @Test
-    @DisplayName("invalidateAll 호출 시 특정 사용자의 모든 세션이 삭제된다")
-    void invalidateAll() {
+    void invalidateAll_호출_시_특정_사용자의_모든_세션이_삭제된다() {
         // given
         JwtInformation session1 = createTestSession("access-1", "refresh-1");
         JwtInformation session2 = new JwtInformation(session1.userDto(), "access-2", "refresh-2");
