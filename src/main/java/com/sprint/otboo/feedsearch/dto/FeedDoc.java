@@ -7,9 +7,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.elasticsearch.annotations.DateFormat;
+import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
+@Document(indexName = "feeds")
 public record FeedDoc(
     UUID id,
     @Field(type = FieldType.Date, format = {DateFormat.date_time, DateFormat.epoch_millis})

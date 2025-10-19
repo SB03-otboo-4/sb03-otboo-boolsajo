@@ -5,6 +5,7 @@ import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
+import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
 import com.sprint.otboo.clothing.exception.ClothesValidationException;
 import com.sprint.otboo.clothing.mapper.ClothesAttributeDefMapper;
 import com.sprint.otboo.clothing.mapper.ClothesMapper;
@@ -182,6 +183,7 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
      * @throws CustomException 해당 ID의 리소스가 존재하지 않을 경우 발생
      */
     @Override
+    @Transactional
     public void deleteAttributeDef(UUID id) {
         ClothesAttributeDef def = clothesAttributeDefRepository.findById(id)
             .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
@@ -189,6 +191,7 @@ public class ClothesAttributeDefServiceImpl implements ClothesAttributeDefServic
         // 연관된 ClothesAttribute 존재 시 삭제 정책 반영 가능
         clothesAttributeDefRepository.delete(def);
         log.info("의상 속성 정의 삭제 완료 - id: {}", id);
+        eventPublisher.publishEvent(new ClothesAttributeDefDeletedEvent(def.getName()));
     }
 
     /**

@@ -14,6 +14,7 @@ import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
 import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.entity.Feed;
+import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedRepository;
 import com.sprint.otboo.feedsearch.event.FeedChangedEvent;
@@ -86,6 +87,7 @@ public class FeedServiceImpl implements FeedService {
                 saved.getId(), clothesList.size());
         }
 
+        publisher.publishEvent(new FeedCreatedEvent(saved.getId(), saved.getAuthor().getId()));
         publisher.publishEvent(new FeedChangedEvent(saved.getId()));
         return feedMapper.toDto(saved);
     }
