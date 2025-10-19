@@ -1331,6 +1331,144 @@ public class RecommendationUtilTest {
         assertThat(recommended).contains(top);
     }
 
+    @Test
+    void 의상리스트_빈경우_추천결과_빈_리스트() {
+        // given: 빈 의상 리스트와 기본 날씨
+        List<Clothes> userClothes = List.of();
+        Weather weather = Weather.builder()
+            .maxC(20.0)
+            .minC(15.0)
+            .speedMs(2.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+        double perceivedTemp = 18.0;
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(userClothes, perceivedTemp, weather, false);
+
+        // then: 결과는 빈 리스트
+        assertThat(recommended).isEmpty();
+    }
+
+    @Test
+    void 의상_속성_null_경우_기본추천_통과() {
+        // given: season과 thickness 모두 null 의상과 날씨
+        Clothes basic = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.TOP)
+            .attributes(List.of(
+                ClothesAttribute.create(null, null, null)
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(18.0)
+            .minC(15.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = 16.0;
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(basic), perceivedTemp, weather, false);
+
+        // then: 기본 추천 통과
+        assertThat(recommended).contains(basic);
+    }
+
+    @Test
+    void 체감온도_경계값_LOW_High_검증() {
+        // given: LOW/HIGH 경계값에 해당하는 SPRING OUTER 의상과 날씨 (일교차 6도 이상)
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("season").build(), "SPRING"),
+                ClothesAttribute.create(null, ClothesAttributeDef.builder().name("thickness").build(), "MEDIUM")
+            ))
+            .build();
+
+        Weather weatherLow = Weather.builder()
+            .maxC(20.0)
+            .minC(14.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLEAR)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTempLow = WeatherUtils.calculatePerceivedTemperature(
+            weatherLow.getMaxC(), weatherLow.getMinC(), weatherLow.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 엔진 실행
+        List<Clothes> recommendedLow = recommendationEngine.recommend(List.of(outer), perceivedTempLow, weatherLow, false);
+
+        // then: LOW/HIGH 경계값 의상이 추천 목록에 포함되어야 함
+        assertThat(recommendedLow).contains(outer);
+    }
+
+    @Test
+    void 강제추천조건_일교차풍속_겹치는_경우() {
+        // given: 일교차 6 이상, 풍속 3 이상 조건의 OUTER 의상
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null, null, "MEDIUM")
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(20.0)
+            .minC(13.0) // 일교차 7
+            .speedMs(3.5)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(outer), perceivedTemp, weather, false);
+
+        // then: 강제추천 포함 확인
+        assertThat(recommended).contains(outer);
+    }
+
+    @Test
+    void OUTER_속성_null_강제추천_일교차조건() {
+        // given: 속성 null인 OUTER 의상과 일교차 7도 조건
+        Clothes outer = Clothes.builder()
+            .id(UUID.randomUUID())
+            .type(ClothesType.OUTER)
+            .attributes(List.of(
+                ClothesAttribute.create(null, null, null)
+            ))
+            .build();
+
+        Weather weather = Weather.builder()
+            .maxC(22.0)
+            .minC(15.0)
+            .speedMs(1.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        double perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
+            weather.getMaxC(), weather.getMinC(), weather.getSpeedMs(), 0.8, 2
+        );
+
+        // when: 추천 실행
+        List<Clothes> recommended = recommendationEngine.recommend(List.of(outer), perceivedTemp, weather, false);
+
+        // then: 속성이 없어도 강제추천 포함 확인
+        assertThat(recommended).contains(outer);
+    }
 
     @Test
     void 모든타입_추천_및_제외_통합_첫번째선택() {
