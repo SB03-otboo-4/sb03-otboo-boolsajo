@@ -1,13 +1,17 @@
 package com.sprint.otboo.recommendation.controller;
 
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
@@ -15,6 +19,8 @@ import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.service.RecommendationService;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -241,4 +249,79 @@ public class RecommendationControllerTest {
         // then: 400 Bad Request 반환
         result.andExpect(status().isBadRequest());
     }
+
+    @Test
+    @WithMockUser(roles = {"USER"})
+    void 추천_결과_null_OK_응답() throws Exception {
+        // given: 추천 서비스가 null 반환
+        UUID userId = UUID.randomUUID();
+        UUID weatherId = UUID.randomUUID();
+
+        when(recommendationService.getRecommendation(eq(userId), eq(weatherId)))
+            .thenReturn(null);
+
+        // when: 추천 API 호출
+        mockMvc.perform(get("/api/recommendations")
+                .param("weatherId", weatherId.toString())
+                .with(user(userId.toString()).roles("USER"))
+                .contentType(MediaType.APPLICATION_JSON))
+            // then: OK 상태와 빈 본문 응답
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void extractUserId_CustomUserDetails_성공() throws Exception {
+        // given: CustomUserDetails를 principal로 가진 인증 객체
+        UUID userId = UUID.randomUUID();
+        CustomUserDetails customUserDetails = mock(CustomUserDetails.class);
+        when(customUserDetails.getUserId()).thenReturn(userId);
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(customUserDetails);
+
+        RecommendationController controller = new RecommendationController(recommendationService);
+
+        // when: extractUserId 호출
+        Method method = RecommendationController.class.getDeclaredMethod("extractUserId", Authentication.class);
+        method.setAccessible(true);
+        UUID result = (UUID) method.invoke(controller, authentication);
+
+        // then: 반환된 UUID가 기대값과 동일
+        assertThat(result).isEqualTo(userId);
+    }
+
+    @Test
+    void extractUserId_UserDetails_성공() throws Exception {
+        // given: UserDetails를 principal로 가진 인증 객체
+        UUID userId = UUID.randomUUID();
+        UserDetails userDetails = mock(UserDetails.class);
+        when(userDetails.getUsername()).thenReturn(userId.toString());
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(userDetails);
+
+        RecommendationController controller = new RecommendationController(recommendationService);
+
+        // when: extractUserId 호출
+        Method method = RecommendationController.class.getDeclaredMethod("extractUserId", Authentication.class);
+        method.setAccessible(true);
+        UUID result = (UUID) method.invoke(controller, authentication);
+
+        // then: 반환된 UUID가 기대값과 동일
+        assertThat(result).isEqualTo(userId);
+    }
+
+    @Test
+    void extractUserId_알수없는_타입_예외() throws Exception {
+        // given: 예상치 못한 타입의 principal
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(12345); // 예상치 못한 타입
+        RecommendationController controller = new RecommendationController(recommendationService);
+
+        // when: extractUserId 호출
+        Method method = RecommendationController.class.getDeclaredMethod("extractUserId", Authentication.class);
+        method.setAccessible(true);
+
+        // then: CustomException 발생 확인
+        assertThrows(InvocationTargetException.class, () -> method.invoke(controller, authentication));
+    }
+
 }

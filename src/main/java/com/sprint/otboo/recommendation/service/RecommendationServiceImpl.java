@@ -88,7 +88,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         //    - 계산 결과 로그 출력 및 체감 온도 기준 계절 판별
         double perceivedTemp;
         if (weather.getMaxC() != null && weather.getMinC() != null) {
-            // 4.1 최고ㆍ최저 온도 존재 시
+            // 4-1. 최고ㆍ최저 온도 존재 시
             perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
                 weather.getMaxC(),
                 weather.getMinC(),
@@ -108,7 +108,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 weather.getType()
             );
         } else {
-            // 4.1 최고ㆍ최저 온도 없을 시: 현재 온도 사용
+            // 4-1. 최고ㆍ최저 온도 없을 시: 현재 온도 사용
             double currentTemp = weather.getCurrentC() != null ? weather.getCurrentC() : 0.0;
             perceivedTemp = WeatherUtils.calculatePerceivedTemperature(
                 currentTemp,
