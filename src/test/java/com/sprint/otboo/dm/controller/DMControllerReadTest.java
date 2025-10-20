@@ -3,14 +3,19 @@ package com.sprint.otboo.dm.controller;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.service.DMService;
-import com.sprint.otboo.common.exception.GlobalExceptionHandler;
+import com.sprint.otboo.user.dto.data.UserDto;
+import com.sprint.otboo.user.entity.Role;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -58,14 +63,38 @@ class DMControllerReadTest {
     @MockitoBean
     DMService dmService;
 
+    /* ---------- 테스트용 Principal 유틸 ---------- */
     static class TestPrincipal {
         private final UUID id;
         TestPrincipal(UUID id) { this.id = id; }
         public UUID getId() { return id; }
     }
 
-    private void setAuthenticatedUser(UUID userId) {
-        TestPrincipal principal = new TestPrincipal(userId);
+    static class TestPrincipalStringId {
+        private final String id;
+        TestPrincipalStringId(String id) { this.id = id; }
+        public String getId() { return id; }
+    }
+
+    static class NoGetId { }
+
+    private static CustomUserDetails cud(UUID id, String email, String name, Role role, boolean locked) {
+        UserDto dto = new UserDto(
+            id,
+            Instant.now(),    // createdAt
+            email,
+            name,
+            role,
+            null,             // linkedOAuthProviders
+            locked
+        );
+        return CustomUserDetails.builder()
+            .userDto(dto)
+            .password("pass")
+            .build();
+    }
+
+    private void setAuthenticatedUser(Object principal) {
         Authentication auth = new UsernamePasswordAuthenticationToken(
             principal, "N/A", Collections.emptyList()
         );
@@ -75,22 +104,25 @@ class DMControllerReadTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+        reset(dmService);
     }
+
+    /* ---------- 성공 케이스 ---------- */
 
     @Test
     void dm_목록_조회_성공_200() throws Exception {
-        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
-        UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
-        setAuthenticatedUser(me);
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        setAuthenticatedUser(cud(me, "me@otboo.dev", "buzz", Role.USER, false));
 
         DirectMessageDto item1 = new DirectMessageDto(
-            UUID.fromString("386cb145-63c6-4333-89c9-6245789c6671"),
+            UUID.randomUUID(),
             me, "buzz", "https://s3.../buzz.png",
             other, "slinky", null,
             "안녕!", Instant.parse("2025-10-14T05:29:40Z")
         );
         DirectMessageDto item2 = new DirectMessageDto(
-            UUID.fromString("93d3247e-5628-4fe7-a6da-93611e1ff732"),
+            UUID.randomUUID(),
             other, "slinky", null,
             me, "buzz", "https://s3.../buzz.png",
             "반가워", Instant.parse("2025-10-14T05:28:40Z")
@@ -99,9 +131,8 @@ class DMControllerReadTest {
         CursorPageResponse<DirectMessageDto> resp =
             new CursorPageResponse<>(List.of(item1, item2), null, null, false, 2L, "createdAt", "DESCENDING");
 
-        when(dmService.getDms(
-            eq(me), eq(other), isNull(), isNull(), anyInt())
-        ).thenReturn(resp);
+        when(dmService.getDms(eq(me), eq(other), isNull(), isNull(), anyInt()))
+            .thenReturn(resp);
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
@@ -113,11 +144,13 @@ class DMControllerReadTest {
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
     }
 
+    /* ---------- 유효성/에러 분기 ---------- */
+
     @Test
     void dm_목록_조회_커서_형식오류_400() throws Exception {
-        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
-        UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
-        setAuthenticatedUser(me);
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        setAuthenticatedUser(cud(me, "me@otboo.dev", "me", Role.USER, false));
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
@@ -128,8 +161,8 @@ class DMControllerReadTest {
 
     @Test
     void 자기자신과의_대화_금지_400() throws Exception {
-        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
-        setAuthenticatedUser(me);
+        UUID me = UUID.randomUUID();
+        setAuthenticatedUser(cud(me, "me@otboo.dev", "me", Role.USER, false));
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", me.toString()))
@@ -138,9 +171,9 @@ class DMControllerReadTest {
 
     @Test
     void idAfter만_있고_cursor_없음_400() throws Exception {
-        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
-        UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
-        setAuthenticatedUser(me);
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        setAuthenticatedUser(cud(me, "me@otboo.dev", "me", Role.USER, false));
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
@@ -150,13 +183,87 @@ class DMControllerReadTest {
 
     @Test
     void limit_범위_초과_400() throws Exception {
-        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
-        UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
-        setAuthenticatedUser(me);
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        setAuthenticatedUser(cud(me, "me@otboo.dev", "me", Role.USER, false));
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
                 .param("limit", "1000"))
             .andExpect(status().isBadRequest());
+    }
+
+    /* ---------- 인증/Principal 경로 분기 ---------- */
+
+    @Test
+    void 인증없음_auth_null_401() throws Exception {
+        SecurityContextHolder.clearContext();
+        UUID other = UUID.randomUUID();
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString()))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 인증플래그_false_401() throws Exception {
+        UUID other = UUID.randomUUID();
+
+        Authentication unauth = new UsernamePasswordAuthenticationToken(
+            new Object(), "N/A", Collections.emptyList()
+        );
+        ((UsernamePasswordAuthenticationToken) unauth).setAuthenticated(false);
+        SecurityContextHolder.getContext().setAuthentication(unauth);
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString()))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 리플렉션_StringUUID_OK_200() throws Exception {
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+
+        setAuthenticatedUser(new TestPrincipalStringId(me.toString()));
+
+        when(dmService.getDms(eq(me), eq(other), isNull(), isNull(), anyInt()))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString()))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void 리플렉션_getId_없음_401() throws Exception {
+        UUID other = UUID.randomUUID();
+        setAuthenticatedUser(new NoGetId());
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString()))
+            .andExpect(status().isUnauthorized());
+    }
+
+    /* ---------- 정상 cursor + idAfter 경로 ---------- */
+
+    @Test
+    void 커서_및_idAfter_정상_200() throws Exception {
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        setAuthenticatedUser(cud(me, "me@otboo.dev", "me", Role.USER, false));
+
+        Instant boundary = Instant.parse("2025-10-14T05:29:40Z");
+        UUID idAfter = UUID.randomUUID();
+
+        when(dmService.getDms(eq(me), eq(other), eq(boundary.toString()), eq(idAfter), anyInt()))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString())
+                .param("cursor", boundary.toString())
+                .param("idAfter", idAfter.toString())
+                .param("limit", "2"))
+            .andExpect(status().isOk());
     }
 }
