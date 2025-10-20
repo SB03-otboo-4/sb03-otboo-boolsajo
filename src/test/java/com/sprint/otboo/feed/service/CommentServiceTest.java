@@ -64,67 +64,63 @@ public class CommentServiceTest {
         @Test
         void 댓글을_등록하면_DTO가_반환된다() {
             // given
-            UUID commentAuthorId = UUID.randomUUID();
-            UUID feedAuthorId = UUID.randomUUID();
-            UUID feedId = UUID.randomUUID();
-            UUID commentId = UUID.randomUUID();
             String content = "첫 댓글";
 
-            User commentAuthor = UserFixture.create(commentAuthorId, "홍길동", "commenter.png");
-            User feedAuthor = UserFixture.create(feedAuthorId, "피드작성자", "author.png");
+            User commentAuthor =  UserFixture.create("댓글작성자", "author.png");
+            User feedAuthor = UserFixture.create("피드작성자", "author.png");
             Weather weather = WeatherFixture.createWeatherWithDefault(
                 WeatherLocationFixture.createLocationWithDefault()
             );
 
-            Feed feed = FeedFixture.createWithId(feedId);
+            Feed feed = FeedFixture.createWithId(feedAuthor.getId());
             ReflectionTestUtils.setField(feed, "author", feedAuthor);
             ReflectionTestUtils.setField(feed, "weather", weather);
 
-            Comment saved = CommentFixture.create(commentId, commentAuthor, feed, content, Instant.now());
+            Comment comment = CommentFixture.create(commentAuthor, feed, content, Instant.now());
             CommentDto expected = new CommentDto(
-                saved.getId(),
-                saved.getCreatedAt(),
-                feedId,
-                new AuthorDto(commentAuthorId, "홍길동", "commenter.png"),
+                comment.getId(),
+                comment.getCreatedAt(),
+                feed.getId(),
+                new AuthorDto(commentAuthor.getId(), "홍길동", "commenter.png"),
                 content
             );
 
-            given(userRepository.findById(commentAuthorId)).willReturn(Optional.of(commentAuthor));
-            given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
-            given(commentRepository.save(any(Comment.class))).willReturn(saved);
-            given(commentMapper.toDto(saved)).willReturn(expected);
+            given(userRepository.findById(commentAuthor.getId())).willReturn(Optional.of(commentAuthor));
+            given(feedRepository.findById(feed.getId())).willReturn(Optional.of(feed));
+            given(commentRepository.save(any(Comment.class))).willReturn(comment);
+            given(commentMapper.toDto(comment)).willReturn(expected);
 
             // when
-            CommentDto result = commentService.create(commentAuthorId, feedId, content);
+            CommentDto result = commentService.create(commentAuthor.getId(), feed.getId(), content);
 
             // then
             assertThat(result).isSameAs(expected);
-            then(userRepository).should().findById(commentAuthorId);
-            then(feedRepository).should().findById(feedId);
+            then(userRepository).should().findById(commentAuthor.getId());
+            then(feedRepository).should().findById(feed.getId());
             then(commentRepository).should().save(any(Comment.class));
-            then(commentMapper).should().toDto(saved);
+            then(commentMapper).should().toDto(comment);
             then(eventPublisher).should().publishEvent(new FeedCommentedEvent(
-                feedAuthorId, commentAuthorId, commentId
+                feedAuthor.getId(), commentAuthor.getId(), comment.getId()
             ));
         }
 
         @Test
         void 작성자를_찾을_수_없으면_예외가_발생한다() {
-            // Given
+            // given
             UUID authorId = UUID.randomUUID();
             UUID feedId = UUID.randomUUID();
             String content = "내용";
 
             given(userRepository.findById(authorId)).willReturn(Optional.empty());
 
-            // When & Then
+            // when & then
             assertThatThrownBy(() -> commentService.create(authorId, feedId, content))
                 .isInstanceOf(UserNotFoundException.class);
         }
 
         @Test
         void 피드를_찾을_수_없으면_예외가_발생한다() {
-            // Given
+            // given
             UUID authorId = UUID.randomUUID();
             UUID feedId = UUID.randomUUID();
             String content = "내용";
@@ -133,7 +129,7 @@ public class CommentServiceTest {
                 Optional.of(User.builder().id(authorId).build()));
             given(feedRepository.findById(feedId)).willReturn(Optional.empty());
 
-            // When & Then
+            // when & then
             assertThatThrownBy(() -> commentService.create(authorId, feedId, content))
                 .isInstanceOf(FeedNotFoundException.class);
         }
@@ -145,7 +141,7 @@ public class CommentServiceTest {
 
         @Test
         void 댓글을_조회하면_최신순으로_댓글이_조회된다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             int limit = 2;
 
@@ -172,20 +168,17 @@ public class CommentServiceTest {
             );
 
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
-
             given(commentRepository.findByFeedId(feedId, null, null, limit))
                 .willReturn(List.of(c1, c2, c3));
-
             given(commentRepository.countByFeedId(feedId)).willReturn(3L);
-
             given(commentMapper.toDto(c1)).willReturn(d1);
             given(commentMapper.toDto(c2)).willReturn(d2);
 
-            // When
+            // when
             CursorPageResponse<CommentDto> result =
                 commentService.getComments(feedId, null, null, limit);
 
-            // Then
+            // then
             assertThat(result.data()).containsExactly(d1, d2);
             assertThat(result.hasNext()).isTrue();
 
@@ -203,7 +196,7 @@ public class CommentServiceTest {
 
         @Test
         void 댓글이_없으면_빈_결과를_반환한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             int limit = 10;
 
@@ -214,11 +207,11 @@ public class CommentServiceTest {
                 .willReturn(List.of());
             given(commentRepository.countByFeedId(feedId)).willReturn(0L);
 
-            // When
+            // when
             CursorPageResponse<CommentDto> result =
                 commentService.getComments(feedId, null, null, limit);
 
-            // Then
+            // then
             assertThat(result.data()).isEmpty();
             assertThat(result.nextCursor()).isNull();
             assertThat(result.nextIdAfter()).isNull();
