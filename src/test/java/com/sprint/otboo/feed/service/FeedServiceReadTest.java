@@ -50,7 +50,6 @@ class FeedServiceReadTest {
     private static final String SORT_DIR = "DESCENDING";
     private static final Instant FIXED_NOW = Instant.parse("2025-09-18T00:00:00Z");
 
-    private UUID authorId;
     private UUID weatherId;
     private UUID clothesId;
 
@@ -59,11 +58,10 @@ class FeedServiceReadTest {
 
     @BeforeEach
     void setUp() {
-        authorId = UUID.randomUUID();
         weatherId = UUID.randomUUID();
         clothesId = UUID.randomUUID();
 
-        author = UserFixture.create(authorId, "홍길동", "profile.png");
+        author = UserFixture.create("홍길동", "profile.png");
         weather = WeatherFixture.create(weatherId);
     }
 
@@ -97,17 +95,17 @@ class FeedServiceReadTest {
 
         @Test
         void 피드를_조회하면_DTO가_반환된다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             Feed feed = newFeed(feedId, "오늘의 코디");
             FeedDto dto = newDtoFrom(feed, "맑음", "비", 10L, 2);
 
             CursorPageResponse<UUID> idPage = new CursorPageResponse<>(
-                List.of(feedId),   // data
-                null,              // nextCursor
-                null,              // nextIdAfter
-                false,             // hasNext
-                1L,                // totalCount
+                List.of(feedId),
+                null,
+                null,
+                false,
+                1L,
                 SORT_BY,
                 SORT_DIR
             );
@@ -123,11 +121,11 @@ class FeedServiceReadTest {
 
             given(feedMapper.toDto(feed)).willReturn(dto);
 
-            // When
+            // when
             CursorPageResponse<FeedDto> result =
                 feedService.getFeeds(null, null, LIMIT, SORT_BY, SORT_DIR, null, null, null, null);
 
-            // Then
+            // then
             assertThat(result.totalCount()).isEqualTo(1L);
             assertThat(result.data()).containsExactly(dto);
 
@@ -150,7 +148,7 @@ class FeedServiceReadTest {
 
         @Test
         void SkyStatus_CLEAR_이면_매칭되는_DTO만_반환된다() {
-            // Given
+            // given
             SkyStatus filterStatus = SkyStatus.CLEAR;
 
             Feed feed = newFeed(UUID.randomUUID(), "맑은날 코디");
@@ -169,12 +167,12 @@ class FeedServiceReadTest {
             given(esFeedRepository.countByFilters(null, filterStatus, null, null)).willReturn(1L);
             given(feedMapper.toDto(feed)).willReturn(clearDto);
 
-            // When
+            // when
             CursorPageResponse<FeedDto> result =
                 feedService.getFeeds(null, null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null,
                     null);
 
-            // Then
+            // then
             assertThat(result.data()).containsExactly(clearDto);
             assertThat(result.totalCount()).isEqualTo(1L);
         }
@@ -182,7 +180,7 @@ class FeedServiceReadTest {
         @ParameterizedTest(name = "CLEAR 외 상태: {0}")
         @EnumSource(value = SkyStatus.class, names = {"CLEAR"}, mode = EnumSource.Mode.EXCLUDE)
         void SkyStatus_CLEAR_외에는_빈_결과를_반환한다(SkyStatus filterStatus) {
-            // Given
+            // given
             CursorPageResponse<UUID> idPage = new CursorPageResponse<>(
                 List.of(), null, null, false, 0L, SORT_BY, SORT_DIR
             );
@@ -194,12 +192,12 @@ class FeedServiceReadTest {
 
             given(esFeedRepository.countByFilters(null, filterStatus, null, null)).willReturn(0L);
 
-            // When
+            // when
             CursorPageResponse<FeedDto> result =
                 feedService.getFeeds(null, null, LIMIT, SORT_BY, SORT_DIR, null, filterStatus, null,
                     null);
 
-            // Then
+            // then
             assertThat(result.data()).isEmpty();
             assertThat(result.totalCount()).isEqualTo(0L);
         }
@@ -214,7 +212,7 @@ class FeedServiceReadTest {
 
         @BeforeEach
         void setUp() {
-            // Given
+            // given
             Instant older = FIXED_NOW.minusSeconds(60);
             Instant newer = FIXED_NOW;
 
@@ -228,7 +226,7 @@ class FeedServiceReadTest {
         @ParameterizedTest(name = "[{index}] createdAt {0}")
         @ValueSource(strings = {"DESCENDING", "ASCENDING"})
         void createdAt에_따라_정렬한다(String dir) {
-            // Given
+            // given
             String sortBy = "createdAt";
 
             List<UUID> idOrder = "DESCENDING".equalsIgnoreCase(dir)
@@ -250,11 +248,11 @@ class FeedServiceReadTest {
             given(feedMapper.toDto(newerFeed)).willReturn(newerDto);
             given(feedMapper.toDto(olderFeed)).willReturn(olderDto);
 
-            // When
+            // when
             CursorPageResponse<FeedDto> result =
                 feedService.getFeeds(null, null, LIMIT, sortBy, dir, null, null, null, null);
 
-            // Then
+            // then
             if ("DESCENDING".equalsIgnoreCase(dir)) {
                 assertThat(result.data()).containsExactly(newerDto, olderDto);
             } else {
@@ -266,7 +264,7 @@ class FeedServiceReadTest {
         @ParameterizedTest(name = "[{index}] likeCount {0}")
         @ValueSource(strings = {"DESCENDING", "ASCENDING"})
         void likeCount에_따라_정렬한다(String dir) {
-            // Given
+            // given
             String sortBy = "likeCount";
 
             List<UUID> idOrder = "DESCENDING".equalsIgnoreCase(dir)
@@ -295,11 +293,11 @@ class FeedServiceReadTest {
             given(feedMapper.toDto(newerFeed)).willReturn(newerDto);
             given(feedMapper.toDto(olderFeed)).willReturn(olderDto);
 
-            // When
+            // when
             CursorPageResponse<FeedDto> result =
                 feedService.getFeeds(null, null, LIMIT, sortBy, dir, null, null, null, null);
 
-            // Then
+            // then
             if ("DESCENDING".equalsIgnoreCase(dir)) {
                 assertThat(result.data()).containsExactly(newerDto, olderDto);
             } else {

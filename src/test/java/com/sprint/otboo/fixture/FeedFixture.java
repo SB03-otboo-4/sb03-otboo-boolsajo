@@ -42,8 +42,6 @@ public class FeedFixture {
             clothesId, DEF_CLOTHES_NAME, DEF_CLOTHES_IMG, DEF_CLOTHES_TYPE,
             DEF_CONTENT, 0L, 0, false
         );
-
-
     }
 
     public static FeedDto createDtoWithCreatedAt(Instant createdAt) {
@@ -197,19 +195,6 @@ public class FeedFixture {
             .commentCount(0)
             .createdAt(createdAt)
             .updatedAt(createdAt)
-            .build();
-    }
-
-    public static Feed createWithIdAndAuthor(UUID feedId, User author, Weather weather) {
-        return Feed.builder()
-            .id(feedId)
-            .author(author)
-            .weather(weather)
-            .content("기본 컨텐츠")
-            .likeCount(0L)
-            .commentCount(0)
-            .createdAt(Instant.now())
-            .updatedAt(Instant.now())
             .build();
     }
 }

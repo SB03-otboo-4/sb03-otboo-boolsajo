@@ -48,7 +48,7 @@ public class LikeServiceTest {
 
         @Test
         void 좋아요를_등록하면_likeCount가_1_증가한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -66,39 +66,43 @@ public class LikeServiceTest {
             given(userRepository.findById(userId)).willReturn(Optional.of(liker));
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
             given(feedLikeRepository.existsByFeedIdAndUserId(feedId, userId)).willReturn(false);
-            given(feedLikeRepository.save(any(FeedLike.class))).willAnswer(
-                inv -> inv.getArgument(0));
+            given(feedLikeRepository.save(any(FeedLike.class))).willAnswer(inv -> inv.getArgument(0));
 
-            // When
+            // when
             likeService.addLike(feedId, userId);
 
-            // Then
+            // then
             assertThat(feed.getLikeCount()).isEqualTo(1L);
-            then(feedLikeRepository).shouldHaveNoMoreInteractions();
-            then(feedRepository).should().findById(feedId);
-            then(feedRepository).shouldHaveNoMoreInteractions();
             then(userRepository).should().findById(userId);
-            then(userRepository).shouldHaveNoMoreInteractions();
+            then(feedRepository).should().findById(feedId);
+            then(feedLikeRepository).should().existsByFeedIdAndUserId(feedId, userId);
+            then(feedLikeRepository).should().save(any(FeedLike.class));
             then(eventPublisher).should().publishEvent(any(FeedLikedEvent.class));
+            then(userRepository).shouldHaveNoMoreInteractions();
+            then(feedRepository).shouldHaveNoMoreInteractions();
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
         }
 
         @Test
         void 피드가_존재하지_않으면_예외가_발생한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
             given(feedRepository.findById(feedId)).willReturn(Optional.empty());
 
-            // When / Then
+            // when & then
             assertThatThrownBy(() -> likeService.addLike(feedId, userId))
                 .isInstanceOf(FeedNotFoundException.class)
                 .hasMessageContaining("피드를 찾을 수 없습니다.");
+            then(feedRepository).should().findById(feedId);
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).shouldHaveNoMoreInteractions();
         }
 
         @Test
         void 유저가_존재하지_않으면_예외가_발생한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -107,15 +111,22 @@ public class LikeServiceTest {
                 .author(User.builder().id(UUID.randomUUID()).build())
                 .content("hi")
                 .likeCount(0L)
-                .commentCount(0L)
+                .commentCount(0)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
 
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
             given(userRepository.findById(userId)).willReturn(Optional.empty());
 
-            // When & Then
+            // when & then
             assertThatThrownBy(() -> likeService.addLike(feedId, userId))
-                .isInstanceOf(UserNotFoundException.class);
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("사용자를 찾을 수 없습니다.");
+            then(feedRepository).should().findById(feedId);
+            then(userRepository).should().findById(userId);
+            then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).shouldHaveNoMoreInteractions();
         }
     }
 
@@ -125,7 +136,7 @@ public class LikeServiceTest {
 
         @Test
         void 좋아요를_삭제하면_likeCount가_1_감소한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -145,10 +156,10 @@ public class LikeServiceTest {
             given(feedLikeRepository.existsByFeedIdAndUserId(feedId, userId)).willReturn(true);
             given(feedLikeRepository.deleteByFeedIdAndUserId(feedId, userId)).willReturn(1);
 
-            // When
+            // when
             likeService.removeLike(feedId, userId);
 
-            // Then
+            // then
             assertThat(feed.getLikeCount()).isEqualTo(0L);
             then(feedRepository).should().findById(feedId);
             then(userRepository).should().findById(userId);
@@ -161,23 +172,24 @@ public class LikeServiceTest {
 
         @Test
         void 피드가_존재하지_않으면_예외가_발생한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
             given(feedRepository.findById(feedId)).willReturn(Optional.empty());
 
-            // When & Then
+            // when & then
             assertThatThrownBy(() -> likeService.removeLike(feedId, userId))
                 .isInstanceOf(FeedNotFoundException.class)
                 .hasMessageContaining("피드를 찾을 수 없습니다.");
             then(feedRepository).should().findById(feedId);
             then(feedLikeRepository).shouldHaveNoMoreInteractions();
+            then(userRepository).shouldHaveNoMoreInteractions();
         }
 
         @Test
         void 유저가_존재하지_않으면_예외가_발생한다() {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -194,7 +206,7 @@ public class LikeServiceTest {
             given(feedRepository.findById(feedId)).willReturn(Optional.of(feed));
             given(userRepository.findById(userId)).willReturn(Optional.empty());
 
-            // When & Then
+            // when & then
             assertThatThrownBy(() -> likeService.removeLike(feedId, userId))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다.");
