@@ -126,6 +126,7 @@ class FeedReadIntegrationTest {
 
     @BeforeEach
     void setupIndexAndFixtures() throws Exception {
+        // given: 인덱스 초기화 및 테스트 픽스처 저장
         deleteIndexSafely(INDEX);
 
         String json = new String(
@@ -195,16 +196,19 @@ class FeedReadIntegrationTest {
         es.indices().refresh(r -> r.index(INDEX));
         return entity;
     }
+
     // -------- 테스트들 --------
 
     @Test
     void 기본_조회_요청시_200과_페이징_정렬_메타가_포함된다() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
         saveAndIndexFeed("READ-1", 0L, Instant.parse("2025-09-01T00:00:00Z"),
             Instant.parse("2025-09-01T00:00:00Z"));
         saveAndIndexFeed("READ-2", 1L, Instant.parse("2025-09-02T00:00:00Z"),
             Instant.parse("2025-09-02T00:00:00Z"));
 
+        // when
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user(principal(userId)))
@@ -213,6 +217,7 @@ class FeedReadIntegrationTest {
                     .param("sortDirection", "DESCENDING")
                     .accept(MediaType.APPLICATION_JSON)
             )
+            // then
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.data").isArray())
@@ -224,6 +229,7 @@ class FeedReadIntegrationTest {
 
     @Test
     void createdAt_기준_내림차순으로_조회되고_커서가_반환된다() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
         Feed firstFeed = saveAndIndexFeed("C-1", 0L, Instant.parse("2025-09-01T00:00:00Z"),
             Instant.parse("2025-09-01T00:00:00Z"));
@@ -234,6 +240,7 @@ class FeedReadIntegrationTest {
             Instant.parse("2025-09-01T00:00:00Z").plusMillis(2),
             Instant.parse("2025-09-01T00:00:00Z").plusMillis(2));
 
+        // when
         MvcResult response = mockMvc.perform(
                 get("/api/feeds")
                     .with(user(principal(userId)))
@@ -245,6 +252,7 @@ class FeedReadIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
+        // then
         String body = response.getResponse().getContentAsString(StandardCharsets.UTF_8);
         JsonNode result = objectMapper.readTree(body);
 
@@ -263,6 +271,7 @@ class FeedReadIntegrationTest {
 
     @Test
     void likeCount_기준_내림차순으로_조회되고_커서가_반환된다() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
         Feed lowFeed = saveAndIndexFeed("L-0", 0L, Instant.parse("2025-09-01T00:00:00Z"),
             Instant.parse("2025-09-01T00:00:00Z"));
@@ -271,6 +280,7 @@ class FeedReadIntegrationTest {
         Feed highFeed = saveAndIndexFeed("L-2", 2L, Instant.parse("2025-09-03T00:00:00Z"),
             Instant.parse("2025-09-03T00:00:00Z"));
 
+        // when
         MvcResult response = mockMvc.perform(
                 get("/api/feeds")
                     .with(user(principal(userId)))
@@ -282,6 +292,7 @@ class FeedReadIntegrationTest {
             .andExpect(status().isOk())
             .andReturn();
 
+        // then
         JsonNode result = objectMapper.readTree(response.getResponse().getContentAsString())
             .path("data");
 
@@ -295,8 +306,10 @@ class FeedReadIntegrationTest {
 
     @Test
     void limit가_0이면_400을_반환한다() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
 
+        // when
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user(principal(userId)))
@@ -305,14 +318,17 @@ class FeedReadIntegrationTest {
                     .param("sortDirection", "DESCENDING")
                     .accept(MediaType.APPLICATION_JSON)
             )
+            // then
             .andExpect(status().isBadRequest())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
 
     @Test
     void 지원되지_않는_sortBy면_400을_반환한다() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
 
+        // when
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user(principal(userId)))
@@ -321,14 +337,17 @@ class FeedReadIntegrationTest {
                     .param("sortDirection", "DESCENDING")
                     .accept(MediaType.APPLICATION_JSON)
             )
+            // then
             .andExpect(status().isBadRequest())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
 
     @Test
     void 지원되지_않는_sortDirection이면_400을_반환한다() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
 
+        // when
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user(principal(userId)))
@@ -337,6 +356,7 @@ class FeedReadIntegrationTest {
                     .param("sortDirection", "DOWNWARD")
                     .accept(MediaType.APPLICATION_JSON)
             )
+            // then
             .andExpect(status().isBadRequest())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }

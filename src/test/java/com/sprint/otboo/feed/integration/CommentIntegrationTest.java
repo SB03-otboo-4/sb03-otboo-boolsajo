@@ -67,7 +67,7 @@ class CommentIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Given
+        // given
         author = userRepository.save(UserFixture.createUserWithDefault());
         authorId = author.getId();
 
@@ -95,10 +95,10 @@ class CommentIntegrationTest {
 
         @Test
         void 성공하면_201과_DTO를_반환하고_DB에_저장한다() throws Exception {
-            // Given
+            // given
             CommentCreateRequest request = new CommentCreateRequest(feedId, authorId, "첫 댓글");
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -106,7 +106,7 @@ class CommentIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content").value("첫 댓글"))
@@ -121,10 +121,10 @@ class CommentIntegrationTest {
 
         @Test
         void 내용이_공백이면_400을_반환한다() throws Exception {
-            // Given
+            // given
             CommentCreateRequest request = new CommentCreateRequest(feedId, authorId, "   ");
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -132,19 +132,19 @@ class CommentIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
         }
 
         @Test
         void 존재하지_않는_feedId면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID notExistsFeedId = UUID.randomUUID();
             CommentCreateRequest request = new CommentCreateRequest(notExistsFeedId, authorId,
                 "첫 댓글");
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", notExistsFeedId)
                         .with(csrf())
@@ -152,19 +152,19 @@ class CommentIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
         }
 
         @Test
         void 존재하지_않는_작성자면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID missingAuthorId = UUID.randomUUID();
             CommentCreateRequest request = new CommentCreateRequest(feedId, missingAuthorId,
                 "첫 댓글");
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -172,7 +172,7 @@ class CommentIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
         }
@@ -184,7 +184,7 @@ class CommentIntegrationTest {
 
         @Test
         void 정상적으로_조회하면_200과_페이지_DTO를_반환한다() throws Exception {
-            // Given
+            // given
             Comment oldComment = CommentFixture.create(
                 author,
                 feed,
@@ -199,14 +199,14 @@ class CommentIntegrationTest {
             );
             commentRepository.saveAll(List.of(oldComment, recentComment));
 
-            // When
+            // when
             mockMvc.perform(
                     get("/api/feeds/{feedId}/comments", feedId)
                         .with(user("tester").roles("USER"))
                         .param("limit", "2")
                         .accept(MediaType.APPLICATION_JSON)
                 )
-                // Then
+                // then
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.data.length()").value(2))
@@ -219,30 +219,30 @@ class CommentIntegrationTest {
         @Test
         void limit이_없으면_400을_반환한다() throws Exception {
 
-            // When
+            // when
             mockMvc.perform(
                     get("/api/feeds/{feedId}/comments", feedId)
                         .with(user("tester").roles("USER"))
                         .accept(MediaType.APPLICATION_JSON)
                 )
-                // Then
+                // then
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
         }
 
         @Test
         void 존재하지_않는_feedId면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID missingFeedId = UUID.randomUUID();
 
-            // When
+            // when
             mockMvc.perform(
                     get("/api/feeds/{feedId}/comments", missingFeedId)
                         .with(user("tester").roles("USER"))
                         .param("limit", "10")
                         .accept(MediaType.APPLICATION_JSON)
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
         }

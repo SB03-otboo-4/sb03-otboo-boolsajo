@@ -23,7 +23,6 @@ import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
-
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,20 +62,28 @@ class LikeIntegrationTest {
     private Feed feed;
 
     private CustomUserDetails principal(UUID uid) {
-        UserDto dto = new UserDto(uid, Instant.now(), "tester@example.com", "tester",
-            Role.USER, LoginType.GENERAL, false);
-        return CustomUserDetails.builder().userDto(dto).password("password").build();
+        UserDto dto = new UserDto(
+            uid, Instant.now(), "tester@example.com", "tester",
+            Role.USER, LoginType.GENERAL, false
+        );
+        return CustomUserDetails.builder()
+            .userDto(dto)
+            .password("password")
+            .build();
     }
 
     @BeforeEach
     void setUp() {
-        // Given
+        // given
         user = userRepository.save(UserFixture.createUserWithDefault());
         userId = user.getId();
 
         WeatherLocation location = weatherLocationRepository.save(
-            WeatherLocationFixture.createLocationWithDefault());
-        Weather weather = weatherRepository.save(WeatherFixture.createWeatherWithDefault(location));
+            WeatherLocationFixture.createLocationWithDefault()
+        );
+        Weather weather = weatherRepository.save(
+            WeatherFixture.createWeatherWithDefault(location)
+        );
 
         feed = feedRepository.save(
             Feed.builder()
@@ -96,17 +102,16 @@ class LikeIntegrationTest {
 
         @Test
         void 좋아요를_등록하면_204를_반환하고_DB에_저장된다() throws Exception {
-            // Given
+            // given
             CustomUserDetails principal = principal(userId);
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds/{feedId}/like", feedId)
                         .with(csrf())
                         .with(user(principal))
-                        .contentType(MediaType.APPLICATION_JSON)
                 )
-                // Then
+                // then
                 .andExpect(status().isNoContent());
 
             boolean exists = feedLikeRepository.existsByFeedIdAndUserId(feedId, userId);
@@ -115,34 +120,31 @@ class LikeIntegrationTest {
 
         @Test
         void 존재하지_않는_피드에_좋아요를_등록하려고_하면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID missingFeedId = UUID.randomUUID();
             CustomUserDetails principal = principal(userId);
 
-            // When & Then
+            // when & then
             mockMvc.perform(
                     post("/api/feeds/{feedId}/like", missingFeedId)
                         .with(csrf())
                         .with(user(principal))
-                        .contentType(MediaType.APPLICATION_JSON)
                 )
                 .andExpect(status().isNotFound());
         }
 
         @Test
         void 존재하지_않는_유저가_좋아요를_등록하려고_하면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID missingUserId = UUID.randomUUID();
             CustomUserDetails principal = principal(missingUserId);
 
-            // When
+            // when & then
             mockMvc.perform(
                     post("/api/feeds/{feedId}/like", feedId)
                         .with(csrf())
                         .with(user(principal))
-                        .contentType(MediaType.APPLICATION_JSON)
                 )
-                // Then
                 .andExpect(status().isNotFound());
         }
     }
@@ -153,7 +155,7 @@ class LikeIntegrationTest {
 
         @Test
         void 좋아요를_취소하면_204를_반환하고_DB에서_삭제된다() throws Exception {
-            // Given
+            // given
             CustomUserDetails principal = principal(userId);
 
             mockMvc.perform(
@@ -163,13 +165,13 @@ class LikeIntegrationTest {
                 )
                 .andExpect(status().isNoContent());
 
-            // When
+            // when
             mockMvc.perform(
                     delete("/api/feeds/{feedId}/like", feedId)
                         .with(csrf())
                         .with(user(principal))
                 )
-                // Then
+                // then
                 .andExpect(status().isNoContent());
 
             boolean exists = feedLikeRepository.existsByFeedIdAndUserId(feedId, userId);
@@ -178,33 +180,31 @@ class LikeIntegrationTest {
 
         @Test
         void 존재하지_않는_피드의_좋아요를_취소하려고_하면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID missingFeedId = UUID.randomUUID();
             CustomUserDetails principal = principal(userId);
 
-            // When
+            // when & then
             mockMvc.perform(
                     delete("/api/feeds/{feedId}/like", missingFeedId)
                         .with(csrf())
                         .with(user(principal))
                 )
-                // Then
                 .andExpect(status().isNotFound());
         }
 
         @Test
         void 존재하지_않는_유저가_좋아요를_취소하려고_하면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID missingUserId = UUID.randomUUID();
             CustomUserDetails principal = principal(missingUserId);
 
-            // When
+            // when & then
             mockMvc.perform(
                     delete("/api/feeds/{feedId}/like", feedId)
                         .with(csrf())
                         .with(user(principal))
                 )
-                // Then
                 .andExpect(status().isNotFound());
         }
     }

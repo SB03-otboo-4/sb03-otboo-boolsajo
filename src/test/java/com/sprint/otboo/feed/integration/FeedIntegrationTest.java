@@ -98,7 +98,7 @@ class FeedIntegrationTest {
 
         @Test
         void 피드를_등록하면_201과_DTO가_반환되고_DB에_저장된다() throws Exception {
-            // Given
+            // given
             FeedCreateRequest request = new FeedCreateRequest(
                 authorId,
                 weather.getId(),
@@ -106,7 +106,7 @@ class FeedIntegrationTest {
                 "오늘의 코디 - 통합테스트"
             );
 
-            // When
+            // when
             MvcResult result = mockMvc.perform(
                     post("/api/feeds")
                         .with(csrf())
@@ -114,14 +114,14 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.content").value("오늘의 코디 - 통합테스트"))
                 .andExpect(jsonPath("$.author.userId").value(authorId.toString()))
                 .andExpect(jsonPath("$.weather.weatherId").value(weather.getId().toString()))
                 .andReturn();
 
-            // Then
+            // then
             String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
             String createdId = JsonPath.read(body, "$.id");
             Optional<Feed> saved = feedRepository.findById(UUID.fromString(createdId));
@@ -133,7 +133,7 @@ class FeedIntegrationTest {
 
         @Test
         void 존재하지_않는_작성자로_등록하면_404가_반환된다() throws Exception {
-            // Given
+            // given
             UUID missingAuthorId = UUID.randomUUID();
 
             FeedCreateRequest request = new FeedCreateRequest(
@@ -143,7 +143,7 @@ class FeedIntegrationTest {
                 "오늘의 코디"
             );
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds")
                         .with(csrf())
@@ -151,13 +151,13 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound());
         }
 
         @Test
         void 작성자가_null이면_400이_반환된다() throws Exception {
-            // Given
+            // given
             FeedCreateRequest request = new FeedCreateRequest(
                 null,
                 weather.getId(),
@@ -165,7 +165,7 @@ class FeedIntegrationTest {
                 "오늘의 코디"
             );
 
-            // When
+            // when
             mockMvc.perform(
                     post("/api/feeds")
                         .with(csrf())
@@ -173,7 +173,7 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isBadRequest());
         }
     }
@@ -184,7 +184,7 @@ class FeedIntegrationTest {
 
         @Test
         void 작성자가_피드를_수정하면_200과_내용이_변경된다() throws Exception {
-            // Given
+            // given
             Feed feed = Feed.builder()
                 .author(author)
                 .weather(weather)
@@ -194,7 +194,7 @@ class FeedIntegrationTest {
             UUID feedId = feedRepository.save(feed).getId();
             FeedUpdateRequest request = new FeedUpdateRequest("수정된 컨텐츠");
 
-            // When
+            // when
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -202,23 +202,23 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(feedId.toString()))
                 .andExpect(jsonPath("$.content").value("수정된 컨텐츠"));
 
+            // then
             Feed updated = feedRepository.findById(feedId).orElseThrow();
             assertThat(updated.getContent()).isEqualTo("수정된 컨텐츠");
         }
 
         @Test
         void 존재하지_않는_피드를_수정하면_404가_반환된다() throws Exception {
-            // Given
+            // given
             UUID missingFeedId = UUID.randomUUID();
-
             FeedUpdateRequest request = new FeedUpdateRequest("수정");
 
-            // When
+            // when
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", missingFeedId)
                         .with(csrf())
@@ -226,38 +226,38 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound());
         }
 
         @Test
         void 작성자가_아니면_403이_반환된다() throws Exception {
-            // Given
-            Feed seed = Feed.builder()
+            // given
+            Feed feed = Feed.builder()
                 .author(author)
                 .weather(weather)
                 .content("원본 컨텐츠")
                 .createdAt(Instant.now())
                 .build();
-            UUID feedId = feedRepository.save(seed).getId();
-            User other = userRepository.save(UserFixture.createUserWithDefault());
+            UUID feedId = feedRepository.save(feed).getId();
+            User otherUser = userRepository.save(UserFixture.createUserWithDefault());
             FeedUpdateRequest request = new FeedUpdateRequest("수정 시도");
 
-            // When
+            // when
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
-                        .with(user(principal(other.getId())))
+                        .with(user(principal(otherUser.getId())))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isForbidden());
         }
 
         @Test
         void 내용이_null이거나_blank면_400이_반환된다() throws Exception {
-            // Given
+            // given
             Feed feed = Feed.builder()
                 .author(author)
                 .weather(weather)
@@ -268,7 +268,7 @@ class FeedIntegrationTest {
             FeedUpdateRequest nullRequest = new FeedUpdateRequest(null);
             FeedUpdateRequest blankRequest = new FeedUpdateRequest("   ");
 
-            // When
+            // when
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -276,10 +276,10 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(nullRequest))
                 )
-                // Then
+                // then
                 .andExpect(status().isBadRequest());
 
-            // When
+            // when
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -287,13 +287,13 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(blankRequest))
                 )
-                // Then
+                // then
                 .andExpect(status().isBadRequest());
         }
 
         @Test
         void 존재하지_않는_작성자가_수정하면_404가_반환된다() throws Exception {
-            // Given
+            // given
             UUID missingAuthorId = UUID.randomUUID();
 
             Feed feed = Feed.builder()
@@ -305,7 +305,7 @@ class FeedIntegrationTest {
             UUID feedId = feedRepository.save(feed).getId();
             FeedUpdateRequest request = new FeedUpdateRequest("수정");
 
-            // When
+            // when
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -313,7 +313,7 @@ class FeedIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(request))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound());
         }
     }
@@ -324,7 +324,7 @@ class FeedIntegrationTest {
 
         @Test
         void 작성자가_피드를_삭제하면_204와_Soft_Delete가_반영된다() throws Exception {
-            // Given
+            // given
             Feed feed = Feed.builder()
                 .author(author)
                 .weather(weather)
@@ -333,36 +333,38 @@ class FeedIntegrationTest {
                 .build();
             UUID feedId = feedRepository.save(feed).getId();
 
-            // When
+            // when
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
                         .with(user(principal(authorId)))
                 )
-                // Then
+                // then
                 .andExpect(status().isNoContent());
 
+            // then
             Feed deleted = feedRepository.findById(feedId).orElseThrow();
             assertThat(deleted.isDeleted()).isTrue();
         }
 
         @Test
         void 존재하지_않는_피드를_삭제하면_404가_반환된다() throws Exception {
+            // given
             UUID missingFeedId = UUID.randomUUID();
 
-            // When
+            // when
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", missingFeedId)
                         .with(csrf())
                         .with(user(principal(authorId)))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound());
         }
 
         @Test
         void 작성자가_아니면_403이_반환된다() throws Exception {
-            // Given
+            // given
             Feed feed = Feed.builder()
                 .author(author)
                 .weather(weather)
@@ -370,21 +372,21 @@ class FeedIntegrationTest {
                 .createdAt(Instant.now())
                 .build();
             UUID feedId = feedRepository.save(feed).getId();
-            User other = userRepository.save(UserFixture.createUserWithDefault());
+            User otherUser = userRepository.save(UserFixture.createUserWithDefault());
 
-            // When
+            // when
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
-                        .with(user(principal(other.getId())))
+                        .with(user(principal(otherUser.getId())))
                 )
-                // Then
+                // then
                 .andExpect(status().isForbidden());
         }
 
         @Test
         void 존재하지_않는_작성자가_삭제하면_404가_반환된다() throws Exception {
-            // Given
+            // given
             UUID missingUserId = UUID.randomUUID();
 
             Feed feed = Feed.builder()
@@ -395,13 +397,13 @@ class FeedIntegrationTest {
                 .build();
             UUID feedId = feedRepository.save(feed).getId();
 
-            // When
+            // when
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
                         .with(user(principal(missingUserId)))
                 )
-                // Then
+                // then
                 .andExpect(status().isNotFound());
         }
     }
