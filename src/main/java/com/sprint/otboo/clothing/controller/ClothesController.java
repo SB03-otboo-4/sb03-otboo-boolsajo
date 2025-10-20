@@ -1,5 +1,6 @@
 package com.sprint.otboo.clothing.controller;
 
+import com.sprint.otboo.clothing.controller.api.ClothesApi;
 import com.sprint.otboo.clothing.dto.data.ClothesDto;
 import com.sprint.otboo.clothing.dto.request.ClothesCreateRequest;
 import com.sprint.otboo.clothing.dto.request.ClothesUpdateRequest;
@@ -45,7 +46,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/clothes")
 @RequiredArgsConstructor
-public class ClothesController {
+public class ClothesController implements ClothesApi {
 
     private final ClothesService clothesService;
     private final ClothesExtractionService extractionService;
@@ -74,6 +75,7 @@ public class ClothesController {
      * @param imageUrl 이미지 URL (선택)
      * @return 등록된 의상 정보 {@link ResponseEntity} (HTTP 201)
      */
+    @Override
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ClothesDto> createClothes(
@@ -109,6 +111,7 @@ public class ClothesController {
      * @param typeEqual 의상 타입 필터 (선택, {@link ClothesTypeValid})
      * @return {@link CursorPageResponse} 조회 결과
      */
+    @Override
     @GetMapping
     public CursorPageResponse<ClothesDto> getClothesList(
         @RequestParam UUID ownerId,
@@ -140,6 +143,7 @@ public class ClothesController {
      * @param image 업로드할 이미지 파일 (선택)
      * @return 수정된 의상 DTO
      */
+    @Override
     @PatchMapping("/{clothesId}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<ClothesDto> updateClothes(
@@ -160,6 +164,7 @@ public class ClothesController {
      * @param clothesId 삭제할 의상 ID
      * @return 204 No Content
      */
+    @Override
     @DeleteMapping("/{clothesId}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<Void> deleteClothes(@PathVariable UUID clothesId) {
@@ -185,6 +190,7 @@ public class ClothesController {
      * @param url 상품 상세 페이지 URL
      * @return {@link ClothesDto} 추출된 의상 정보
      */
+    @Override
     @GetMapping("/extractions")
     public ClothesDto extractByUrl(@RequestParam String url) {
         return extractionService.extractByUrl(url);
