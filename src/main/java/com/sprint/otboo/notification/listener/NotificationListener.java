@@ -1,8 +1,11 @@
 package com.sprint.otboo.notification.listener;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
+import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
+import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
+import com.sprint.otboo.follow.event.FollowCreatedEvent;
 import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.user.event.UserRoleChangedEvent;
 import lombok.RequiredArgsConstructor;
@@ -59,5 +62,37 @@ public class NotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleFeedCommented(FeedCommentedEvent event) {
         notificationService.notifyFeedCommented(event.feedAuthorId(), event.commentedByUserId());
+    }
+
+    /**
+     * 피드 생성 이벤트를 받아 팔로워 전용 알림 생성을 위임
+     *
+     * @param event 피드 ID와 작성자 ID가 담긴 이벤트
+     * */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleFeedCreated(FeedCreatedEvent event) {
+        log.debug("[NotificationListener] handleFeedCreated: feedId={}, authorId={}",
+            event.feedId(), event.authorId());
+        notificationService.notifyFollowersFeedCreated(event.authorId(), event.feedId());
+    }
+
+    /**
+     * 팔로우 생성 이벤트를 받아 새 팔로워 알림 생성을 위임
+     *
+     * @param event 팔로워 ID와 팔로이 ID가 담긴 이벤트
+     * */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleFollowCreated(FollowCreatedEvent event) {
+        log.debug("[NotificationListener] handleFollowCreated: followerId={}, followeeId={}",
+            event.followerId(), event.followeeId());
+        notificationService.notifyUserFollowed(event.followerId(), event.followeeId());
+    }
+
+    /**
+     * 의상 속성 정의 삭제 이벤트를 받아 전체 사용자에 대한 알림을 위임
+     * */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleClothesAttributeDeleted(ClothesAttributeDefDeletedEvent event) {
+        notificationService.notifyClothesAttributeDeletedForAllUsers(event.attributeName());
     }
 }

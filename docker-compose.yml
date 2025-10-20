@@ -1,86 +1,129 @@
+# 1) ElasticSearch
 services:
-  # PostgreSQL 데이터베이스 서비스
+  es01:
+    build:
+      context: ./es
+      dockerfile: Dockerfile
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=${CLUSTER_NAME:-es-dev}
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+    ports:
+      - "${ES_PORT:-9200}:9200"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9200 | grep -q 'You Know, for Search'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # 2) Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION:-8.18.5}
+    container_name: kibana
+    depends_on:
+      es01:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://es01:9200
+      - XPACK_SECURITY_ENABLED=false
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    volumes:
+      - kibanadata:/usr/share/kibana/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS -I http://localhost:5601 | grep -q 'HTTP/1.1 302'" ]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  # 3) PostgreSQL
   postgres:
     image: postgres:17-alpine
     container_name: otboo-db
     restart: unless-stopped
-    # 환경변수 설정
     env_file:
       - .env
-      - .env.docker
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # 포트 매핑 (호스트:컨테이너)
+      POSTGRES_DB: ${POSTGRES_DB:-otboo}
+      POSTGRES_USER: ${POSTGRES_USER:-otboo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otboo}
     ports:
-      - "54321:5432"
-    # 볼륨 마운트 (데이터 영속화)
+      - "${POSTGRES_PORT:-54321}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-init-data.sql:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-otboo} -d ${POSTGRES_DB:-otboo}" ]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 10
 
+  # 4) Redis
   redis:
     image: redis:7.2-alpine
     container_name: otboo-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-
-  # Spring Boot 애플리케이션 서비스
+  # 5) Spring Boot App
   app:
-    # 로컬 Dockerfile 빌드 또는 이미지 지정
     build:
       context: .
       dockerfile: Dockerfile
     container_name: otboo-app
     restart: unless-stopped
     depends_on:
+      es01:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     env_file:
       - .env
-      - .env.docker
-    # 환경변수 설정
     environment:
-      # Spring 프로파일
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      PROJECT_NAME: ${PROJECT_NAME}
-      JVM_OPTS: ${JVM_OPTS}
-
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA}
-
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      PROJECT_NAME: ${PROJECT_NAME:-otboo}
+      JVM_OPTS: ${JVM_OPTS:-"-Xms512m -Xmx512m"}
+      # DB
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-otboo}
+      POSTGRES_USER: ${POSTGRES_USER:-otboo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-otboo}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-public}
+      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      GOOGLE_ID: ${GOOGLE_ID}
-      GOOGLE_PASSWORD: ${GOOGLE_PASSWORD}
-      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
-      KAKAO_API_BASE_URL: ${KAKAO_API_BASE_URL}
-
-    # 포트 매핑 (호스트:컨테이너)
+      # ES (앱에서 사용할 주소)
+      ES_BASE_URL: http://es01:9200
+      # 기타 시크릿
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh}
+      GOOGLE_ID: ${GOOGLE_ID:-}
+      GOOGLE_PASSWORD: ${GOOGLE_PASSWORD:-}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:-}
+      KAKAO_API_BASE_URL: ${KAKAO_API_BASE_URL:-}
     ports:
       - "8080:8080"
 
 volumes:
-  # PostgreSQL 데이터 볼륨
+  esdata01:
+  kibanadata:
   postgres_data:

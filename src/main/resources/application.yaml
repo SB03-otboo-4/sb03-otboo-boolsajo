@@ -47,7 +47,6 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
-
   # Spring Actuator
   management:
     endpoints:
@@ -114,3 +113,7 @@ storage:
 admin:
   default:
     password: ${ADMIN_DEFAULT_PASSWORD}
+
+es:
+  host: ${ELASTICSEARCH_HOST}
+  api-key: ${ELASTICSEARCH_API_KEY}

@@ -43,3 +43,18 @@ admin:
     email: system@otboo.io
     username: system
     password: otboo1!
+
+test-jwt:
+  access-token:
+    secret: "a-very-long-and-secure-secret-key-for-access-token-in-test-environment"
+    expiration: 1800000
+  refresh-token:
+    secret: "another-long-and-secure-secret-key-for-refresh-token-in-test-environment"
+    expiration: 604800000
+
+app:
+  index:
+    run-on-startup: false
+es:
+  host: ${ELASTICSEARCH_HOST}
+  api-key: ${ELASTICSEARCH_API_KEY}

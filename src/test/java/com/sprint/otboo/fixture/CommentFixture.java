@@ -18,4 +18,14 @@ public class CommentFixture {
             .createdAt(createdAt)
             .build();
     }
+
+    public static Comment create(User author, Feed feed, String content,
+        Instant createdAt) {
+        return Comment.builder()
+            .author(author)
+            .feed(feed)
+            .content(content)
+            .createdAt(createdAt)
+            .build();
+    }
 }

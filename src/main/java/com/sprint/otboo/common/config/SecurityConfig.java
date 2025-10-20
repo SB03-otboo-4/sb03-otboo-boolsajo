@@ -50,7 +50,8 @@ public class SecurityConfig {
                                   "/api/users/*/lock",       // 계정 잠금 상태 변경
                                   "/api/users/*/role", // 권한 변경
                                   "/api/users/*/profiles", // 프로필 변경
-                                  "/api/follows" // 팔로우 생성
+                                  "/api/follows", // 팔로우 생성
+                                  "/api/sse"    // SSE
                     )
             )
             .sessionManagement(s ->
@@ -65,6 +66,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
 
                 // Actuator
+                .requestMatchers("/health").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
                 // 사용자 관련 API

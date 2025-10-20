@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("팔로잉 목록 조회 서비스 테스트")
 class FollowingsServiceTest {
@@ -23,11 +24,13 @@ class FollowingsServiceTest {
     private final FollowRepository followRepository = Mockito.mock(FollowRepository.class);
     private final UserRepository userRepository = Mockito.mock(UserRepository.class);
     private final FollowQueryRepository queryRepository = Mockito.mock(FollowQueryRepository.class);
+    ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
 
     private final FollowService service = new FollowServiceImpl(
         followRepository,
         userRepository,
-        queryRepository
+        queryRepository,
+        eventPublisher
     );
 
     // 첫 페이지: limit개 + hasNext=true → nextCursor/nextIdAfter 세팅

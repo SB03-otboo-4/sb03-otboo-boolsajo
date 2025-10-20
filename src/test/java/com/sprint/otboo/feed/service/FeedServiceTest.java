@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.verify;
 
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesType;
@@ -19,6 +20,8 @@ import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedRepository;
+import com.sprint.otboo.feedsearch.event.FeedChangedEvent;
+import com.sprint.otboo.feedsearch.event.FeedDeletedEvent;
 import com.sprint.otboo.fixture.ClothesFixture;
 import com.sprint.otboo.fixture.FeedFixture;
 import com.sprint.otboo.fixture.UserFixture;
@@ -39,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +59,8 @@ public class FeedServiceTest {
     WeatherRepository weatherRepository;
     @Mock
     ClothesRepository clothesRepository;
+    @Mock
+    private ApplicationEventPublisher publisher;
     @InjectMocks
     FeedServiceImpl feedService;
 
@@ -103,6 +109,7 @@ public class FeedServiceTest {
 
             // Then
             assertThat(result).isSameAs(expected);
+            verify(publisher).publishEvent(any(FeedChangedEvent.class));
             then(userRepository).should().findById(authorId);
             then(weatherRepository).should().findById(weatherId);
             then(feedRepository).should().save(any(Feed.class));
@@ -173,7 +180,9 @@ public class FeedServiceTest {
             FeedDto result = feedService.update(authorId, feedId, request);
 
             // Then
+
             assertThat(result).isSameAs(expected);
+            verify(publisher).publishEvent(any(FeedChangedEvent.class));
             then(userRepository).should().findById(authorId);
             then(feedRepository).should().findById(feedId);
             then(feedRepository).should().save(any(Feed.class));
@@ -269,6 +278,7 @@ public class FeedServiceTest {
 
             assertThat(saved.isDeleted()).isTrue();
 
+            verify(publisher).publishEvent(any(FeedDeletedEvent.class));
             then(userRepository).should().findById(authorId);
             then(feedRepository).should().findById(feedId);
             then(feedRepository).shouldHaveNoMoreInteractions();

@@ -13,7 +13,7 @@ public class RefreshTokenCookieUtil {
     public Cookie createRefreshTokenCookie(String refreshToken) {
         Cookie cookie = new Cookie("REFRESH_TOKEN", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(false);
         cookie.setPath("/");
         cookie.setMaxAge((int) (refreshTokenExpiration / 1000));
         return cookie;
