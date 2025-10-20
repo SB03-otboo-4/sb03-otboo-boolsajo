@@ -12,8 +12,10 @@ import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.service.DMService;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -53,10 +58,30 @@ class DMControllerReadTest {
     @MockitoBean
     DMService dmService;
 
+    static class TestPrincipal {
+        private final UUID id;
+        TestPrincipal(UUID id) { this.id = id; }
+        public UUID getId() { return id; }
+    }
+
+    private void setAuthenticatedUser(UUID userId) {
+        TestPrincipal principal = new TestPrincipal(userId);
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+            principal, "N/A", Collections.emptyList()
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void dm_목록_조회_성공_200() throws Exception {
         UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
         UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
+        setAuthenticatedUser(me);
 
         DirectMessageDto item1 = new DirectMessageDto(
             UUID.fromString("386cb145-63c6-4333-89c9-6245789c6671"),
@@ -90,12 +115,48 @@ class DMControllerReadTest {
 
     @Test
     void dm_목록_조회_커서_형식오류_400() throws Exception {
+        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
         UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
+        setAuthenticatedUser(me);
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
                 .param("cursor", "NOT_ISO")
                 .param("limit", "20"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 자기자신과의_대화_금지_400() throws Exception {
+        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
+        setAuthenticatedUser(me);
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", me.toString()))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void idAfter만_있고_cursor_없음_400() throws Exception {
+        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
+        UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
+        setAuthenticatedUser(me);
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString())
+                .param("idAfter", UUID.randomUUID().toString()))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void limit_범위_초과_400() throws Exception {
+        UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
+        UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
+        setAuthenticatedUser(me);
+
+        mvc.perform(get("/api/direct-messages")
+                .param("userId", other.toString())
+                .param("limit", "1000"))
             .andExpect(status().isBadRequest());
     }
 }

@@ -1,5 +1,7 @@
 package com.sprint.otboo.dm.repository;
 
+import static com.sprint.otboo.dm.entity.QDM.dM;
+
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -40,10 +42,10 @@ public class DMQueryRepositoryImpl implements DMQueryRepository {
         return jpa.select(Projections.constructor(DirectMessageDto.class,
                 dM.id,
                 dM.senderId,
-                sender.name,
+                sender.username,
                 sender.profileImageUrl,
                 dM.receiverId,
-                receiver.name,
+                receiver.username,
                 receiver.profileImageUrl,
                 dM.content,
                 dM.createdAt
