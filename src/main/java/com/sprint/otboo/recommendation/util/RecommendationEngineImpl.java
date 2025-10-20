@@ -107,12 +107,25 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     }
 
     /**
-     * 일교차 기반 OUTER 강제 추천 여부
+     * 일교차 및 기상 조건 기반 OUTER 강제 추천 여부 판단
+     *
+     * <p>
+     * - OUTER 타입이 아니면 추천하지 않음
+     * - 최고/최저 온도 기준으로 일교차 계산 후 규칙 적용
+     *   <ul>
+     *       <li>규칙 1: 봄/가을 & 일교차 ≥ 6°C</li>
+     *       <li>규칙 2: 봄/가을 & 일교차 ≥ 4°C & 풍속 ≥ 3m/s & 구름 많음</li>
+     *   </ul>
+     * - 최고/최저 온도가 없을 경우(현재 온도로 fallback) 서브 규칙 적용
+     *   <ul>
+     *       <li>서브 1: 체감온도 10~14°C & 풍속 ≥ 2.5m/s</li>
+     *       <li>서브 2: 체감온도 15~19°C & 풍속 ≥ 3.0m/s & 구름 많음</li>
+     *   </ul>
      *
      * @param clothes 의상
      * @param season 계절
      * @param weather 날씨 정보
-     * @return 추천 가능 여부
+     * @return 강제 추천 대상이면 true, 아니면 false
      */
     private boolean isForcedOuterRecommendation(Clothes clothes, Season season, Weather weather) {
         // OUTER 타입이 아니면 false
@@ -135,6 +148,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         // 일교차 계산
         double dailyRange = WeatherUtils.calculateDailyRange(maxTemp, minTemp);
 
+        // 정규 규칙: 최고ㆍ최저 온도로 체감온도가 계산된 경우
         // 규칙 1: 봄/가을 & 일교차 6도 이상
         boolean rule1 = (season == Season.SPRING || season == Season.FALL)
             && dailyRange >= 6;
@@ -144,9 +158,28 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         boolean rule2 = (season == Season.SPRING || season == Season.FALL)
             && dailyRange >= 4
             && windSpeed >= 3.0
-            && skyStatus == SkyStatus.CLOUDY;;
+            && (skyStatus == SkyStatus.MOSTLY_CLOUDY || skyStatus == SkyStatus.CLOUDY);
 
-        return rule1 || rule2;
+        // 서브 규칙: 최고ㆍ최저 온도 없어서 fallback인 경우(현재 온도 기준)
+        boolean usedFallback = (weatherDto.temperature().max() == 0.0 || weatherDto.temperature().min() == 0.0);
+
+        // 서브 1: 낮은 온도 범위 10~14°C & 풍속 ≥ 2.5m/s
+        boolean subRule1 = usedFallback
+            && (season == Season.SPRING || season == Season.FALL)
+            && weatherDto.temperature().current() >= 10.0
+            && weatherDto.temperature().current() <= 14.0
+            && windSpeed >= 2.5;
+
+        // 서브 2: 높은 온도 범위 15~19°C & 풍속 ≥ 3.0m/s & 구름 많음
+        boolean subRule2 = usedFallback
+            && (season == Season.SPRING || season == Season.FALL)
+            && weatherDto.temperature().current() >= 15.0
+            && weatherDto.temperature().current() <= 19.0
+            && windSpeed >= 3.0
+            && (skyStatus == SkyStatus.MOSTLY_CLOUDY || skyStatus == SkyStatus.CLOUDY);
+
+        // 최종 반환
+        return rule1 || rule2 || subRule1 || subRule2;
     }
 
     /**
