@@ -1,4 +1,4 @@
-package com.sprint.otboo.dm;
+package com.sprint.otboo.dm.controller;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,7 +53,6 @@ class DMControllerReadTest {
     DMService dmService;
 
     @Test
-    @DisplayName("DM 목록 조회 성공 - 200")
     void dm_목록_조회_성공_200() throws Exception {
         UUID me = UUID.fromString("68e17953-f79f-4d4f-8839-b26054887d5f");
         UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
@@ -89,7 +88,6 @@ class DMControllerReadTest {
     }
 
     @Test
-    @DisplayName("커서 형식 오류 - 400")
     void dm_목록_조회_커서_형식오류_400() throws Exception {
         UUID other = UUID.fromString("947e5ff1-508a-4f72-94b1-990e206c692b");
 
