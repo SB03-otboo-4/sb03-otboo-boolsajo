@@ -9,12 +9,14 @@ import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.repository.FollowQueryRepository;
 import com.sprint.otboo.follow.repository.FollowRepository;
 import com.sprint.otboo.user.repository.UserRepository;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("팔로워 목록 조회 서비스 테스트")
