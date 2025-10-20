@@ -454,8 +454,8 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         WeatherLocationResponse locationResponse = new WeatherLocationResponse(
             weather.getLocation() != null ? safeDouble(weather.getLocation().getLatitude()) : 0.0,
             weather.getLocation() != null ? safeDouble(weather.getLocation().getLongitude()) : 0.0,
-            weather.getLocation() != null ? weather.getLocation().getX() : 0,
-            weather.getLocation() != null ? weather.getLocation().getY() : 0,
+            weather.getLocation() != null ? safeInt(weather.getLocation().getX()) : 0,
+            weather.getLocation() != null ? safeInt(weather.getLocation().getY()) : 0,
             weather.getLocation() != null && weather.getLocation().getLocationNames() != null
                 ? Arrays.stream(weather.getLocation().getLocationNames().split("/"))
                 .map(String::trim)
@@ -522,5 +522,15 @@ public class RecommendationEngineImpl implements RecommendationEngine {
      */
     private double safeDouble(Double value) {
         return value != null ? value : 0.0;
+    }
+
+    /**
+     * null 안전한 Integer → int 변환
+     *
+     * @param value 변환할 Integer 값
+     * @return value가 null이면 0, 아니면 int 값
+     */
+    private int safeInt(Integer value) {
+        return value != null ? value : 0;
     }
 }
