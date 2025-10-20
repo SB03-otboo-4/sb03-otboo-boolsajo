@@ -9,11 +9,16 @@ import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.entity.attribute.Season;
 import com.sprint.otboo.recommendation.entity.TemperatureCategory;
+import com.sprint.otboo.weather.dto.data.WeatherDto;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
+import com.sprint.otboo.weather.entity.WeatherLocation;
+import com.sprint.otboo.weather.entity.WindStrength;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1996,5 +2001,104 @@ public class RecommendationUtilTest {
         Map<ClothesType, Long> typeCount = recommended.stream()
             .collect(Collectors.groupingBy(Clothes::getType, Collectors.counting()));
         typeCount.forEach((type, count) -> assertThat(count).isEqualTo(1));
+    }
+
+    @Test
+    void WeatherDto_정상매핑_검증() throws Exception {
+        // given: WeatherLocation + Weather 구성
+        WeatherLocation location = WeatherLocation.builder()
+            .id(UUID.randomUUID())
+            .latitude(new BigDecimal("37.5665"))
+            .longitude(new BigDecimal("126.9780"))
+            .x(60)
+            .y(127)
+            .locationNames("서울/중구/태평로1가")
+            .createdAt(Instant.now())
+            .build();
+
+        Weather weather = Weather.builder()
+            .id(UUID.randomUUID())
+            .forecastedAt(Instant.parse("2025-10-20T03:00:00Z"))
+            .forecastAt(Instant.parse("2025-10-21T03:00:00Z"))
+            .location(location)
+            .skyStatus(SkyStatus.CLOUDY)
+            .asWord(WindStrength.MODERATE)
+            .type(PrecipitationType.RAIN)
+            .speedMs(3.2)
+            .currentPct(55.0)
+            .comparedPct(-10.0)
+            .currentC(18.5)
+            .comparedC(-1.5)
+            .minC(16.0)
+            .maxC(22.0)
+            .amountMm(2.5)
+            .probability(80.0)
+            .build();
+
+        // when: private 메서드 toWeatherDto 호출
+        Method method = RecommendationEngineImpl.class.getDeclaredMethod("toWeatherDto", Weather.class);
+        method.setAccessible(true);
+        WeatherDto dto = (WeatherDto) method.invoke(recommendationEngine, weather);
+
+        // then: BigDecimal 안전 변환 + 매핑 검증
+        assertThat(dto.id()).isEqualTo(weather.getId());
+        assertThat(dto.skyStatus()).isEqualTo("CLOUDY");
+        assertThat(dto.location().latitude()).isEqualTo(37.5665);
+        assertThat(dto.location().longitude()).isEqualTo(126.9780);
+        assertThat(dto.location().x()).isEqualTo(60);
+        assertThat(dto.location().y()).isEqualTo(127);
+        assertThat(dto.location().locationNames()).containsExactly("서울", "중구", "태평로1가");
+        assertThat(dto.precipitation().type()).isEqualTo("RAIN");
+        assertThat(dto.temperature().max()).isEqualTo(22.0);
+        assertThat(dto.humidity().current()).isEqualTo(55.0);
+        assertThat(dto.windSpeed().asWord()).isEqualTo("MODERATE");
+    }
+
+    @Test
+    void WeatherDto_null안전_검증() throws Exception {
+        // given: 일부 null 필드 포함한 Weather 엔티티
+        WeatherLocation location = WeatherLocation.builder()
+            .latitude(null)
+            .longitude(null)
+            .x(null)
+            .y(null)
+            .locationNames(null)
+            .createdAt(Instant.now())
+            .build();
+
+        Weather weather = Weather.builder()
+            .location(location)
+            .forecastedAt(Instant.now())
+            .forecastAt(Instant.now())
+            .skyStatus(null)
+            .asWord(null)
+            .type(null)
+            .speedMs(null)
+            .currentPct(null)
+            .comparedPct(null)
+            .currentC(null)
+            .comparedC(null)
+            .minC(null)
+            .maxC(null)
+            .amountMm(null)
+            .probability(null)
+            .build();
+
+        // when: 변환 수행
+        Method method = RecommendationEngineImpl.class.getDeclaredMethod("toWeatherDto", Weather.class);
+        method.setAccessible(true);
+        WeatherDto dto = (WeatherDto) method.invoke(recommendationEngine, weather);
+
+        // then: null-safe 결과 확인
+        assertThat(dto.location().latitude()).isZero();
+        assertThat(dto.location().longitude()).isZero();
+        assertThat(dto.location().x()).isZero();
+        assertThat(dto.location().y()).isZero();
+        assertThat(dto.location().locationNames()).isEmpty();
+        assertThat(dto.skyStatus()).isEmpty();
+        assertThat(dto.precipitation().type()).isEqualTo("NONE");
+        assertThat(dto.temperature().max()).isZero();
+        assertThat(dto.humidity().current()).isZero();
+        assertThat(dto.windSpeed().asWord()).isEmpty();
     }
 }
