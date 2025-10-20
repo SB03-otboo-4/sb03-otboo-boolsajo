@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
-import com.sprint.otboo.dm.dto.DirectMessageDto;
+import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.service.DMService;
 import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import java.time.Instant;
@@ -44,6 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 )
 @AutoConfigureMockMvc
 @Import({GlobalExceptionHandler.class})
+@DisplayName("DM 목록 조회 컨트롤러 테스트")
 class DMControllerReadTest {
 
     @Autowired

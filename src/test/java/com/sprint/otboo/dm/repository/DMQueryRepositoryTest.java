@@ -3,7 +3,7 @@ package com.sprint.otboo.dm.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.sprint.otboo.dm.dto.DirectMessageDto;
+import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.entity.DM;
 import com.sprint.otboo.user.entity.User;
 import java.time.Instant;
@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DataJpaTest
 @Import({DMQueryRepositoryTest.QuerydslTestConfig.class, DMQueryRepositoryImpl.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@DisplayName("DM 목록 조회 레포지토리 테스트")
 class DMQueryRepositoryTest {
 
     @TestConfiguration
@@ -55,10 +56,10 @@ class DMQueryRepositoryTest {
         repository = new DMQueryRepositoryImpl(new JPAQueryFactory(em));
         // 사용자 두 명 (sender/receiver 조인용)
         User uMe = User.builder()
-            .id(me).email("me@otboo.dev").name("buzz").profileImageUrl("https://s3/me.png")
+            .id(me).email("me@otboo.dev").username("buzz").profileImageUrl("https://s3/me.png")
             .build();
         User uOther = User.builder()
-            .id(other).email("other@otboo.dev").name("slinky").profileImageUrl(null)
+            .id(other).email("other@otboo.dev").username("slinky").profileImageUrl(null)
             .build();
         em.persist(uMe);
         em.persist(uOther);

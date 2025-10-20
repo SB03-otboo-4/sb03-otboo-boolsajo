@@ -4,9 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
-import com.sprint.otboo.dm.dto.DirectMessageDto;
+import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.repository.DMRepository;
-import com.sprint.otboo.dm.service.impl.DMServiceImpl;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+@DisplayName("DM 목록 조회 서비스 테스트")
 class DMServiceReadTest {
 
     DMRepository repository = Mockito.mock(DMRepository.class);

@@ -19,6 +19,9 @@ public enum ErrorCode {
     INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 컬럼입니다."),
     INVALID_SORT_DIRECTION(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 방향입니다."),
     WEATHER_DATA_INCOMPLETE(HttpStatus.BAD_REQUEST, "날씨 데이터가 불완전합니다."),
+    INVALID_CURSOR_FORMAT(org.springframework.http.HttpStatus.BAD_REQUEST, "cursor 형식이 잘못되었습니다(ISO-8601 필요)."),
+    INVALID_CURSOR_PAIR(HttpStatus.BAD_REQUEST, "cursor와 idAfter는 함께 제공해야 합니다."),
+    SELF_DM_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "자기 자신과의 대화는 허용되지 않습니다."),
 
     // 401 UNAUTHORIZED
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."),
