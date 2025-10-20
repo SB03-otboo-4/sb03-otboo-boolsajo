@@ -56,7 +56,7 @@ public class FeedServiceImpl implements FeedService {
     @Override
     @Transactional
     public FeedDto create(FeedCreateRequest request) {
-        log.debug("[FeedServiceImpl] 피드 생성 요청: authorId={}, weatherId={}",
+        log.debug("[FeedServiceImpl] 피드 생성 요청: authorId={}, id={}",
             request.authorId(), request.weatherId());
         User author = userRepository.findById(request.authorId())
             .orElseThrow(() -> UserNotFoundException.withId(request.authorId()));

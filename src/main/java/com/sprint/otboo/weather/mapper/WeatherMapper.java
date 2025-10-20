@@ -20,7 +20,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface WeatherMapper {
 
-    @Mapping(source = "id",           target = "weatherId")
+    @Mapping(source = "id",           target = "id")
     @Mapping(source = "forecastedAt", target = "forecastedAt")
     @Mapping(source = "forecastAt",   target = "forecastAt")
     @Mapping(target = "location",     expression = "java(toLocationResponse(weather.getLocation()))")
