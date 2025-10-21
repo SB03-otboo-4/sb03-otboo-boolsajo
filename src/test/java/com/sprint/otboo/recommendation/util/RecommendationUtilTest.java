@@ -8,6 +8,7 @@ import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.entity.attribute.Season;
+import com.sprint.otboo.clothing.entity.attribute.Thickness;
 import com.sprint.otboo.recommendation.entity.TemperatureCategory;
 import com.sprint.otboo.weather.dto.data.WeatherDto;
 import com.sprint.otboo.weather.entity.PrecipitationType;
@@ -1857,6 +1858,169 @@ public class RecommendationUtilTest {
 
         // then: 즉시 false 반환
         assertThat(result).isFalse();
+    }
+
+    @Test
+    void 서브규칙_봄가을_아닌계절() throws Exception {
+        // given: OUTER 의상, 여름 계절, 체감온도 12°C, 풍속 3.0m/s
+        Clothes outer = Clothes.builder().type(ClothesType.OUTER).build();
+        Weather weather = Weather.builder()
+            .currentC(12.0)
+            .maxC(0.0)
+            .minC(0.0)
+            .speedMs(3.0)
+            .skyStatus(SkyStatus.CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        RecommendationEngineImpl engine = (RecommendationEngineImpl) recommendationEngine;
+
+        Field windField = RecommendationEngineImpl.class.getDeclaredField("windSpeed");
+        windField.setAccessible(true);
+        windField.set(engine, weather.getSpeedMs());
+
+        Method method = RecommendationEngineImpl.class
+            .getDeclaredMethod("isForcedOuterRecommendation", Clothes.class, Season.class, Weather.class);
+        method.setAccessible(true);
+
+        // when: 강제 추천 여부 판단
+        boolean result = (Boolean) method.invoke(engine, outer, Season.SUMMER, weather);
+
+        // then: 봄/가을이 아니므로 추천되지 않아야 함
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void 서브규칙_조건미달_풍속_구름() throws Exception {
+        // given: OUTER 의상, FALL 계절, 체감온도 17°C, 풍속 2.9m/s, 구름 CLEAR
+        Clothes outer = Clothes.builder().type(ClothesType.OUTER).build();
+        Weather weather = Weather.builder()
+            .currentC(17.0)
+            .maxC(0.0)
+            .minC(0.0)
+            .speedMs(2.9) // 풍속 미달
+            .skyStatus(SkyStatus.CLEAR) // 구름 미달
+            .type(PrecipitationType.NONE)
+            .build();
+
+        RecommendationEngineImpl engine = (RecommendationEngineImpl) recommendationEngine;
+
+        Field windField = RecommendationEngineImpl.class.getDeclaredField("windSpeed");
+        windField.setAccessible(true);
+        windField.set(engine, weather.getSpeedMs());
+
+        Method method = RecommendationEngineImpl.class
+            .getDeclaredMethod("isForcedOuterRecommendation", Clothes.class, Season.class, Weather.class);
+        method.setAccessible(true);
+
+        // when: 강제 추천 여부 판단
+        boolean result = (Boolean) method.invoke(engine, outer, Season.FALL, weather);
+
+        // then: 풍속과 구름 조건 미달 → 추천되지 않아야 함
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void 정규규칙_최고최저온도_사용() throws Exception {
+        // given: OUTER 의상, SPRING 계절, 최고온도 20°C, 최저온도 12°C
+        Clothes outer = Clothes.builder().type(ClothesType.OUTER).build();
+        Weather weather = Weather.builder()
+            .currentC(0.0) // fallback 사용 안됨
+            .maxC(20.0)
+            .minC(12.0)
+            .speedMs(3.5)
+            .skyStatus(SkyStatus.MOSTLY_CLOUDY)
+            .type(PrecipitationType.NONE)
+            .build();
+
+        RecommendationEngineImpl engine = (RecommendationEngineImpl) recommendationEngine;
+
+        Field windField = RecommendationEngineImpl.class.getDeclaredField("windSpeed");
+        windField.setAccessible(true);
+        windField.set(engine, weather.getSpeedMs());
+
+        Method method = RecommendationEngineImpl.class
+            .getDeclaredMethod("isForcedOuterRecommendation", Clothes.class, Season.class, Weather.class);
+        method.setAccessible(true);
+
+        // when: 강제 추천 여부 판단
+        boolean result = (Boolean) method.invoke(engine, outer, Season.SPRING, weather);
+
+        // then: 최고최저온도로 rule1과 rule2 조건 계산 → 추천되어야 함
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void 여름_두께_테스트() throws Exception {
+        // given: 계절 SUMMER, 두께 비교
+        Season season = Season.SUMMER;
+        RecommendationEngineImpl engine = (RecommendationEngineImpl) recommendationEngine;
+
+        Method method = RecommendationEngineImpl.class
+            .getDeclaredMethod("isTopBottomSuitable", Thickness.class, Season.class, TemperatureCategory.class);
+        method.setAccessible(true);
+
+        // when: 각 두께에 대해 적합 여부를 판단
+        boolean resultLightHigh = (Boolean) method.invoke(engine, Thickness.LIGHT, season, TemperatureCategory.HIGH);
+        boolean resultMediumHigh = (Boolean) method.invoke(engine, Thickness.MEDIUM, season, TemperatureCategory.HIGH);
+        boolean resultHeavyHigh = (Boolean) method.invoke(engine, Thickness.HEAVY, season, TemperatureCategory.HIGH);
+
+        boolean resultLightLow = (Boolean) method.invoke(engine, Thickness.LIGHT, season, TemperatureCategory.LOW);
+        boolean resultMediumLow = (Boolean) method.invoke(engine, Thickness.MEDIUM, season, TemperatureCategory.LOW);
+        boolean resultHeavyLow = (Boolean) method.invoke(engine, Thickness.HEAVY, season, TemperatureCategory.LOW);
+
+        // then: SUMMER는 LIGHT만 추천, MEDIUM/HEAVY는 추천되지 않아야 함
+        assertThat(resultLightHigh).isTrue();
+        assertThat(resultMediumHigh).isFalse();
+        assertThat(resultHeavyHigh).isFalse();
+
+        assertThat(resultLightLow).isTrue();
+        assertThat(resultMediumLow).isFalse();
+        assertThat(resultHeavyLow).isFalse();
+    }
+
+    @Test
+    void 가을_두께_높은온도_테스트() throws Exception {
+        // given: 계절 FALL, 온도 HIGH
+        Season season = Season.FALL;
+        TemperatureCategory category = TemperatureCategory.HIGH;
+        RecommendationEngineImpl engine = (RecommendationEngineImpl) recommendationEngine;
+
+        Method method = RecommendationEngineImpl.class
+            .getDeclaredMethod("isTopBottomSuitable", Thickness.class, Season.class, TemperatureCategory.class);
+        method.setAccessible(true);
+
+        // when: 각 두께에 대한 적합 여부 판단
+        boolean resultLight = (Boolean) method.invoke(engine, Thickness.LIGHT, season, category);
+        boolean resultMedium = (Boolean) method.invoke(engine, Thickness.MEDIUM, season, category);
+        boolean resultHeavy = (Boolean) method.invoke(engine, Thickness.HEAVY, season, category);
+
+        // then: HIGH -> MEDIUM만 추천
+        assertThat(resultLight).isFalse();
+        assertThat(resultMedium).isTrue();
+        assertThat(resultHeavy).isFalse();
+    }
+
+    @Test
+    void 가을_두께_낮은온도_테스트() throws Exception {
+        // given: 계절 FALL, 온도 LOW
+        Season season = Season.FALL;
+        TemperatureCategory category = TemperatureCategory.LOW;
+        RecommendationEngineImpl engine = (RecommendationEngineImpl) recommendationEngine;
+
+        Method method = RecommendationEngineImpl.class
+            .getDeclaredMethod("isTopBottomSuitable", Thickness.class, Season.class, TemperatureCategory.class);
+        method.setAccessible(true);
+
+        // when: 각 두께에 대한 적합 여부 판단
+        boolean resultLight = (Boolean) method.invoke(engine, Thickness.LIGHT, season, category);
+        boolean resultMedium = (Boolean) method.invoke(engine, Thickness.MEDIUM, season, category);
+        boolean resultHeavy = (Boolean) method.invoke(engine, Thickness.HEAVY, season, category);
+
+        // then: LOW -> MEDIUM, HEAVY 추천
+        assertThat(resultLight).isFalse();
+        assertThat(resultMedium).isTrue();
+        assertThat(resultHeavy).isTrue();
     }
 
     @Test
