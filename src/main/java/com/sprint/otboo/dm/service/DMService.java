@@ -9,4 +9,5 @@ public interface DMService {
     CursorPageResponse<DirectMessageDto> getDms(
         UUID me, UUID other, String cursor, UUID idAfter, Integer limitNullable
     );
+    DirectMessageDto sendDm(UUID senderId, UUID receiverId, String content);
 }

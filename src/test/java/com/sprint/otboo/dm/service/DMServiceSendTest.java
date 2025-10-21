@@ -7,6 +7,7 @@ import com.sprint.otboo.common.exception.dm.DMException;
 import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.entity.DM;
 import com.sprint.otboo.dm.repository.DMRepository;
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +19,23 @@ class DMServiceSendTest {
     DMRepository repository = mock(DMRepository.class);
     DMService service = new DMServiceImpl(repository);
 
+    private static void setField(Object target, String fieldName, Object value) {
+        Class<?> type = target.getClass();
+        while (type != null) {
+            try {
+                Field f = type.getDeclaredField(fieldName);
+                f.setAccessible(true);
+                f.set(target, value);
+                return;
+            } catch (NoSuchFieldException e) {
+                type = type.getSuperclass();
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("리플렉션 주입 실패: " + fieldName, e);
+            }
+        }
+        throw new IllegalArgumentException("필드를 찾을 수 없습니다: " + fieldName);
+    }
+
     @Test
     void 전송_성공() {
         UUID me = UUID.randomUUID();
@@ -28,9 +46,9 @@ class DMServiceSendTest {
             .receiverId(other)
             .content("hello")
             .build();
-        // id/createdAt 세팅 시뮬레이션
-        saved.setId(UUID.randomUUID());
-        saved.setCreatedAt(Instant.parse("2025-10-14T05:30:00Z"));
+
+        setField(saved, "id", UUID.randomUUID());
+        setField(saved, "createdAt", Instant.parse("2025-10-14T05:30:00Z"));
 
         when(repository.save(any(DM.class))).thenReturn(saved);
 
@@ -40,7 +58,8 @@ class DMServiceSendTest {
         assertThat(dto.senderId()).isEqualTo(me);
         assertThat(dto.receiverId()).isEqualTo(other);
         assertThat(dto.content()).isEqualTo("hello");
-        assertThat(dto.createdAt()).isEqualTo(saved.getCreatedAt());
+        assertThat(dto.createdAt()).isEqualTo(Instant.parse("2025-10-14T05:30:00Z"));
+
         verify(repository, times(1)).save(any(DM.class));
     }
 
