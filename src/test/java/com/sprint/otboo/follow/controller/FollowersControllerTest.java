@@ -3,6 +3,7 @@ package com.sprint.otboo.follow.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,8 +11,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sprint.otboo.auth.jwt.JwtAuthenticationFilter;
 import com.sprint.otboo.common.dto.CursorPageResponse;
+import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
 import com.sprint.otboo.follow.service.FollowService;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -19,15 +22,37 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(FollowController.class)
+@WebMvcTest(
+    controllers = FollowController.class,
+    excludeAutoConfiguration = {
+        SecurityAutoConfiguration.class,
+        SecurityFilterAutoConfiguration.class,
+        OAuth2ResourceServerAutoConfiguration.class,
+        OAuth2ClientAutoConfiguration.class
+    },
+    excludeFilters = {
+        @ComponentScan.Filter(
+            type = FilterType.ASSIGNABLE_TYPE,
+            classes = { JwtAuthenticationFilter.class }
+        )
+    }
+)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
 @DisplayName("팔로워 목록 조회 컨트롤러 테스트")
 class FollowersControllerTest {
 
@@ -38,7 +63,10 @@ class FollowersControllerTest {
     private FollowService followService;
 
     @MockitoBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    UserQueryService userQueryService;
 
     @Test
     @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
@@ -57,7 +85,7 @@ class FollowersControllerTest {
         );
 
         when(followService.getFollowers(
-            any(), Mockito.isNull(), Mockito.isNull(), Mockito.anyInt(), Mockito.isNull()))
+            Mockito.any(), Mockito.isNull(), Mockito.isNull(), Mockito.anyInt(), Mockito.isNull()))
             .thenReturn(resp);
 
         mvc.perform(get("/api/follows/followers")
@@ -72,6 +100,15 @@ class FollowersControllerTest {
     }
 
     @Test
+    void followers_인증없음_401() throws Exception {
+        mvc.perform(get("/api/follows/followers"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+        verifyNoInteractions(followService);
+    }
+
+    @Test
     @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
     void followers_잘못된_cursor_400() throws Exception {
         mvc.perform(get("/api/follows/followers")
@@ -82,7 +119,7 @@ class FollowersControllerTest {
 
     @Test
     @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
-    void followers_limit_보정() throws Exception {
+    void followers_limit_하한_보정() throws Exception {
         when(followService.getFollowers(any(), any(), any(), eq(1), any()))
             .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0, "createdAt", "DESCENDING"));
 
@@ -114,5 +151,24 @@ class FollowersControllerTest {
             .andExpect(status().isOk());
 
         verify(followService).getFollowers(any(), any(), any(), eq(100), any());
+    }
+
+    @Test
+    @WithMockUser(username = "68e17953-f79f-4d4f-8839-b26054887d5f")
+    void followers_파라미터_전달() throws Exception {
+        String cursor = "2025-10-16T03:00:00Z";
+        UUID idAfter = UUID.randomUUID();
+        String nameLike = "sl";
+
+        when(followService.getFollowers(any(), eq(cursor), eq(idAfter), eq(20), eq(nameLike)))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/follows/followers")
+                .param("cursor", cursor)
+                .param("idAfter", idAfter.toString())
+                .param("nameLike", nameLike))
+            .andExpect(status().isOk());
+
+        verify(followService).getFollowers(any(), eq(cursor), eq(idAfter), eq(20), eq(nameLike));
     }
 }

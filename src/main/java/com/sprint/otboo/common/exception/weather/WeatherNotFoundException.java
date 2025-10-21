@@ -7,7 +7,7 @@ public class WeatherNotFoundException extends WeatherException {
 
     public static WeatherNotFoundException withId(UUID weatherId) {
         WeatherNotFoundException exception = new WeatherNotFoundException();
-        exception.addDetail("weatherId", weatherId);
+        exception.addDetail("id", weatherId);
         return exception;
     }
   
