@@ -3,6 +3,7 @@ package com.sprint.otboo.recommendation.controller;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.recommendation.controller.api.RecommendationApi;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.service.RecommendationService;
 import java.util.UUID;
@@ -26,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/recommendations")
-public class RecommendationController {
+public class RecommendationController implements RecommendationApi {
 
     private final RecommendationService recommendationService;
 
@@ -36,6 +37,7 @@ public class RecommendationController {
      * @param weatherId 날씨 정보 ID
      * @return 추천 의상 정보를 담은 DTO
      */
+    @Override
     @GetMapping
     public ResponseEntity<RecommendationDto> getRecommendations(
         @RequestParam UUID weatherId
