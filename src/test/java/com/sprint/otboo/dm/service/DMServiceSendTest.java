@@ -79,4 +79,61 @@ class DMServiceSendTest {
             .isInstanceOf(DMException.class);
         verify(repository, never()).save(any());
     }
+
+    @Test
+    void 내용_공백만_오류() {
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        assertThatThrownBy(() -> service.sendDm(me, other, "   \n\t"))
+            .isInstanceOf(DMException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void 저장_성공하지만_createdAt_null이면_now_세팅() {
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+
+        DM saved = DM.builder()
+            .senderId(me)
+            .receiverId(other)
+            .content("hello")
+            .build();
+
+        // id 는 넣고 createdAt 은 null 로 둔다.
+        setField(saved, "id", UUID.randomUUID());
+        setField(saved, "createdAt", null);
+
+        when(repository.save(any(DM.class))).thenReturn(saved);
+
+        Instant before = Instant.now();
+        DirectMessageDto dto = service.sendDm(me, other, "hello");
+        Instant after = Instant.now();
+
+        assertThat(dto.createdAt()).isNotNull();
+        // now() 기반이므로 대략 범위로 검증
+        assertThat(dto.createdAt()).isBetween(before.minusSeconds(1), after.plusSeconds(1));
+    }
+
+    @Test
+    void 저장중_DB오류는_DMException으로_랩핑() {
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+
+        when(repository.save(any(DM.class))).thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));
+
+        assertThatThrownBy(() -> service.sendDm(me, other, "hello"))
+            .isInstanceOf(DMException.class);
+    }
+
+    @Test
+    void 저장중_알수없는_예외도_DMException으로_랩핑() {
+        UUID me = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+
+        when(repository.save(any(DM.class))).thenThrow(new RuntimeException("boom"));
+
+        assertThatThrownBy(() -> service.sendDm(me, other, "hello"))
+            .isInstanceOf(DMException.class);
+    }
 }
