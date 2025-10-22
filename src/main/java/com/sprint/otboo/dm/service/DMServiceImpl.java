@@ -11,12 +11,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DMServiceImpl implements DMService {
 
     private final DMRepository repository;
@@ -49,24 +52,47 @@ public class DMServiceImpl implements DMService {
     @Override
     @Transactional
     public DirectMessageDto sendDm(UUID senderId, UUID receiverId, String content) {
-        if (Objects.equals(senderId, receiverId)) throw new DMException(ErrorCode.SELF_DM_NOT_ALLOWED);
-        if (!StringUtils.hasText(content)) throw new DMException(ErrorCode.INVALID_INPUT);
+        // 입력 검증
+        if (Objects.equals(senderId, receiverId)) {
+            log.warn("[DM] 자기 자신에게 메시지를 보낼 수 없습니다. (senderId={}, receiverId={})", senderId, receiverId);
+            throw new DMException(ErrorCode.SELF_DM_NOT_ALLOWED);
+        }
+        if (!StringUtils.hasText(content)) {
+            log.warn("[DM] 빈 메시지 내용으로 전송 시도됨 (senderId={}, receiverId={}, contentLength={})",
+                senderId, receiverId, content == null ? 0 : content.length());
+            throw new DMException(ErrorCode.INVALID_INPUT);
+        }
 
-        DM dm = DM.builder()
-            .senderId(senderId)
-            .receiverId(receiverId)
-            .content(content)
-            .build();
-        DM saved = repository.save(dm);
+        try {
+            DM dm = DM.builder()
+                .senderId(senderId)
+                .receiverId(receiverId)
+                .content(content)
+                .build();
 
-        DirectMessageDto dto = new DirectMessageDto(
-            saved.getId(),
-            saved.getSenderId(), null, null,
-            saved.getReceiverId(), null, null,
-            saved.getContent(),
-            saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt()
-        );
+            DM saved = repository.save(dm);
 
-        return dto;
+            log.info("[DM] 메시지 전송 성공 (dmId={}, senderId={}, receiverId={}, contentLength={})",
+                saved.getId(), senderId, receiverId, content.length());
+
+            return new DirectMessageDto(
+                saved.getId(),
+                saved.getSenderId(), null, null,
+                saved.getReceiverId(), null, null,
+                saved.getContent(),
+                saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt()
+            );
+
+        } catch (DMException e) {
+            throw e;
+        } catch (DataAccessException dae) {
+            log.error("[DM] 메시지 저장 중 DB 오류 발생 (senderId={}, receiverId={}, contentLength={}, cause={})",
+                senderId, receiverId, content.length(), dae.getClass().getSimpleName(), dae);
+            throw new DMException(ErrorCode.INTERNAL_SERVER_ERROR);
+        } catch (Exception ex) {
+            log.error("[DM] 메시지 전송 중 알 수 없는 오류 발생 (senderId={}, receiverId={}, contentLength={}, cause={})",
+                senderId, receiverId, content.length(), ex.getClass().getSimpleName(), ex);
+            throw new DMException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
     }
 }
