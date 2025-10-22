@@ -51,7 +51,8 @@ public class SecurityConfig {
                                   "/api/users/*/role", // 권한 변경
                                   "/api/users/*/profiles", // 프로필 변경
                                   "/api/follows", // 팔로우 생성
-                                  "/api/sse"    // SSE
+                                  "/api/sse",    // SSE
+                                  "/ws/**"
                     )
             )
             .sessionManagement(s ->
@@ -95,8 +96,11 @@ public class SecurityConfig {
                 // 날씨(임시)
                 .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
 
-                // 팔로우(임시)
+                // 팔로우
                 .requestMatchers(HttpMethod.POST, "/api/follows/**").permitAll()
+
+                // 핸드셰이크
+                .requestMatchers("/ws/**").permitAll()
 
                 // 나머지 인증 필요
                 .anyRequest().authenticated()

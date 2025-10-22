@@ -72,6 +72,6 @@
     "cpuArchitecture": "X86_64",
     "operatingSystemFamily": "LINUX"
   },
-  "taskRoleArn": "arn:aws:iam::920373007592:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::920373007592:role/otbooAppTaskRole",
   "volumes": []
 }
