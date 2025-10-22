@@ -1,6 +1,7 @@
 package com.sprint.otboo.notification.controller;
 
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
+import com.sprint.otboo.notification.controller.api.NotificationSseApi;
 import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.notification.service.NotificationSseService;
 import com.sprint.otboo.user.entity.Role;
@@ -19,7 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/sse")
-public class NotificationSseController {
+public class NotificationSseController implements NotificationSseApi {
 
     private final NotificationSseService notificationSseService;
     private final NotificationService notificationService;
@@ -34,6 +35,7 @@ public class NotificationSseController {
      * @param principal 인증 사용자 정보
      * @return 생성된 SseEmitter
      */
+    @Override
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(
         @AuthenticationPrincipal CustomUserDetails principal,

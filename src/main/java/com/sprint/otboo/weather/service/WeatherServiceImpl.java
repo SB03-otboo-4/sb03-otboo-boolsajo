@@ -44,7 +44,7 @@ public class WeatherServiceImpl implements WeatherService {
     private final WeatherLocationQueryService locationQueryService;
     private final WeatherLocationRepository locationRepository;
     private final KmaRequestBuilder kmaRequestBuilder;
-    private final KmaShortTermForecastClient kmaClient; // ✅ 단기예보만 사용
+    private final KmaShortTermForecastClient kmaClient;
     private final KmaForecastAssembler kmaAssembler;
     private final WeatherRepository weatherRepository;
     private final WeatherMapper weatherMapper;

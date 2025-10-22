@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("팔로잉 목록 조회 서비스 테스트")
 class FollowingsServiceTest {
@@ -23,11 +24,13 @@ class FollowingsServiceTest {
     private final FollowRepository followRepository = Mockito.mock(FollowRepository.class);
     private final UserRepository userRepository = Mockito.mock(UserRepository.class);
     private final FollowQueryRepository queryRepository = Mockito.mock(FollowQueryRepository.class);
+    ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
 
     private final FollowService service = new FollowServiceImpl(
         followRepository,
         userRepository,
-        queryRepository
+        queryRepository,
+        eventPublisher
     );
 
     // 첫 페이지: limit개 + hasNext=true → nextCursor/nextIdAfter 세팅
@@ -165,5 +168,47 @@ class FollowingsServiceTest {
         assertThat(page.nextCursor()).isEqualTo(ts.toString());
         assertThat(page.nextIdAfter()).isEqualTo("93d3247e-5628-4fe7-a6da-93611e1ff732");
         assertThat(page.totalCount()).isEqualTo(3L);
+    }
+
+    @Test
+    void followings_limit_보정() {
+        UUID me = UUID.randomUUID();
+        int pageSize = 20;
+
+        when(queryRepository.findFollowingPage(eq(me), isNull(), isNull(), eq(pageSize + 1), isNull()))
+            .thenReturn(java.util.Collections.nCopies(pageSize,
+                new FollowListItemResponse(UUID.randomUUID(), null, null, Instant.parse("2025-10-16T03:00:00Z"))));
+        when(queryRepository.countFollowing(eq(me), isNull())).thenReturn(20L);
+
+        service.getFollowings(me, null, null, 0, null);     // <= 0 -> 20으로 보정
+        service.getFollowings(me, null, null, 999, null);   // > 100 -> 20으로 보정
+
+        Mockito.verify(queryRepository, Mockito.times(2))
+            .findFollowingPage(eq(me), isNull(), isNull(), eq(21), isNull());
+    }
+
+    @Test
+    void followings_hasNext_true_마지막요소_null_필드_처리() {
+        UUID me = UUID.randomUUID();
+        int limit = 2;
+
+        FollowListItemResponse a = new FollowListItemResponse(
+            UUID.randomUUID(), null, null, Instant.parse("2025-10-16T03:00:00Z"));
+        FollowListItemResponse b_nulls = new FollowListItemResponse(
+            null, null, null, null); // 페이지 마지막 요소의 id/createdAt 모두 null
+        FollowListItemResponse extra = new FollowListItemResponse(
+            UUID.randomUUID(), null, null, Instant.parse("2025-10-16T02:59:00Z"));
+
+        when(queryRepository.findFollowingPage(eq(me), isNull(), isNull(), eq(limit + 1), isNull()))
+            .thenReturn(java.util.List.of(a, b_nulls, extra));
+        when(queryRepository.countFollowing(eq(me), isNull())).thenReturn(3L);
+
+        CursorPageResponse<FollowListItemResponse> page =
+            service.getFollowings(me, null, null, limit, null);
+
+        assertThat(page.hasNext()).isTrue();
+        // 마지막 요소의 createdAt/id가 null이므로 next들도 null이어야 함
+        assertThat(page.nextCursor()).isNull();
+        assertThat(page.nextIdAfter()).isNull();
     }
 }

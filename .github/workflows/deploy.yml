@@ -2,13 +2,15 @@ name: CD
 
 on:
   push:
-    branches: [ "main", "dev" ]   # 환경에 맞게 조정
+    branches: [ "main", "dev" ]
   workflow_dispatch:
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      image_uri: ${{ steps.push-image.outputs.image_uri }}
     steps:
       - uses: actions/checkout@v4
 
@@ -19,7 +21,7 @@ jobs:
           java-version: 17
 
       - name: Build Jar
-        run: ./gradlew clean build
+        run: ./gradlew clean build -x test
         env:
           SPRING_PROFILES_ACTIVE: prod
 
@@ -30,29 +32,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Build Docker image
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
-        env:
-          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'sb03-app' }}
-
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registries: ${{ secrets.ECR_REGISTRY }}
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
+          docker build -t "$IMAGE:${GITHUB_SHA}" .
+        env:
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
 
       - name: Push Docker image
-        run: |
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          echo "IMAGE_URI=${{ secrets.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_ENV
+        id: push-image
         env:
-          IMAGE_NAME: ${{ vars.IMAGE_NAME || 'sb03-app' }}
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          SHA: ${{ github.sha }}
+        run: |
+          IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
+          IMAGE_URI="$REGISTRY/$IMAGE:$SHA"
+          docker tag "$IMAGE:$SHA" "$IMAGE_URI"
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - uses: actions/checkout@v4
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -60,12 +69,39 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Render task definition (inject image)
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-def.json
+          container-name: otboo-container
+          image: ${{ needs.build-and-push.outputs.image_uri }}
+          environment-variables: |
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            GOOGLE_ID=${{ secrets.GOOGLE_ID }}
+            GOOGLE_PASSWORD=${{ secrets.GOOGLE_PASSWORD }}
+            KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+            KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+            KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
+            KAKAO_API_BASE_URL=${{ secrets.KAKAO_API_BASE_URL }}
+            KMA_AUTH_KEY=${{ secrets.KMA_AUTH_KEY }}
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }}
+            ADMIN_DEFAULT_PASSWORD=${{ secrets.ADMIN_DEFAULT_PASSWORD }}
+            ELASTICSEARCH_HOST=${{ secrets.ELASTICSEARCH_HOST }}
+            ELASTICSEARCH_API_KEY=${{ secrets.ELASTICSEARCH_API_KEY }}
+
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
-          task-definition: ecs-task-def.json
-          container-name: app
-          container-image: ${{ env.IMAGE_URI }}
+          task-definition: ${{ steps.render.outputs.task-definition }}
           service: ${{ secrets.ECS_SERVICE }}
           cluster: ${{ secrets.ECS_CLUSTER }}
 

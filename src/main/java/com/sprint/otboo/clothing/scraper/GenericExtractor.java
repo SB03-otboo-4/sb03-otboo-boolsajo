@@ -53,8 +53,10 @@ public class GenericExtractor implements ClothesExtractor {
     public GenericExtractor(
         ClothesAttributeExtractor extractor,
         ClothesAttributeDefRepository defRepository,
+        // 로컬 저장소로 전환 시 해당 빈으로 변경 필요
+//        @Qualifier("localFileStorageService") FileStorageService fileStorageService
         // 저장소 S3로 전환 시 해당 빈으로 변경 필요
-        @Qualifier("localFileStorageService") FileStorageService fileStorageService
+        @Qualifier("clothingImageStorageService") FileStorageService fileStorageService
     ) {
         this.extractor = extractor;
         this.defRepository = defRepository;

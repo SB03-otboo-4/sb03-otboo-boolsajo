@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.http.HttpHost;
+import org.apache.http.message.BasicHeader;
 import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -16,12 +17,18 @@ import org.springframework.context.annotation.Configuration;
 public class EsConfig {
 
     /**
-     * Actuator가 사용 가능한 Low-level RestClient 빈
+     * Elastic Cloud 연결용 Low-level RestClient
      */
     @Bean
     public RestClient elasticsearchLowLevelClient(
-        @Value("${es.host:http://localhost:9200}") String host) {
-        return RestClient.builder(HttpHost.create(host)).build();
+        @Value("${es.host}") String host,
+        @Value("${es.api-key}") String apiKey
+    ) {
+        return RestClient.builder(HttpHost.create(host))
+            .setDefaultHeaders(new BasicHeader[]{
+                new BasicHeader("Authorization", "ApiKey " + apiKey)
+            })
+            .build();
     }
 
     /**
