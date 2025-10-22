@@ -18,6 +18,7 @@ public enum ErrorCode {
     INVALID_PAGING_LIMIT(HttpStatus.BAD_REQUEST, "limit 값이 올바르지 않습니다."),
     INVALID_SORT_BY(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 컬럼입니다."),
     INVALID_SORT_DIRECTION(HttpStatus.BAD_REQUEST, "허용되지 않는 정렬 방향입니다."),
+    WEATHER_DATA_INCOMPLETE(HttpStatus.BAD_REQUEST, "날씨 데이터가 불완전합니다."),
 
     // 401 UNAUTHORIZED
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청입니다."),
@@ -61,6 +62,7 @@ public enum ErrorCode {
     // 500 INTERNAL SERVER ERROR
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
+    SERIALIZATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "데이터 처리 중 오류가 발생했습니다."),
 
     // 502 Bad Gateway
     WEATHER_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "외부 날씨/위치 제공자 오류가 발생했습니다."),

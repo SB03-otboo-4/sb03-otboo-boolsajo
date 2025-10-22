@@ -1,7 +1,9 @@
 package com.sprint.otboo.recommendation.controller;
 
+import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import com.sprint.otboo.recommendation.controller.api.RecommendationApi;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.service.RecommendationService;
 import java.util.UUID;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/recommendations")
-public class RecommendationController {
+public class RecommendationController implements RecommendationApi {
 
     private final RecommendationService recommendationService;
 
@@ -32,15 +35,15 @@ public class RecommendationController {
      * 특정 사용자와 날씨 정보를 기반으로 추천 의상 조회
      *
      * @param weatherId 날씨 정보 ID
-     * @param authentication Spring Security 인증 객체
      * @return 추천 의상 정보를 담은 DTO
      */
+    @Override
     @GetMapping
     public ResponseEntity<RecommendationDto> getRecommendations(
-        @RequestParam UUID weatherId,
-        Authentication authentication
+        @RequestParam UUID weatherId
     ) {
-        // SecurityContext에서 사용자 ID 추출
+        // SecurityContext에서 인증 정보 가져오기
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = extractUserId(authentication);
 
         log.info("추천 요청 수신: 사용자 ID = {}, 날씨 ID = {}", userId, weatherId);
@@ -68,20 +71,29 @@ public class RecommendationController {
 
         Object principal = authentication.getPrincipal();
 
-        try {
-            if (principal instanceof UserDetails userDetails) {
-                return UUID.fromString(userDetails.getUsername());
-            }
-
-            if (principal instanceof String principalStr) {
-                return UUID.fromString(principalStr);
-            }
-        } catch (IllegalArgumentException e) {
-            CustomException ex = new CustomException(ErrorCode.INVALID_INPUT, e);
-            ex.addDetail("principalValue", principal.toString());
-            throw ex;
+        if (principal instanceof CustomUserDetails userDetails) {
+            return userDetails.getUserId();
         }
 
-        throw new CustomException(ErrorCode.INVALID_INPUT, new IllegalStateException("인증 객체에서 사용자 ID를 추출할 수 없습니다."));
+        if (principal instanceof UserDetails userDetails) {
+            try {
+                return UUID.fromString(userDetails.getUsername());
+            } catch (IllegalArgumentException e) {
+                throw new CustomException(ErrorCode.INVALID_INPUT, e);
+            }
+        }
+
+        if (principal instanceof String principalStr) {
+            try {
+                return UUID.fromString(principalStr);
+            } catch (IllegalArgumentException e) {
+                throw new CustomException(ErrorCode.INVALID_INPUT, e);
+            }
+        }
+
+        throw new CustomException(
+            ErrorCode.INVALID_INPUT,
+            new IllegalStateException("인증 객체에서 사용자 ID를 추출할 수 없습니다.")
+        );
     }
 }

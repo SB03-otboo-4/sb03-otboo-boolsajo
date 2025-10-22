@@ -6,9 +6,17 @@ import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.clothing.entity.attribute.Season;
 import com.sprint.otboo.clothing.entity.attribute.Thickness;
 import com.sprint.otboo.recommendation.entity.TemperatureCategory;
+import com.sprint.otboo.weather.dto.data.HumidityDto;
+import com.sprint.otboo.weather.dto.data.PrecipitationDto;
+import com.sprint.otboo.weather.dto.data.TemperatureDto;
+import com.sprint.otboo.weather.dto.data.WeatherDto;
+import com.sprint.otboo.weather.dto.data.WindSpeedDto;
+import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
+import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +46,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
      * @param clothes 사용자 의상 리스트
      * @param perceivedTemp 체감 온도 (°C)
      * @param weather 날씨 정보
+     * @param excludeDress Dress 타입을 추천에서 제외할지 여부
      * @return 추천 대상 의상 리스트 (타입별 1개)
      */
     @Override
@@ -62,13 +71,7 @@ public class RecommendationEngineImpl implements RecommendationEngine {
         Map<ClothesType, List<Clothes>> groupedByType = filtered.stream()
             .collect(Collectors.groupingBy(Clothes::getType));
 
-        // 5. DRESS 포함 시 TOP & BOTTOM 제외
-        if (!excludeDress && groupedByType.containsKey(ClothesType.DRESS)) {
-            groupedByType.remove(ClothesType.TOP);
-            groupedByType.remove(ClothesType.BOTTOM);
-        }
-
-        // 6. 타입별 첫 번째 요소 선택 후 반환
+        // 5. 타입별 첫 번째 요소 선택 후 반환
         return groupedByType.values().stream()
             .map(list -> list.get(0))
             .toList();
@@ -104,31 +107,79 @@ public class RecommendationEngineImpl implements RecommendationEngine {
     }
 
     /**
-     * 일교차 기반 OUTER 강제 추천 여부
+     * 일교차 및 기상 조건 기반 OUTER 강제 추천 여부 판단
+     *
+     * <p>
+     * - OUTER 타입이 아니면 추천하지 않음
+     * - 최고/최저 온도 기준으로 일교차 계산 후 규칙 적용
+     *   <ul>
+     *       <li>규칙 1: 봄/가을 & 일교차 ≥ 6°C</li>
+     *       <li>규칙 2: 봄/가을 & 일교차 ≥ 4°C & 풍속 ≥ 3m/s & 구름 많음</li>
+     *   </ul>
+     * - 최고/최저 온도가 없을 경우(현재 온도로 fallback) 서브 규칙 적용
+     *   <ul>
+     *       <li>서브 1: 체감온도 10~14°C & 풍속 ≥ 2.5m/s</li>
+     *       <li>서브 2: 체감온도 15~19°C & 풍속 ≥ 3.0m/s & 구름 많음</li>
+     *   </ul>
      *
      * @param clothes 의상
      * @param season 계절
      * @param weather 날씨 정보
-     * @return 추천 가능 여부
+     * @return 강제 추천 대상이면 true, 아니면 false
      */
     private boolean isForcedOuterRecommendation(Clothes clothes, Season season, Weather weather) {
+        // OUTER 타입이 아니면 false
         if (clothes.getType() != ClothesType.OUTER) {
             return false;
         }
 
-        double dailyRange = WeatherUtils.calculateDailyRange(weather.getMaxC(), weather.getMinC());
+        // 날씨 DTO 생성
+        WeatherDto weatherDto = toWeatherDto(weather);
 
+        // 최고ㆍ최저 온도 없으면 current 온도로 fallback
+        double maxTemp = weatherDto.temperature().max() != 0.0
+            ? weatherDto.temperature().max()
+            : weatherDto.temperature().current();
+
+        double minTemp = weatherDto.temperature().min() != 0.0
+            ? weatherDto.temperature().min()
+            : weatherDto.temperature().current();
+
+        // 일교차 계산
+        double dailyRange = WeatherUtils.calculateDailyRange(maxTemp, minTemp);
+
+        // 정규 규칙: 최고ㆍ최저 온도로 체감온도가 계산된 경우
         // 규칙 1: 봄/가을 & 일교차 6도 이상
         boolean rule1 = (season == Season.SPRING || season == Season.FALL)
             && dailyRange >= 6;
 
         // 규칙 2: 봄/가을 & 일교차 4도 이상 & 풍속 >= 3m/s & 구름 많음
+        SkyStatus skyStatus = SkyStatus.valueOf(weatherDto.skyStatus());
         boolean rule2 = (season == Season.SPRING || season == Season.FALL)
             && dailyRange >= 4
             && windSpeed >= 3.0
-            && weather.getSkyStatus() == SkyStatus.CLOUDY;
+            && (skyStatus == SkyStatus.MOSTLY_CLOUDY || skyStatus == SkyStatus.CLOUDY);
 
-        return rule1 || rule2;
+        // 서브 규칙: 최고ㆍ최저 온도 없어서 fallback인 경우(현재 온도 기준)
+        boolean usedFallback = (weatherDto.temperature().max() == 0.0 || weatherDto.temperature().min() == 0.0);
+
+        // 서브 1: 낮은 온도 범위 10~14°C & 풍속 ≥ 2.5m/s
+        boolean subRule1 = usedFallback
+            && (season == Season.SPRING || season == Season.FALL)
+            && weatherDto.temperature().current() >= 10.0
+            && weatherDto.temperature().current() <= 14.0
+            && windSpeed >= 2.5;
+
+        // 서브 2: 높은 온도 범위 15~19°C & 풍속 ≥ 3.0m/s & 구름 많음
+        boolean subRule2 = usedFallback
+            && (season == Season.SPRING || season == Season.FALL)
+            && weatherDto.temperature().current() >= 15.0
+            && weatherDto.temperature().current() <= 19.0
+            && windSpeed >= 3.0
+            && (skyStatus == SkyStatus.MOSTLY_CLOUDY || skyStatus == SkyStatus.CLOUDY);
+
+        // 최종 반환
+        return rule1 || rule2 || subRule1 || subRule2;
     }
 
     /**
@@ -385,5 +436,101 @@ public class RecommendationEngineImpl implements RecommendationEngine {
                 : thickness == Thickness.MEDIUM || thickness == Thickness.HEAVY;
             case WINTER -> thickness == Thickness.HEAVY;
         };
+    }
+
+    /**
+     * Weather 엔티티를 WeatherDto로 변환
+     *
+     * <p>
+     * - RecommendationEngine 내부에서만 사용되는 내부 변환 로직
+     * - 각 속성(위치, 강수, 습도, 온도, 풍속)을 DTO로 매핑
+     * - null 안전 처리(safeDouble) 적용
+     *
+     * @param weather 변환할 Weather 엔티티
+     * @return WeatherDto로 변환된 날씨 정보
+     */
+    private WeatherDto toWeatherDto(Weather weather) {
+        // 위치 정보
+        WeatherLocationResponse locationResponse = new WeatherLocationResponse(
+            weather.getLocation() != null ? safeDouble(weather.getLocation().getLatitude()) : 0.0,
+            weather.getLocation() != null ? safeDouble(weather.getLocation().getLongitude()) : 0.0,
+            weather.getLocation() != null ? safeInt(weather.getLocation().getX()) : 0,
+            weather.getLocation() != null ? safeInt(weather.getLocation().getY()) : 0,
+            weather.getLocation() != null && weather.getLocation().getLocationNames() != null
+                ? Arrays.stream(weather.getLocation().getLocationNames().split("/"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList()
+                : List.of()
+        );
+
+        // 강수
+        PrecipitationDto precipitation = new PrecipitationDto(
+            weather.getType() != null ? weather.getType().name() : "NONE",
+            safeDouble(weather.getAmountMm()),
+            safeDouble(weather.getProbability())
+        );
+
+        // 습도
+        HumidityDto humidity = new HumidityDto(
+            safeDouble(weather.getCurrentPct()),
+            safeDouble(weather.getComparedPct())
+        );
+
+        // 온도
+        TemperatureDto temperature = new TemperatureDto(
+            safeDouble(weather.getCurrentC()),
+            safeDouble(weather.getComparedC()),
+            safeDouble(weather.getMinC()),
+            safeDouble(weather.getMaxC())
+        );
+
+        // 풍속
+        WindSpeedDto windSpeed = new WindSpeedDto(
+            safeDouble(weather.getSpeedMs()),
+            weather.getAsWord() != null ? weather.getAsWord().name() : ""
+        );
+
+        return new WeatherDto(
+            weather.getId(),
+            weather.getForecastedAt(),
+            weather.getForecastAt(),
+            locationResponse,
+            weather.getSkyStatus() != null ? weather.getSkyStatus().name() : "",
+            precipitation,
+            humidity,
+            temperature,
+            windSpeed
+        );
+    }
+
+    /**
+     * null 안전한 BigDecimal → double 변환
+     *
+     * @param value 변환할 BigDecimal 값
+     * @return value가 null이면 0.0, 아니면 double 값
+     */
+    private double safeDouble(BigDecimal value) {
+        return value != null ? value.doubleValue() : 0.0;
+    }
+
+    /**
+     * null 안전한 Double → double 변환
+     *
+     * @param value 변환할 Double 값
+     * @return value가 null이면 0.0, 아니면 double 값
+     */
+    private double safeDouble(Double value) {
+        return value != null ? value : 0.0;
+    }
+
+    /**
+     * null 안전한 Integer → int 변환
+     *
+     * @param value 변환할 Integer 값
+     * @return value가 null이면 0, 아니면 int 값
+     */
+    private int safeInt(Integer value) {
+        return value != null ? value : 0;
     }
 }

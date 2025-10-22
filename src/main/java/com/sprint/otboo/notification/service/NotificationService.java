@@ -22,4 +22,10 @@ public interface NotificationService {
     NotificationDto notifyFeedCommented(UUID feedAuthorId, UUID commentedByUserId);
 
     List<NotificationDto> getMissedNotifications(UUID receiverId, String lastEventId);
+
+    void notifyFollowersFeedCreated(UUID feedAuthorId, UUID feedId);
+
+    NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId);
+
+    void notifyClothesAttributeDeletedForAllUsers(String attributeName);
 }

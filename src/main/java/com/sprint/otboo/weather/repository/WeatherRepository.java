@@ -73,4 +73,12 @@ public interface WeatherRepository extends JpaRepository<Weather, UUID> {
     @Transactional
     @Query(value = "DELETE FROM weathers WHERE forecast_at < :cutoff", nativeQuery = true)
     int deletePastForecastsBefore(@Param("cutoff") Instant cutoff);
+
+    // 특정 Weather ID로 Weather와 연관된 Location을 함께 조회
+    @Query("""
+    SELECT w FROM Weather w
+    JOIN FETCH w.location l
+    WHERE w.id = :weatherId
+""")
+    Optional<Weather> findByIdWithLocation(@Param("weatherId") UUID weatherId);
 }

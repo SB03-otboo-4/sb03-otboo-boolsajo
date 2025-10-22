@@ -3,8 +3,11 @@ package com.sprint.otboo.notification.listener;
 import static org.mockito.BDDMockito.then;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
+import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
+import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
+import com.sprint.otboo.follow.event.FollowCreatedEvent;
 import com.sprint.otboo.notification.service.NotificationService;
 import com.sprint.otboo.user.entity.Role;
 import com.sprint.otboo.user.event.UserRoleChangedEvent;
@@ -40,7 +43,7 @@ public class NotificationListenerTest {
     }
 
     @Test
-    void 의상_속성_추가_이벤트를_받으면_전체_알림을_생성한다() {
+    void 의상_속성_추가_이벤트를_받으면_전체_알림을_생성() {
         ClothesAttributeDefCreatedEvent event = new ClothesAttributeDefCreatedEvent("기능성");
 
         notificationListener.handleClothesAttributeCreated(event);
@@ -50,7 +53,7 @@ public class NotificationListenerTest {
     }
 
     @Test
-    void 피드_좋아요_이벤트를_받으면_작성자에게_알림을_생성한다() {
+    void 피드_좋아요_이벤트를_받으면_작성자에게_알림을_생성() {
         UUID authorId = UUID.randomUUID();
         UUID likerId = UUID.randomUUID();
         FeedLikedEvent event = new FeedLikedEvent(authorId, likerId);
@@ -61,7 +64,7 @@ public class NotificationListenerTest {
     }
 
     @Test
-    void 피드_댓글_이벤트를_받으면_작성자에게_알림을_생성한다() {
+    void 피드_댓글_이벤트를_받으면_작성자에게_알림을_생성() {
         UUID authorId = UUID.randomUUID();
         UUID commenterId = UUID.randomUUID();
         UUID commentId = UUID.randomUUID();
@@ -71,5 +74,48 @@ public class NotificationListenerTest {
 
         then(notificationService).should()
             .notifyFeedCommented(authorId, commenterId);
+    }
+
+    @Test
+    void 피드_생성_이벤트를_받으면_팔로워_알림을_위임() {
+        // given
+        UUID feedId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        FeedCreatedEvent event = new FeedCreatedEvent(feedId, authorId);
+
+        // when
+        notificationListener.handleFeedCreated(event);
+
+        // then
+        then(notificationService).should()
+            .notifyFollowersFeedCreated(authorId, feedId);
+    }
+
+    @Test
+    void 팔로우_생성_이벤트를_받으면_새_팔로워_알림을_위임() {
+        // given
+        UUID followerId = UUID.randomUUID();
+        UUID followeeId = UUID.randomUUID();
+        FollowCreatedEvent event = new FollowCreatedEvent(followerId, followeeId);
+
+        // when
+        notificationListener.handleFollowCreated(event);
+
+        // then
+        then(notificationService).should()
+            .notifyUserFollowed(followerId, followeeId);
+    }
+
+    @Test
+    void 의상_속성_삭제_이벤트는_브로드캐스트를_위임() {
+        // given
+        ClothesAttributeDefDeletedEvent event = new ClothesAttributeDefDeletedEvent("색감");
+
+        // when
+        notificationListener.handleClothesAttributeDeleted(event);
+
+        // then
+        then(notificationService).should()
+            .notifyClothesAttributeDeletedForAllUsers("색감");
     }
 }
