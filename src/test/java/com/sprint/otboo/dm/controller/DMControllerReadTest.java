@@ -1,5 +1,6 @@
 package com.sprint.otboo.dm.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -15,7 +16,9 @@ import com.sprint.otboo.common.exception.GlobalExceptionHandler;
 import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.service.DMService;
 import com.sprint.otboo.user.dto.data.UserDto;
+import com.sprint.otboo.user.dto.response.UserSummaryResponse;
 import com.sprint.otboo.user.entity.Role;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -63,29 +66,17 @@ class DMControllerReadTest {
     @MockitoBean
     DMService dmService;
 
-    /* ---------- 테스트용 Principal 유틸 ---------- */
-    static class TestPrincipal {
-        private final UUID id;
-        TestPrincipal(UUID id) { this.id = id; }
-        public UUID getId() { return id; }
-    }
-
-    static class TestPrincipalStringId {
-        private final String id;
-        TestPrincipalStringId(String id) { this.id = id; }
-        public String getId() { return id; }
-    }
-
-    static class NoGetId { }
+    @MockitoBean
+    UserQueryService userQueryService;
 
     private static CustomUserDetails cud(UUID id, String email, String name, Role role, boolean locked) {
         UserDto dto = new UserDto(
             id,
-            Instant.now(),    // createdAt
+            Instant.now(),
             email,
             name,
             role,
-            null,             // linkedOAuthProviders
+            null,
             locked
         );
         return CustomUserDetails.builder()
@@ -94,7 +85,7 @@ class DMControllerReadTest {
             .build();
     }
 
-    private void setAuthenticatedUser(Object principal) {
+    private static void setAuthenticatedUser(Object principal) {
         Authentication auth = new UsernamePasswordAuthenticationToken(
             principal, "N/A", Collections.emptyList()
         );
@@ -104,10 +95,8 @@ class DMControllerReadTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
-        reset(dmService);
+        reset(dmService, userQueryService);
     }
-
-    /* ---------- 성공 케이스 ---------- */
 
     @Test
     void dm_목록_조회_성공_200() throws Exception {
@@ -127,12 +116,17 @@ class DMControllerReadTest {
             me, "buzz", "https://s3.../buzz.png",
             "반가워", Instant.parse("2025-10-14T05:28:40Z")
         );
-
         CursorPageResponse<DirectMessageDto> resp =
             new CursorPageResponse<>(List.of(item1, item2), null, null, false, 2L, "createdAt", "DESCENDING");
 
         when(dmService.getDms(eq(me), eq(other), isNull(), isNull(), anyInt()))
             .thenReturn(resp);
+
+        // ★ 매핑 과정에서 호출됨
+        when(userQueryService.getSummary(me))
+            .thenReturn(new UserSummaryResponse(me, "buzz", "https://s3.../buzz.png"));
+        when(userQueryService.getSummary(other))
+            .thenReturn(new UserSummaryResponse(other, "slinky", null));
 
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
@@ -143,8 +137,6 @@ class DMControllerReadTest {
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
     }
-
-    /* ---------- 유효성/에러 분기 ---------- */
 
     @Test
     void dm_목록_조회_커서_형식오류_400() throws Exception {
@@ -193,8 +185,6 @@ class DMControllerReadTest {
             .andExpect(status().isBadRequest());
     }
 
-    /* ---------- 인증/Principal 경로 분기 ---------- */
-
     @Test
     void 인증없음_auth_null_401() throws Exception {
         SecurityContextHolder.clearContext();
@@ -221,33 +211,6 @@ class DMControllerReadTest {
     }
 
     @Test
-    void 리플렉션_StringUUID_OK_200() throws Exception {
-        UUID me = UUID.randomUUID();
-        UUID other = UUID.randomUUID();
-
-        setAuthenticatedUser(new TestPrincipalStringId(me.toString()));
-
-        when(dmService.getDms(eq(me), eq(other), isNull(), isNull(), anyInt()))
-            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING"));
-
-        mvc.perform(get("/api/direct-messages")
-                .param("userId", other.toString()))
-            .andExpect(status().isOk());
-    }
-
-    @Test
-    void 리플렉션_getId_없음_401() throws Exception {
-        UUID other = UUID.randomUUID();
-        setAuthenticatedUser(new NoGetId());
-
-        mvc.perform(get("/api/direct-messages")
-                .param("userId", other.toString()))
-            .andExpect(status().isUnauthorized());
-    }
-
-    /* ---------- 정상 cursor + idAfter 경로 ---------- */
-
-    @Test
     void 커서_및_idAfter_정상_200() throws Exception {
         UUID me = UUID.randomUUID();
         UUID other = UUID.randomUUID();
@@ -259,11 +222,46 @@ class DMControllerReadTest {
         when(dmService.getDms(eq(me), eq(other), eq(boundary.toString()), eq(idAfter), anyInt()))
             .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING"));
 
+        // 빈 리스트면 summary 호출이 없으므로 스텁 불필요
         mvc.perform(get("/api/direct-messages")
                 .param("userId", other.toString())
                 .param("cursor", boundary.toString())
                 .param("idAfter", idAfter.toString())
                 .param("limit", "2"))
             .andExpect(status().isOk());
+    }
+
+    static class TestPrincipalWithGetId {
+        private final UUID id;
+        TestPrincipalWithGetId(UUID id) { this.id = id; }
+        public UUID getId() { return id; }
+    }
+
+    static class TestPrincipalWithBrokenGetId {
+        public UUID getId() { throw new RuntimeException("boom"); }
+    }
+
+    @Test
+    void 인증주체가_CustomUserDetails가_아니어도_getId_리플렉션_OK() throws Exception {
+        UUID me = UUID.randomUUID();
+        Authentication a =
+            new UsernamePasswordAuthenticationToken(new TestPrincipalWithGetId(me), "N/A", Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(a);
+
+        when(dmService.getDms(eq(me), any(), isNull(), isNull(), any()))
+            .thenReturn(new CursorPageResponse<>(List.of(), null, null, false, 0L, "createdAt", "DESCENDING"));
+
+        mvc.perform(get("/api/direct-messages").param("userId", UUID.randomUUID().toString()))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void 인증주체_getId_리플렉션_예외시_401() throws Exception {
+        Authentication a =
+            new UsernamePasswordAuthenticationToken(new TestPrincipalWithBrokenGetId(), "N/A", Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(a);
+
+        mvc.perform(get("/api/direct-messages").param("userId", UUID.randomUUID().toString()))
+            .andExpect(status().isUnauthorized());
     }
 }

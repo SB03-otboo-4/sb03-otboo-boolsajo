@@ -4,6 +4,7 @@ package com.sprint.otboo.common.util;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.TokenProvider;
 import java.text.ParseException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,21 +31,27 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        SimpMessageHeaderAccessor simpAccessor = SimpMessageHeaderAccessor.wrap(message);
-        simpAccessor.setLeaveMutable(true);
+        // 항상 mutable 로 전환
+        SimpMessageHeaderAccessor simp = SimpMessageHeaderAccessor.wrap(message);
+        simp.setLeaveMutable(true);
 
-        StompHeaderAccessor stompAccessor = StompHeaderAccessor.wrap(message);
-        StompCommand command = stompAccessor.getCommand();
-
-        Map<String, Object> attrs = simpAccessor.getSessionAttributes(); // non-null 보장
-
-        if (StompCommand.CONNECT.equals(command)) {
-            handleConnect(stompAccessor, simpAccessor, attrs);
-        } else if (StompCommand.SEND.equals(command) || StompCommand.SUBSCRIBE.equals(command)) {
-            handleSendOrSubscribe(stompAccessor, simpAccessor, attrs);
+        // 세션 attributes 맵이 null이면 강제로 생성/주입
+        Map<String, Object> attrs = simp.getSessionAttributes();
+        if (attrs == null) {
+            attrs = new HashMap<>();
+            simp.setHeader(SimpMessageHeaderAccessor.SESSION_ATTRIBUTES, attrs);
         }
 
-        return MessageBuilder.createMessage(message.getPayload(), simpAccessor.getMessageHeaders());
+        StompHeaderAccessor stomp = StompHeaderAccessor.wrap(message);
+        StompCommand command = stomp.getCommand();
+
+        if (StompCommand.CONNECT.equals(command)) {
+            handleConnect(stomp, simp, attrs);
+        } else if (StompCommand.SEND.equals(command) || StompCommand.SUBSCRIBE.equals(command)) {
+            handleSendOrSubscribe(stomp, simp, attrs);
+        }
+
+        return MessageBuilder.createMessage(message.getPayload(), simp.getMessageHeaders());
     }
 
     private void handleConnect(StompHeaderAccessor stomp, SimpMessageHeaderAccessor simp, Map<String, Object> attrs) {
@@ -57,16 +64,24 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                 Authentication raw = tokenProvider.getAuthentication(token);
                 Authentication auth = raw;
 
-                if (raw instanceof UsernamePasswordAuthenticationToken up) {
+                if (raw instanceof UsernamePasswordAuthenticationToken) {
+                    UsernamePasswordAuthenticationToken up = (UsernamePasswordAuthenticationToken) raw;
                     auth = new UsernamePasswordAuthenticationToken(
                         up.getPrincipal(), up.getCredentials(), up.getAuthorities()
                     );
                 }
 
                 String userIdStr = extractUserIdString(auth);
+                if (userIdStr == null) {
+                    log.warn("[WS] CONNECT 인증 실패: userId 파싱 불가");
+                    return;
+                }
 
+                // 세션 저장 + STOMP principal은 UUID 문자열을 name으로 갖는 Principal 로 세팅
                 attrs.put(ATTR_USER_ID, userIdStr);
-                simp.setUser(auth); // principal 설정
+                simp.setUser(new WsPrincipal(userIdStr));
+
+                // SecurityContext 에는 Authentication 유지
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
                 log.debug("[WS] CONNECT 성공 → session={}, userId={}", simp.getSessionId(), userIdStr);
@@ -82,17 +97,23 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
     private void handleSendOrSubscribe(StompHeaderAccessor stomp, SimpMessageHeaderAccessor simp, Map<String, Object> attrs) {
         if (simp.getUser() == null) {
-            Object uid = attrs.get(ATTR_USER_ID);
-            if (uid instanceof String uidStr && !uidStr.isBlank()) {
-                simp.setUser(new UsernamePasswordAuthenticationToken(uidStr, null, null));
-                log.debug("[WS] {} principal 복구(세션) → session={}, userId={}",
-                    stomp.getCommand(), simp.getSessionId(), uidStr);
-            } else {
-                Authentication ctx = SecurityContextHolder.getContext().getAuthentication();
-                if (ctx != null) {
-                    simp.setUser(ctx);
-                    String userId = extractUserIdString(ctx);
-                    if (userId != null) attrs.put(ATTR_USER_ID, userId);
+            Object uidObj = attrs.get(ATTR_USER_ID);
+            if (uidObj instanceof String) {
+                String uidStr = (String) uidObj;
+                if (!uidStr.isBlank()) {
+                    simp.setUser(new WsPrincipal(uidStr));
+                    log.debug("[WS] {} principal 복구(세션) → session={}, userId={}",
+                        stomp.getCommand(), simp.getSessionId(), uidStr);
+                    return;
+                }
+            }
+
+            Authentication ctx = SecurityContextHolder.getContext().getAuthentication();
+            if (ctx != null) {
+                String userId = extractUserIdString(ctx);
+                if (userId != null) {
+                    simp.setUser(new WsPrincipal(userId));
+                    attrs.put(ATTR_USER_ID, userId);
                     log.debug("[WS] {} principal 복구(SecurityContext) → session={}, userId={}",
                         stomp.getCommand(), simp.getSessionId(), userId);
                 }
@@ -103,10 +124,14 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     private String extractUserIdString(Authentication auth) {
         if (auth == null) return null;
         Object p = auth.getPrincipal();
-        if (p instanceof CustomUserDetails cud) {
-            Object u = cud.getUserId();
-            UUID uuid = (u instanceof UUID) ? (UUID) u : UUID.fromString(String.valueOf(u));
-            return uuid.toString();
+        if (p instanceof CustomUserDetails) {
+            Object u = ((CustomUserDetails) p).getUserId();
+            try {
+                UUID uuid = (u instanceof UUID) ? (UUID) u : UUID.fromString(String.valueOf(u));
+                return uuid.toString();
+            } catch (Exception ignore) {
+                return null;
+            }
         }
         try {
             return UUID.fromString(auth.getName()).toString();
