@@ -93,7 +93,10 @@ class FeedIndexerTest {
 
     @Test
     void 같은_ID로_재색인하면_기존_문서가_덮어써진다() throws Exception {
+        // given
         FeedDoc first = FeedDocFixture.createWithDefault(UUID.randomUUID());
+
+        // when
         indexer.bulkUpsert(List.of(first));
         indexer.refresh();
 
@@ -112,6 +115,7 @@ class FeedIndexerTest {
         indexer.bulkUpsert(List.of(updated));
         indexer.refresh();
 
+        // then
         CountResponse countAfter = es.count(c -> c.index(WRITE_ALIAS));
         assertThat(countAfter.count()).isEqualTo(1L);
 
@@ -123,12 +127,15 @@ class FeedIndexerTest {
 
     @Test
     void 같은_문서를_두_번_업서트해도_문서_수는_1이어야_한다() throws Exception {
+        // given
         FeedDoc doc = FeedDocFixture.createWithDefault(UUID.randomUUID());
 
+        // when
         indexer.bulkUpsert(List.of(doc));
         indexer.bulkUpsert(List.of(doc));
         indexer.refresh();
 
+        // then
         CountResponse count = es.count(c -> c.index(WRITE_ALIAS));
         assertThat(count.count()).isEqualTo(1L);
 
@@ -140,12 +147,15 @@ class FeedIndexerTest {
 
     @Test
     void 색인_후_문서를_다시_조회하면_내용과_ID가_기대값과_일치해야_한다() throws Exception {
+        // given
         FeedDoc d1 = FeedDocFixture.createWithDefault(UUID.randomUUID());
         FeedDoc d2 = FeedDocFixture.createWithDefault(UUID.randomUUID());
 
+        // when
         indexer.bulkUpsert(List.of(d1, d2));
         indexer.refresh();
 
+        // then
         CountResponse count = es.count(c -> c.index(WRITE_ALIAS));
         assertThat(count.count()).isEqualTo(2L);
 

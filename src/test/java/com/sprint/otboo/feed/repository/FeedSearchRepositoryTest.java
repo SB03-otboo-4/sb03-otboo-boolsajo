@@ -14,7 +14,6 @@ import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -69,8 +68,7 @@ class FeedSearchRepositoryTest {
             .index(INDEX)
             .mappings(m -> m
                 .properties("id", p -> p.keyword(k -> k))
-                .properties("createdAt",
-                    p -> p.date(d -> d))
+                .properties("createdAt", p -> p.date(d -> d))
                 .properties("updatedAt", p -> p.date(d -> d))
                 .properties("likeCount", p -> p.long_(l -> l))
                 .properties("content",
@@ -106,28 +104,30 @@ class FeedSearchRepositoryTest {
 
     @Test
     void 키워드_검색과_최신순_정렬이_동작한다() throws Exception {
-        FeedDoc a = FeedDocFixture.createWithDefault(UUID.randomUUID());
-        FeedDoc b = FeedDocFixture.createWithDefault(UUID.randomUUID());
-        FeedDoc c = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        // given
+        FeedDoc doc1 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        FeedDoc doc2 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        FeedDoc doc3 = FeedDocFixture.createWithDefault(UUID.randomUUID());
 
         FeedDoc a2 = new FeedDoc(
-            a.id(), a.createdAt(), Instant.parse("2025-09-01T00:00:00Z"),
-            a.author(), a.weather(), a.ootds(),
-            "자켓 코디", a.likeCount(), a.commentCount(), a.likedByMe()
+            doc1.id(), doc1.createdAt(), Instant.parse("2025-09-01T00:00:00Z"),
+            doc1.author(), doc1.weather(), doc1.ootds(),
+            "자켓 코디", doc1.likeCount(), doc1.commentCount(), doc1.likedByMe()
         );
         FeedDoc b2 = new FeedDoc(
-            b.id(), b.createdAt(), Instant.parse("2025-09-03T00:00:00Z"),
-            b.author(), b.weather(), b.ootds(),
-            "코트와 머플러", b.likeCount(), b.commentCount(), b.likedByMe()
+            doc2.id(), doc2.createdAt(), Instant.parse("2025-09-03T00:00:00Z"),
+            doc2.author(), doc2.weather(), doc2.ootds(),
+            "코트와 머플러", doc2.likeCount(), doc2.commentCount(), doc2.likedByMe()
         );
         FeedDoc c2 = new FeedDoc(
-            c.id(), c.createdAt(), Instant.parse("2025-09-02T00:00:00Z"),
-            c.author(), c.weather(), c.ootds(),
-            "패딩 자켓", c.likeCount(), c.commentCount(), c.likedByMe()
+            doc3.id(), doc3.createdAt(), Instant.parse("2025-09-02T00:00:00Z"),
+            doc3.author(), doc3.weather(), doc3.ootds(),
+            "패딩 자켓", doc3.likeCount(), doc3.commentCount(), doc3.likedByMe()
         );
 
-        indexDocs(Arrays.asList(a2, b2, c2));
+        indexDocs(List.of(a2, b2, c2));
 
+        // when
         CursorPageResponse<UUID> page = repository.searchIds(
             null, null,
             10,
@@ -139,25 +139,27 @@ class FeedSearchRepositoryTest {
             null
         );
 
+        // then
         assertThat(page.data()).hasSize(2);
-        // UUID 그대로 비교
-        assertThat(page.data()).containsExactlyInAnyOrder(a.id(), c.id());
+        assertThat(page.data()).containsExactlyInAnyOrder(doc1.id(), doc3.id());
     }
 
     @Test
     void 작성자_필터가_적용된다() throws Exception {
-        FeedDoc d1 = FeedDocFixture.createWithDefault(UUID.randomUUID());
-        FeedDoc d2 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        // given
+        FeedDoc doc1 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        FeedDoc doc2 = FeedDocFixture.createWithDefault(UUID.randomUUID());
 
         FeedDoc d2mod = new FeedDoc(
-            d2.id(), d2.createdAt(), d2.updatedAt(),
-            d2.author(), d2.weather(), d2.ootds(),
-            d2.content(), d2.likeCount(), d2.commentCount(), d2.likedByMe()
+            doc2.id(), doc2.createdAt(), doc2.updatedAt(),
+            doc2.author(), doc2.weather(), doc2.ootds(),
+            doc2.content(), doc2.likeCount(), doc2.commentCount(), doc2.likedByMe()
         );
 
-        indexDocs(Arrays.asList(d1, d2mod));
+        indexDocs(List.of(doc1, d2mod));
 
-        UUID authorId = d1.author().userId();
+        // when
+        UUID authorId = doc1.author().userId();
         CursorPageResponse<UUID> page = repository.searchIds(
             null, null,
             10,
@@ -169,40 +171,43 @@ class FeedSearchRepositoryTest {
             authorId
         );
 
-        assertThat(page.data()).containsExactly(d1.id());
+        // then
+        assertThat(page.data()).containsExactly(doc1.id());
     }
 
     @Test
     void 날씨_필터와_카운트가_동시에_동작한다() throws Exception {
-        FeedDoc x = FeedDocFixture.createWithDefault(UUID.randomUUID());
-        FeedDoc y = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        // given
+        FeedDoc doc1 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        FeedDoc doc2 = FeedDocFixture.createWithDefault(UUID.randomUUID());
 
         WeatherSummaryDto wxClearNone = new WeatherSummaryDto(
             UUID.randomUUID(),
             SkyStatus.CLEAR.name(),
             new PrecipitationDto(PrecipitationType.NONE.name(), 0.0, 0.0),
-            x.weather().temperature()
+            doc1.weather().temperature()
         );
         FeedDoc x2 = new FeedDoc(
-            x.id(), x.createdAt(), x.updatedAt(),
-            x.author(), wxClearNone, x.ootds(),
-            x.content(), x.likeCount(), x.commentCount(), x.likedByMe()
+            doc1.id(), doc1.createdAt(), doc1.updatedAt(),
+            doc1.author(), wxClearNone, doc1.ootds(),
+            doc1.content(), doc1.likeCount(), doc1.commentCount(), doc1.likedByMe()
         );
 
         WeatherSummaryDto wyCloudyRain = new WeatherSummaryDto(
             UUID.randomUUID(),
             SkyStatus.CLOUDY.name(),
             new PrecipitationDto(PrecipitationType.RAIN.name(), 1.0, 80.0),
-            y.weather().temperature()
+            doc2.weather().temperature()
         );
         FeedDoc y2 = new FeedDoc(
-            y.id(), y.createdAt(), y.updatedAt(),
-            y.author(), wyCloudyRain, y.ootds(),
-            y.content(), y.likeCount(), y.commentCount(), y.likedByMe()
+            doc2.id(), doc2.createdAt(), doc2.updatedAt(),
+            doc2.author(), wyCloudyRain, doc2.ootds(),
+            doc2.content(), doc2.likeCount(), doc2.commentCount(), doc2.likedByMe()
         );
 
         indexDocs(List.of(x2, y2));
 
+        // when
         long count = repository.countByFilters(
             null,
             SkyStatus.CLEAR,
@@ -210,25 +215,27 @@ class FeedSearchRepositoryTest {
             null
         );
 
+        // then
         assertThat(count).isGreaterThanOrEqualTo(1L);
     }
 
-
     @Test
     void search_after_커서_페이지네이션이_정상_동작한다() throws Exception {
-        FeedDoc a = FeedDocFixture.createWithDefault(UUID.randomUUID());
-        FeedDoc b = FeedDocFixture.createWithDefault(UUID.randomUUID());
-        FeedDoc c = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        // given
+        FeedDoc doc1 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        FeedDoc doc2 = FeedDocFixture.createWithDefault(UUID.randomUUID());
+        FeedDoc doc3 = FeedDocFixture.createWithDefault(UUID.randomUUID());
 
-        FeedDoc a2 = new FeedDoc(a.id(), a.createdAt(), Instant.parse("2025-09-01T00:00:00Z"),
-            a.author(), a.weather(), a.ootds(), a.content(), 1L, a.commentCount(), a.likedByMe());
-        FeedDoc b2 = new FeedDoc(b.id(), b.createdAt(), Instant.parse("2025-09-02T00:00:00Z"),
-            b.author(), b.weather(), b.ootds(), b.content(), 5L, b.commentCount(), b.likedByMe());
-        FeedDoc c2 = new FeedDoc(c.id(), c.createdAt(), Instant.parse("2025-09-03T00:00:00Z"),
-            c.author(), c.weather(), c.ootds(), c.content(), 3L, c.commentCount(), c.likedByMe());
+        FeedDoc a2 = new FeedDoc(doc1.id(), doc1.createdAt(), Instant.parse("2025-09-01T00:00:00Z"),
+            doc1.author(), doc1.weather(), doc1.ootds(), doc1.content(), 1L, doc1.commentCount(), doc1.likedByMe());
+        FeedDoc b2 = new FeedDoc(doc2.id(), doc2.createdAt(), Instant.parse("2025-09-02T00:00:00Z"),
+            doc2.author(), doc2.weather(), doc2.ootds(), doc2.content(), 5L, doc2.commentCount(), doc2.likedByMe());
+        FeedDoc c2 = new FeedDoc(doc3.id(), doc3.createdAt(), Instant.parse("2025-09-03T00:00:00Z"),
+            doc3.author(), doc3.weather(), doc3.ootds(), doc3.content(), 3L, doc3.commentCount(), doc3.likedByMe());
 
-        indexDocs(Arrays.asList(a2, b2, c2));
+        indexDocs(List.of(a2, b2, c2));
 
+        // when
         CursorPageResponse<UUID> p1 = repository.searchIds(
             null, null,
             2,
@@ -239,11 +246,14 @@ class FeedSearchRepositoryTest {
             null,
             null
         );
+
+        // then
         assertThat(p1.data()).hasSize(2);
         assertThat(p1.hasNext()).isTrue();
         assertThat(p1.nextCursor()).isNotBlank();
         assertThat(p1.nextIdAfter()).isNotBlank();
 
+        // when
         CursorPageResponse<UUID> p2 = repository.searchIds(
             p1.nextCursor(),
             UUID.fromString(p1.nextIdAfter()),
@@ -255,6 +265,8 @@ class FeedSearchRepositoryTest {
             null,
             null
         );
+
+        // then
         assertThat(p2.data()).hasSize(1);
         assertThat(p2.hasNext()).isFalse();
     }

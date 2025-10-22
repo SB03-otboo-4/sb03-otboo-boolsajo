@@ -36,8 +36,6 @@ class FeedControllerReadTest {
 
     @Autowired
     MockMvc mockMvc;
-    @Autowired
-    ObjectMapper objectMapper;
 
     @MockitoBean
     TokenProvider tokenProvider;
@@ -48,18 +46,19 @@ class FeedControllerReadTest {
 
     @Test
     void 피드를_조회하면_200과_DTO가_반환된다() throws Exception {
-        //Given
-        FeedDto a = FeedFixture.createDtoWithDefault();
-        FeedDto b = FeedFixture.createDtoWithDefault();
-        CursorPageResponse<FeedDto> resp = new CursorPageResponse<FeedDto>(
-            List.of(a, b), null, null,
-            false, 2L, "createdAt", "DESCENDING");
+        // given
+        FeedDto dto1 = FeedFixture.createDtoWithDefault();
+        FeedDto dto2 = FeedFixture.createDtoWithDefault();
+        CursorPageResponse<FeedDto> resp = new CursorPageResponse<>(
+            List.of(dto1, dto2), null, null,
+            false, 2L, "createdAt", "DESCENDING"
+        );
 
         given(feedService.getFeeds(any(), any(), anyInt(), anyString(), anyString(),
             any(), any(), any(), any()))
             .willReturn(resp);
 
-        // When & Then
+        // when & then
         mockMvc.perform(
                 get("/api/feeds")
                     .param("limit", "3")
@@ -81,16 +80,16 @@ class FeedControllerReadTest {
 
     @Test
     void createdAt_커서로_피드를_조회하면_내림차순으로_정렬되고_커서를_반환한다() throws Exception {
-        // Given
+        // given
         Instant base = Instant.now();
-        FeedDto f1 = FeedFixture.createDtoWithCreatedAt(base);
-        FeedDto f2 = FeedFixture.createDtoWithCreatedAt(base.plusMillis(1));
-        FeedDto f3 = FeedFixture.createDtoWithCreatedAt(base.plusMillis(2));
+        FeedDto dto1 = FeedFixture.createDtoWithCreatedAt(base);
+        FeedDto dto2 = FeedFixture.createDtoWithCreatedAt(base.plusMillis(1));
+        FeedDto dto3 = FeedFixture.createDtoWithCreatedAt(base.plusMillis(2));
 
         CursorPageResponse<FeedDto> resp = new CursorPageResponse<>(
-            List.of(f3, f2, f1),
-            f1.createdAt().toString(),
-            f1.id().toString(),
+            List.of(dto3, dto2, dto1),
+            dto1.createdAt().toString(),
+            dto1.id().toString(),
             true,
             3L,
             "createdAt",
@@ -102,7 +101,7 @@ class FeedControllerReadTest {
             any(), any(), any(), any()
         )).willReturn(resp);
 
-        // When & Then
+        // when & then
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user("tester").roles("USER"))
@@ -113,44 +112,41 @@ class FeedControllerReadTest {
             )
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-
-            .andExpect(jsonPath("$.data[0].id").value(f3.id().toString()))
-            .andExpect(jsonPath("$.data[0].createdAt").value(f3.createdAt().toString()))
-            .andExpect(jsonPath("$.data[1].id").value(f2.id().toString()))
-            .andExpect(jsonPath("$.data[1].createdAt").value(f2.createdAt().toString()))
-            .andExpect(jsonPath("$.data[2].id").value(f1.id().toString()))
-            .andExpect(jsonPath("$.data[2].createdAt").value(f1.createdAt().toString()))
-
-            .andExpect(jsonPath("$.nextCursor").value(f1.createdAt().toString()))
-            .andExpect(jsonPath("$.nextIdAfter").value(f1.id().toString()))
-
+            .andExpect(jsonPath("$.data[0].id").value(dto3.id().toString()))
+            .andExpect(jsonPath("$.data[0].createdAt").value(dto3.createdAt().toString()))
+            .andExpect(jsonPath("$.data[1].id").value(dto2.id().toString()))
+            .andExpect(jsonPath("$.data[1].createdAt").value(dto2.createdAt().toString()))
+            .andExpect(jsonPath("$.data[2].id").value(dto1.id().toString()))
+            .andExpect(jsonPath("$.data[2].createdAt").value(dto1.createdAt().toString()))
+            .andExpect(jsonPath("$.nextCursor").value(dto1.createdAt().toString()))
+            .andExpect(jsonPath("$.nextIdAfter").value(dto1.id().toString()))
             .andExpect(jsonPath("$.hasNext").value(true))
             .andExpect(jsonPath("$.sortBy").value("createdAt"))
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
     }
 
-
     @Test
     void likeCount_커서로_피드를_조회하면_내림차순으로_정렬되고_커서를_반환한다() throws Exception {
-        // Given
-        FeedDto feed1 = FeedFixture.createDtoWithLikeCount(1L);
-        FeedDto feed2 = FeedFixture.createDtoWithLikeCount(2L);
-        FeedDto feed3 = FeedFixture.createDtoWithLikeCount(3L);
+        // given
+        FeedDto dto1 = FeedFixture.createDtoWithLikeCount(1L);
+        FeedDto dto2 = FeedFixture.createDtoWithLikeCount(2L);
+        FeedDto dto3 = FeedFixture.createDtoWithLikeCount(3L);
 
         CursorPageResponse<FeedDto> resp = new CursorPageResponse<>(
-            List.of(feed3, feed2, feed1),
-            String.valueOf(feed1.likeCount()),
-            feed1.id().toString(),
+            List.of(dto3, dto2, dto1),
+            String.valueOf(dto1.likeCount()),
+            dto1.id().toString(),
             true,
             4L,
             "likeCount",
             "DESCENDING"
         );
+
         given(feedService.getFeeds(any(), any(), anyInt(), anyString(), anyString(),
             any(), any(), any(), any()))
             .willReturn(resp);
 
-        // When & Then
+        // when & then
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user("tester").roles("USER"))
@@ -164,8 +160,8 @@ class FeedControllerReadTest {
             .andExpect(jsonPath("$.data[0].likeCount").value(3))
             .andExpect(jsonPath("$.data[1].likeCount").value(2))
             .andExpect(jsonPath("$.data[2].likeCount").value(1))
-            .andExpect(jsonPath("$.nextCursor").value(String.valueOf(feed1.likeCount())))
-            .andExpect(jsonPath("$.nextIdAfter").value(feed1.id().toString()))
+            .andExpect(jsonPath("$.nextCursor").value(String.valueOf(dto1.likeCount())))
+            .andExpect(jsonPath("$.nextIdAfter").value(dto1.id().toString()))
             .andExpect(jsonPath("$.sortBy").value("likeCount"))
             .andExpect(jsonPath("$.sortDirection").value("DESCENDING"))
             .andExpect(jsonPath("$.hasNext").value(true));
@@ -173,12 +169,12 @@ class FeedControllerReadTest {
 
     @Test
     void limit가_0이면_400을_반환한다() throws Exception {
-        // Given
+        // given
         given(feedService.getFeeds(any(), any(), anyInt(), anyString(), anyString(),
             any(), any(), any(), any()))
             .willThrow(new InvalidPagingParamException(ErrorCode.INVALID_PAGING_LIMIT));
 
-        // When & Then
+        // when & then
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user("tester").roles("USER"))
@@ -193,12 +189,12 @@ class FeedControllerReadTest {
 
     @Test
     void sortBy가_지원되지_않으면_400을_반환한다() throws Exception {
-        // Given
+        // given
         given(feedService.getFeeds(any(), any(), anyInt(), anyString(), anyString(),
             any(), any(), any(), any()))
             .willThrow(new InvalidPagingParamException(ErrorCode.INVALID_SORT_BY));
 
-        // When & Then
+        // when & then
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user("tester").roles("USER"))
@@ -213,12 +209,12 @@ class FeedControllerReadTest {
 
     @Test
     void sortDirection이_지원되지_않으면_400을_반환한다() throws Exception {
-        // Given
+        // given
         given(feedService.getFeeds(any(), any(), anyInt(), anyString(), anyString(),
             any(), any(), any(), any()))
             .willThrow(new InvalidPagingParamException(ErrorCode.INVALID_SORT_DIRECTION));
 
-        // When & Then
+        // when & then
         mockMvc.perform(
                 get("/api/feeds")
                     .with(user("tester").roles("USER"))
@@ -230,5 +226,4 @@ class FeedControllerReadTest {
             .andExpect(status().isBadRequest())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
-
 }

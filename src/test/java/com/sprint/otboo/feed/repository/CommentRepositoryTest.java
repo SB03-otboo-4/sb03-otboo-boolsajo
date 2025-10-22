@@ -14,7 +14,6 @@ import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +24,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -55,7 +53,6 @@ public class CommentRepositoryTest {
 
     @BeforeEach
     void setUp() {
-
         author = UserFixture.createUserWithDefault();
         em.persist(author);
 
@@ -64,6 +61,7 @@ public class CommentRepositoryTest {
 
         weather = WeatherFixture.createWeatherWithDefault(location);
         em.persist(weather);
+
         feed = FeedFixture.createEntity(author, weather);
         em.persist(feed);
         feedId = feed.getId();
@@ -93,12 +91,10 @@ public class CommentRepositoryTest {
 
     @Test
     void 기본_조회는_createdAt_DESCENDING으로_정렬된다() {
-        // When
-        List<Comment> rows = commentRepository.findByFeedId(
-            feedId, null, null, 10
-        );
+        // when
+        List<Comment> rows = commentRepository.findByFeedId(feedId, null, null, 10);
 
-        // Then
+        // then
         Comparator<Comment> cmp = Comparator
             .comparing(Comment::getCreatedAt).reversed()
             .thenComparing(Comment::getId, DB_UUID_DESC);
@@ -110,13 +106,17 @@ public class CommentRepositoryTest {
 
     @Test
     void 같은_createdAt에서는_id가_타이브레이커로_동작한다() {
-        // Given
+        // given
         Instant fixed = Instant.now().truncatedTo(MICROS);
 
         Comment a = Comment.builder()
-            .feed(feed).author(author).content("A").build();
+            .feed(feed).author(author).content("A")
+            .createdAt(fixed)
+            .build();
         Comment b = Comment.builder()
-            .feed(feed).author(author).content("B").build();
+            .feed(feed).author(author).content("B")
+            .createdAt(fixed)
+            .build();
 
         em.persist(a);
         em.persist(b);
@@ -134,7 +134,7 @@ public class CommentRepositoryTest {
 
         em.clear();
 
-        // When: 정렬 명시 조회
+        // when
         List<Comment> rows = em.getEntityManager().createQuery("""
                 select c
                 from Comment c
@@ -145,7 +145,7 @@ public class CommentRepositoryTest {
             .setMaxResults(10)
             .getResultList();
 
-        // Then
+        // then
         assertThat(rows).hasSizeGreaterThanOrEqualTo(2);
 
         Comment first = rows.get(0);

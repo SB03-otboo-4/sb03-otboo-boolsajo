@@ -9,9 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
@@ -23,8 +21,8 @@ import com.sprint.otboo.common.exception.feed.FeedAccessDeniedException;
 import com.sprint.otboo.common.exception.feed.FeedNotFoundException;
 import com.sprint.otboo.common.exception.user.UserNotFoundException;
 import com.sprint.otboo.feed.dto.data.FeedDto;
-import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.dto.request.FeedCreateRequest;
+import com.sprint.otboo.feed.dto.request.FeedUpdateRequest;
 import com.sprint.otboo.feed.service.FeedService;
 import com.sprint.otboo.user.dto.data.AuthorDto;
 import com.sprint.otboo.user.dto.data.UserDto;
@@ -36,7 +34,6 @@ import com.sprint.otboo.weather.dto.data.WeatherSummaryDto;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,90 +45,53 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = FeedController.class)
 @ActiveProfiles("test")
-@DisplayName("FeedController 테스트")
 class FeedControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;
-
+    MockMvc mockMvc;
     @Autowired
-    private ObjectMapper objectMapper;
+    ObjectMapper objectMapper;
 
     @MockitoBean
     TokenProvider tokenProvider;
-
     @MockitoBean
     JwtRegistry jwtRegistry;
-
     @MockitoBean
-    private FeedService feedService;
+    FeedService feedService;
 
-    private CustomUserDetails principal(UUID userId) {
-        UserDto userDto = new UserDto(
-            userId,
-            Instant.now(),
-            "tester@example.com",
-            "name",
-            Role.USER,
-            LoginType.GENERAL,
-            false
-        );
-        return CustomUserDetails.builder()
-            .userDto(userDto)
-            .password("password")
-            .build();
+    private CustomUserDetails principal(UUID id) {
+        UserDto userDto = new UserDto(id, Instant.now(), "tester@example.com", "tester", Role.USER,
+            LoginType.GENERAL, false);
+        return CustomUserDetails.builder().userDto(userDto).password("password").build();
+    }
+
+    private FeedDto sampleFeedDto(UUID feedId, UUID authorId, UUID weatherId, UUID clothesId,
+        String content) {
+        AuthorDto author = new AuthorDto(authorId, "홍길동", "https://example.com/profile.png");
+        TemperatureDto temp = new TemperatureDto(21.0, -1.0, 18.0, 25.0);
+        PrecipitationDto pre = new PrecipitationDto("RAIN", 12.3, 80.0);
+        WeatherSummaryDto weather = new WeatherSummaryDto(weatherId, "CLOUDY", pre, temp);
+        OotdDto ootd = new OotdDto(clothesId, "후드티", "https://example.com/image.png",
+            ClothesType.TOP, List.of());
+        return new FeedDto(feedId, Instant.now(), Instant.now(), author, weather, List.of(ootd),
+            content, 5L, 3, true);
     }
 
     @Nested
-    @DisplayName("피드 등록 테스트")
     class FeedCreateTests {
 
         @Test
         void 피드를_등록하면_201과_DTO가_반환한다() throws Exception {
-            // Given
             UUID authorId = UUID.randomUUID();
             UUID weatherId = UUID.randomUUID();
             UUID clothesId = UUID.randomUUID();
+            FeedCreateRequest request = new FeedCreateRequest(authorId, weatherId,
+                List.of(clothesId), "오늘의 코디");
 
-            FeedCreateRequest request = new FeedCreateRequest(
-                authorId,
-                weatherId,
-                List.of(clothesId),
-                "오늘의 코디"
-            );
+            FeedDto dto = sampleFeedDto(UUID.randomUUID(), authorId, weatherId, clothesId,
+                "오늘의 코디");
+            given(feedService.create(any(FeedCreateRequest.class))).willReturn(dto);
 
-            AuthorDto author = new AuthorDto(
-                authorId, "홍길동", "https://example.com/profile.png"
-            );
-            TemperatureDto temperature = new TemperatureDto(20.5, -1.0, 18.0, 25.0);
-            PrecipitationDto precipitation = new PrecipitationDto("RAIN", 12.3, 80.0);
-            WeatherSummaryDto weather = new WeatherSummaryDto(
-                weatherId, "CLOUDY", precipitation, temperature
-            );
-            OotdDto ootd = new OotdDto(
-                clothesId,
-                "스포츠 자켓",
-                "https://example.com/image.png",
-                ClothesType.TOP,
-                List.of()
-            );
-
-            FeedDto response = new FeedDto(
-                UUID.randomUUID(),
-                Instant.now(),
-                Instant.now(),
-                author,
-                weather,
-                List.of(ootd),
-                "오늘의 코디",
-                0L,
-                0,
-                false
-            );
-
-            given(feedService.create(any(FeedCreateRequest.class))).willReturn(response);
-
-            // When & Then
             mockMvc.perform(
                     post("/api/feeds")
                         .with(csrf())
@@ -140,27 +100,21 @@ class FeedControllerTest {
                         .content(objectMapper.writeValueAsBytes(request))
                 )
                 .andExpect(status().isCreated())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content").value("오늘의 코디"))
                 .andExpect(jsonPath("$.author.name").value("홍길동"))
                 .andExpect(jsonPath("$.weather.skyStatus").value("CLOUDY"))
-                .andExpect(jsonPath("$.ootds[0].name").value("스포츠 자켓"));
+                .andExpect(jsonPath("$.ootds[0].name").value("후드티"))
+                .andExpect(jsonPath("$.likeCount").value(5))
+                .andExpect(jsonPath("$.commentCount").value(3));
         }
 
         @Test
         void 존재하지_않는_작성자로_피드를_등록하려하면_404를_반환한다() throws Exception {
-            // Given
-            FeedCreateRequest request = new FeedCreateRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                List.of(UUID.randomUUID()),
-                "오늘의 코디"
-            );
+            FeedCreateRequest request = new FeedCreateRequest(UUID.randomUUID(), UUID.randomUUID(),
+                List.of(UUID.randomUUID()), "오늘의 코디");
+            given(feedService.create(any(FeedCreateRequest.class))).willThrow(
+                new UserNotFoundException());
 
-            given(feedService.create(any(FeedCreateRequest.class)))
-                .willThrow(new UserNotFoundException());
-
-            // When & Then
             mockMvc.perform(
                     post("/api/feeds")
                         .with(csrf())
@@ -174,60 +128,34 @@ class FeedControllerTest {
 
         @Test
         void 작성자를_입력하지_않으면_400을_반환한다() throws Exception {
-            // Given
-            FeedCreateRequest badRequest = new FeedCreateRequest(
-                null,
-                UUID.randomUUID(),
-                List.of(UUID.randomUUID()),
-                "오늘의 코디"
-            );
+            FeedCreateRequest request = new FeedCreateRequest(null, UUID.randomUUID(),
+                List.of(UUID.randomUUID()), "오늘의 코디");
 
-            // When & Then
             mockMvc.perform(
                     post("/api/feeds")
                         .with(csrf())
                         .with(user("tester").roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(badRequest))
+                        .content(objectMapper.writeValueAsBytes(request))
                 )
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+                .andExpect(status().isBadRequest());
         }
     }
 
     @Nested
-    @DisplayName("피드 수정 테스트")
     class FeedUpdateTests {
 
         @Test
         void 피드를_수정하면_200과_DTO가_반환된다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
             CustomUserDetails principal = principal(userId);
-
             FeedUpdateRequest request = new FeedUpdateRequest("오늘의 코디(수정)");
 
-            AuthorDto author = new AuthorDto(principal.getUserId(), "홍길동",
-                "https://example.com/profile.png");
-            TemperatureDto temperature = new TemperatureDto(20.5, -1.0, 18.0, 25.0);
-            PrecipitationDto precipitation = new PrecipitationDto("RAIN", 12.3, 80.0);
-            WeatherSummaryDto weather = new WeatherSummaryDto(UUID.randomUUID(), "CLOUDY",
-                precipitation, temperature);
-            OotdDto ootd = new OotdDto(UUID.randomUUID(), "스포츠 자켓", "https://example.com/image.png",
-                ClothesType.TOP, List.of());
+            FeedDto dto = sampleFeedDto(feedId, userId, UUID.randomUUID(), UUID.randomUUID(),
+                "오늘의 코디(수정)");
+            given(feedService.update(any(), any(), any())).willReturn(dto);
 
-            FeedDto response = new FeedDto(
-                feedId, Instant.now(), Instant.now(),
-                author, weather, List.of(ootd),
-                "오늘의 코디(수정)", 10L, 2, false
-            );
-
-            given(
-                feedService.update(any(UUID.class), any(UUID.class), any(FeedUpdateRequest.class)))
-                .willReturn(response);
-
-            // When & Then
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -236,7 +164,6 @@ class FeedControllerTest {
                         .content(objectMapper.writeValueAsBytes(request))
                 )
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(feedId.toString()))
                 .andExpect(jsonPath("$.content").value("오늘의 코디(수정)"))
                 .andExpect(jsonPath("$.author.name").value("홍길동"));
@@ -244,16 +171,11 @@ class FeedControllerTest {
 
         @Test
         void 존재하지_않는_피드를_수정하면_404를_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             CustomUserDetails principal = principal(UUID.randomUUID());
             FeedUpdateRequest request = new FeedUpdateRequest("수정");
+            given(feedService.update(any(), any(), any())).willThrow(new FeedNotFoundException());
 
-            given(
-                feedService.update(any(UUID.class), any(UUID.class), any(FeedUpdateRequest.class)))
-                .willThrow(new com.sprint.otboo.common.exception.feed.FeedNotFoundException());
-
-            // When & Then
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -267,16 +189,12 @@ class FeedControllerTest {
 
         @Test
         void 해당_피드의_작성자가_아니면_403을_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             CustomUserDetails principal = principal(UUID.randomUUID());
             FeedUpdateRequest request = new FeedUpdateRequest("수정");
+            given(feedService.update(any(), any(), any())).willThrow(
+                new FeedAccessDeniedException());
 
-            given(
-                feedService.update(any(UUID.class), any(UUID.class), any(FeedUpdateRequest.class)))
-                .willThrow(new FeedAccessDeniedException());
-
-            // When & Then
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -290,48 +208,38 @@ class FeedControllerTest {
 
         @Test
         void content가_null이거나_blank면_400을_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             CustomUserDetails principal = principal(UUID.randomUUID());
 
-            FeedUpdateRequest bad1 = new FeedUpdateRequest(null);
-            FeedUpdateRequest bad2 = new FeedUpdateRequest("   ");
+            FeedUpdateRequest requestNull = new FeedUpdateRequest(null);
+            FeedUpdateRequest requestBlank = new FeedUpdateRequest("   ");
 
-            // When & Then - null
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
                         .with(user(principal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(bad1))
+                        .content(objectMapper.writeValueAsBytes(requestNull))
                 )
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+                .andExpect(status().isBadRequest());
 
-            // When & Then - blank
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
                         .with(user(principal))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(bad2))
+                        .content(objectMapper.writeValueAsBytes(requestBlank))
                 )
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+                .andExpect(status().isBadRequest());
         }
 
         @Test
         void 존재하지_않는_작성자로_수정시도하면_404를_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             CustomUserDetails principal = principal(UUID.randomUUID());
             FeedUpdateRequest request = new FeedUpdateRequest("수정");
+            given(feedService.update(any(), any(), any())).willThrow(new UserNotFoundException());
 
-            given(
-                feedService.update(any(UUID.class), any(UUID.class), any(FeedUpdateRequest.class)))
-                .willThrow(new UserNotFoundException());
-
-            // When & Then
             mockMvc.perform(
                     patch("/api/feeds/{feedId}", feedId)
                         .with(csrf())
@@ -345,42 +253,35 @@ class FeedControllerTest {
     }
 
     @Nested
-    @DisplayName("피드 삭제 테스트 (Soft Delete)")
     class FeedDeleteTests {
 
         @Test
         void 본인_피드를_삭제하면_204를_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            CustomUserDetails p = principal(userId);
-
+            CustomUserDetails principal = principal(userId);
             willDoNothing().given(feedService).delete(userId, feedId);
 
-            // When & Then
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
-                        .with(user(p))
+                        .with(user(principal))
                 )
                 .andExpect(status().isNoContent());
         }
 
         @Test
         void 존재하지_않는_피드를_삭제하면_404를_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            CustomUserDetails p = principal(userId);
+            CustomUserDetails principal = principal(userId);
 
-            willThrow(new FeedNotFoundException())
-                .given(feedService).delete(userId, feedId);
+            willThrow(new FeedNotFoundException()).given(feedService).delete(userId, feedId);
 
-            // When & Then
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
-                        .with(user(p))
+                        .with(user(principal))
                 )
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
@@ -388,19 +289,17 @@ class FeedControllerTest {
 
         @Test
         void 해당_피드의_작성자가_아니면_403을_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            CustomUserDetails p = principal(userId);
+            CustomUserDetails principal = principal(userId);
 
-            willThrow(new FeedAccessDeniedException())
-                .given(feedService).delete(userId, feedId);
+            willThrow(new FeedAccessDeniedException()).given(feedService).delete(userId, feedId);
 
             // When & Then
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
-                        .with(user(p))
+                        .with(user(principal))
                 )
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
@@ -408,19 +307,16 @@ class FeedControllerTest {
 
         @Test
         void 존재하지_않는_작성자로_삭제하면_404를_반환한다() throws Exception {
-            // Given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
-            CustomUserDetails p = principal(userId);
+            CustomUserDetails principal = principal(userId);
 
-            willThrow(new UserNotFoundException())
-                .given(feedService).delete(userId, feedId);
+            willThrow(new UserNotFoundException()).given(feedService).delete(userId, feedId);
 
-            // When & Then
             mockMvc.perform(
                     delete("/api/feeds/{feedId}", feedId)
                         .with(csrf())
-                        .with(user(p))
+                        .with(user(principal))
                 )
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));

@@ -47,7 +47,6 @@ class FeedMapperTest {
 
     @BeforeEach
     void setUp() {
-        // Given
         user = UserFixture.createUserWithDefault();
         location = WeatherLocationFixture.createLocationWithDefault();
         weather = WeatherFixture.createWeatherWithDefault(location);
@@ -90,12 +89,13 @@ class FeedMapperTest {
 
     @Test
     void Feed을_FeedDto로_정확히_매핑한다() {
-        // Given
-        Feed source = feed;
+        // given
+        Feed feed = this.feed;
 
-        // When & Then
-        FeedDto feedDto = feedMapper.toDto(source);
+        // when
+        FeedDto feedDto = feedMapper.toDto(feed);
 
+        // then
         AuthorDto authorDto = feedDto.author();
         assertThat(authorDto).isNotNull();
         assertThat(authorDto.name()).isEqualTo("홍길동");
@@ -116,13 +116,13 @@ class FeedMapperTest {
 
     @Test
     void Feed을_FeedDoc으로_매핑하고_epochMillis_보존과_likedByMe_false를_검증한다() {
-        // Given
+        // given
         Feed source = feed;
 
-        // When
+        // when
         FeedDoc feedDoc = feedMapper.toDoc(source);
 
-        // Then
+        // then
         assertThat(feedDoc).isNotNull();
         assertThat(feedDoc.author()).isNotNull();
         assertThat(feedDoc.weather()).isNotNull();

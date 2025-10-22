@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
@@ -39,9 +38,6 @@ public class LikeControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @MockitoBean
     TokenProvider tokenProvider;
 
@@ -66,7 +62,7 @@ public class LikeControllerTest {
         @Test
         @DisplayName("좋아요를_등록하면_204를_반환한다")
         void 좋아요를_등록하면_204를_반환한다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -74,7 +70,7 @@ public class LikeControllerTest {
 
             CustomUserDetails principal = principal(userId);
 
-            // When & Then
+            // when & then
             mockMvc.perform(post("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))
@@ -84,6 +80,7 @@ public class LikeControllerTest {
 
         @Test
         void 존재하지_않는_피드에_좋아요를_등록하려고_하면_404를_반환한다() throws Exception {
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -92,6 +89,7 @@ public class LikeControllerTest {
 
             CustomUserDetails principal = principal(userId);
 
+            // when & then
             mockMvc.perform(post("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))
@@ -101,6 +99,7 @@ public class LikeControllerTest {
 
         @Test
         void 존재하지_않는_유저가_좋아요를_등록하려고_하면_404를_반환한다() throws Exception {
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
 
@@ -109,6 +108,7 @@ public class LikeControllerTest {
 
             CustomUserDetails principal = principal(userId);
 
+            // when & then
             mockMvc.perform(post("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))
@@ -124,12 +124,14 @@ public class LikeControllerTest {
         @Test
         @DisplayName("좋아요를_취소하면_204를_반환한다")
         void 좋아요를_취소하면_204를_반환한다() throws Exception {
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
             CustomUserDetails principal = principal(userId);
 
             willDoNothing().given(likeService).removeLike(feedId, userId);
 
+            // when & then
             mockMvc.perform(delete("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))
@@ -140,6 +142,7 @@ public class LikeControllerTest {
 
         @Test
         void 존재하지_않는_피드의_좋아요를_취소하려고_하면_404를_반환한다() throws Exception {
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
             CustomUserDetails principal = principal(userId);
@@ -147,6 +150,7 @@ public class LikeControllerTest {
             willThrow(FeedNotFoundException.withId(feedId))
                 .given(likeService).removeLike(feedId, userId);
 
+            // when & then
             mockMvc.perform(delete("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))
@@ -158,6 +162,7 @@ public class LikeControllerTest {
 
         @Test
         void 존재하지_않는_유저가_좋아요를_취소하려고_하면_404를_반환한다() throws Exception {
+            // given
             UUID feedId = UUID.randomUUID();
             UUID userId = UUID.randomUUID();
             CustomUserDetails principal = principal(userId);
@@ -165,6 +170,7 @@ public class LikeControllerTest {
             willThrow(UserNotFoundException.withId(userId))
                 .given(likeService).removeLike(feedId, userId);
 
+            // when & then
             mockMvc.perform(delete("/api/feeds/{feedId}/like", feedId)
                     .with(csrf())
                     .with(user(principal))

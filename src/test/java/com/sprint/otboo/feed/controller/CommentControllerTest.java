@@ -63,7 +63,7 @@ class CommentControllerTest {
 
         @Test
         void 댓글을_등록하면_201과_DTO가_반환된다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
 
@@ -80,7 +80,7 @@ class CommentControllerTest {
             given(commentService.create(any(UUID.class), any(UUID.class), anyString()))
                 .willReturn(response);
 
-            // When & Then
+            // when & then
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -97,7 +97,7 @@ class CommentControllerTest {
 
         @Test
         void 존재하지_않는_피드에_댓글을_등록하면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
             CommentCreateRequest request = new CommentCreateRequest(feedId, authorId, "첫 댓글");
@@ -105,7 +105,7 @@ class CommentControllerTest {
             given(commentService.create(any(UUID.class), any(UUID.class), anyString()))
                 .willThrow(new FeedNotFoundException());
 
-            // When & Then
+            // when & then
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -119,7 +119,7 @@ class CommentControllerTest {
 
         @Test
         void 존재하지_않는_작성자로_댓글을_등록하면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
             CommentCreateRequest request = new CommentCreateRequest(feedId, authorId, "첫 댓글");
@@ -127,7 +127,7 @@ class CommentControllerTest {
             given(commentService.create(any(UUID.class), any(UUID.class), anyString()))
                 .willThrow(new UserNotFoundException());
 
-            // When & Then
+            // when & then
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -141,12 +141,12 @@ class CommentControllerTest {
 
         @Test
         void 내용이_비어있으면_400을_반환한다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
             CommentCreateRequest badRequest = new CommentCreateRequest(feedId, authorId, "   ");
 
-            // When & Then
+            // when & then
             mockMvc.perform(
                     post("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
@@ -165,7 +165,7 @@ class CommentControllerTest {
 
         @Test
         void 댓글을_조회하면_200과_DTO가_반환된다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
             Instant now = Instant.now();
@@ -202,10 +202,9 @@ class CommentControllerTest {
                 eq(2)
             )).willReturn(page);
 
-            // When & Then
+            // when & then
             mockMvc.perform(
-                    get(
-                        "/api/feeds/{feedId}/comments", feedId)
+                    get("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
                         .with(user("tester").roles("USER"))
                         .param("limit", "2")
@@ -222,13 +221,12 @@ class CommentControllerTest {
 
         @Test
         void limit이_없으면_400을_반환한다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
 
-            // When & Then
+            // when & then
             mockMvc.perform(
-                    get(
-                        "/api/feeds/{feedId}/comments", feedId)
+                    get("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
                         .with(user("tester").roles("USER"))
                         .accept(MediaType.APPLICATION_JSON)
@@ -239,17 +237,17 @@ class CommentControllerTest {
 
         @Test
         void 존재하지_않는_feedId면_404를_반환한다() throws Exception {
-            // Given
+            // given
             UUID feedId = UUID.randomUUID();
 
             given(commentService.getComments(any(UUID.class), nullable(String.class),
                 nullable(UUID.class),
                 anyInt()
             )).willThrow(new FeedNotFoundException());
-            // When & Then
+
+            // when & then
             mockMvc.perform(
-                    get(
-                        "/api/feeds/{feedId}/comments", feedId)
+                    get("/api/feeds/{feedId}/comments", feedId)
                         .with(csrf())
                         .with(user("tester").roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON)
