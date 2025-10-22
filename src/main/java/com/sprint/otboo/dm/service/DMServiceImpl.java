@@ -5,6 +5,7 @@ import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.dm.DMException;
 import com.sprint.otboo.dm.dto.data.DirectMessageDto;
 import com.sprint.otboo.dm.entity.DM;
+import com.sprint.otboo.dm.event.DMReceivedEvent;
 import com.sprint.otboo.dm.repository.DMRepository;
 import java.time.Instant;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ import org.springframework.util.StringUtils;
 public class DMServiceImpl implements DMService {
 
     private final DMRepository repository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -71,6 +74,10 @@ public class DMServiceImpl implements DMService {
                 .build();
 
             DM saved = repository.save(dm);
+
+            eventPublisher.publishEvent(
+                new DMReceivedEvent(saved.getId(), senderId, receiverId)
+            );
 
             log.info("[DM] 메시지 전송 성공 (dmId={}, senderId={}, receiverId={}, contentLength={})",
                 saved.getId(), senderId, receiverId, content.length());

@@ -2,6 +2,7 @@ package com.sprint.otboo.notification.listener;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
 import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
+import com.sprint.otboo.dm.event.DMReceivedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
@@ -94,5 +95,17 @@ public class NotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleClothesAttributeDeleted(ClothesAttributeDefDeletedEvent event) {
         notificationService.notifyClothesAttributeDeletedForAllUsers(event.attributeName());
+    }
+
+    /**
+     * DM 수신 이벤트를 받아 알림을 생성합니다.
+     *
+     * @param event DM 수신 정보가 담긴 이벤트
+     * */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleDmReceived(DMReceivedEvent event) {
+        log.debug("[NotificationListener] handleDmReceived: dmId={}, senderId={}, receiverId={}",
+            event.dmId(), event.senderId(), event.receiverId());
+        notificationService.notifyDmReceived(event.receiverId(), event.senderId(), event.dmId());
     }
 }
