@@ -2,7 +2,7 @@ name: CD
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "CD-SCRUM-84" ]
   workflow_dispatch:
 
 jobs:
