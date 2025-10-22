@@ -77,6 +77,16 @@ public class RecommendationServiceImpl implements RecommendationService {
         // 2. 사용자 의상 조회
         List<Clothes> userClothes = clothesRepository.findByUserIdWithAttributes(userId);
 
+        // 2-1. 사용자의 옷장이 비어있는 경우
+        if (userClothes.isEmpty()) {
+            log.warn("[Recommendation] 사용자 의상 없음 → 추천 진행 불가, 빈 DTO 반환: 사용자 ID = {}", userId);
+            Recommendation emptyRecommendation = Recommendation.builder()
+                .user(User.builder().id(userId).build())
+                .weather(weather)
+                .build();
+            return recommendationMapper.toDto(emptyRecommendation);
+        }
+
         // 3. 사용자 프로필 조회 (온도 민감도)
         UserProfile profile = userProfileRepository.findByUserId(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));

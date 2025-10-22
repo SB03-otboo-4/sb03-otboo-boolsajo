@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -224,26 +225,20 @@ public class RecommendationServiceTest {
             .build();
         when(weatherRepository.findByIdWithLocation(weatherId)).thenReturn(Optional.of(weather));
 
-        when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of()); // 의상 없음
+        when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of());
 
-        UserProfile profile = UserProfile.builder()
-            .userId(userId)
-            .user(User.builder().id(userId).build())
-            .temperatureSensitivity(0)
-            .build();
-        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
-
-        // Engine: 의상이 없으므로 추천 결과도 빈 리스트
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
-            .thenReturn(List.of());
-
-        when(recommendationMapper.toDto(any(Recommendation.class)))
-            .thenReturn(new RecommendationDto(weatherId, userId, List.of()));
+        // Mapper stub: 빈 Recommendation → 빈 DTO 반환
+        lenient().when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenAnswer(invocation -> {
+                Recommendation r = invocation.getArgument(0);
+                return new RecommendationDto(r.getWeather().getId(), r.getUser().getId(), List.of());
+            });
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 추천 실패 → 추천 목록이 빈 리스트
+        assertThat(result).isNotNull();
         assertThat(result.clothes()).isEmpty();
     }
 
