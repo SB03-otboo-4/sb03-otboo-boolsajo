@@ -5,9 +5,13 @@ import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.exception.ErrorCode;
 import com.sprint.otboo.common.exception.dm.DMException;
 import com.sprint.otboo.dm.dto.data.DirectMessageDto;
+import com.sprint.otboo.dm.dto.response.DirectMessageProtoResponse;
 import com.sprint.otboo.dm.service.DMService;
+import com.sprint.otboo.user.dto.response.UserSummaryResponse;
+import com.sprint.otboo.user.service.UserQueryService;
 import java.lang.reflect.Method;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,9 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class DMController {
 
     private final DMService service;
+    private final UserQueryService userQueryService;
 
     @GetMapping("")
-    public ResponseEntity<CursorPageResponse<DirectMessageDto>> getList(
+    public ResponseEntity<CursorPageResponse<DirectMessageProtoResponse>> getList(
         @RequestParam("userId") UUID otherUserId,
         @RequestParam(value = "cursor", required = false) String cursor,
         @RequestParam(value = "idAfter", required = false) UUID idAfter,
@@ -35,12 +40,9 @@ public class DMController {
     ) {
         UUID me = requireUserIdFromSecurityContext();
 
-        // (1) 자기 자신과의 대화 금지
         if (me.equals(otherUserId)) {
             throw new DMException(ErrorCode.SELF_DM_NOT_ALLOWED);
         }
-
-        // (2) cursor 형식(ISO-8601) 검증
         if (StringUtils.hasText(cursor)) {
             try {
                 Instant.parse(cursor);
@@ -48,21 +50,35 @@ public class DMController {
                 throw new DMException(ErrorCode.INVALID_CURSOR_FORMAT);
             }
         }
-
-        // (3) idAfter가 있으면 cursor도 필수
         if (idAfter != null && !StringUtils.hasText(cursor)) {
             throw new DMException(ErrorCode.INVALID_CURSOR_PAIR);
         }
-
-        // (4) limit 범위 검증 (1..100)
         if (limit != null && (limit < 1 || limit > 100)) {
             throw new DMException(ErrorCode.INVALID_PAGING_LIMIT);
         }
 
-        CursorPageResponse<DirectMessageDto> resp =
+        CursorPageResponse<DirectMessageDto> page =
             service.getDms(me, otherUserId, cursor, idAfter, limit);
 
-        return ResponseEntity.ok(resp);
+        // 프론트에 맞게 변경
+        List<DirectMessageProtoResponse> mapped = page.data().stream().map(d -> {
+            UserSummaryResponse s = userQueryService.getSummary(d.senderId());
+            UserSummaryResponse r = userQueryService.getSummary(d.receiverId());
+            return DirectMessageProtoResponse.from(d, s, r);
+        }).toList();
+
+        CursorPageResponse<DirectMessageProtoResponse> body =
+            new CursorPageResponse<>(
+                mapped,
+                page.nextCursor(),
+                page.nextIdAfter(),
+                page.hasNext(),
+                page.totalCount(),
+                page.sortBy(),
+                page.sortDirection()
+            );
+
+        return ResponseEntity.ok(body);
     }
 
     private UUID requireUserIdFromSecurityContext() {
