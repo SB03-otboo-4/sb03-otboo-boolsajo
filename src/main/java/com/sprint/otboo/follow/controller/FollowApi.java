@@ -2,14 +2,13 @@ package com.sprint.otboo.follow.controller;
 
 import com.sprint.otboo.common.dto.CursorPageResponse;
 import com.sprint.otboo.common.dto.ErrorResponse;
-import com.sprint.otboo.follow.dto.data.FollowDto;
-import com.sprint.otboo.follow.dto.data.FollowSummaryDto;
 import com.sprint.otboo.follow.dto.request.FollowCreateRequest;
+import com.sprint.otboo.follow.dto.response.FollowCreateResponse;
 import com.sprint.otboo.follow.dto.response.FollowListItemResponse;
+import com.sprint.otboo.follow.dto.response.FollowSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -31,11 +30,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @SecurityRequirement(name = "bearerAuth")
 public interface FollowApi {
 
-    @Operation(summary = "팔로우 생성", description = "인증 사용자(follower)가 요청 본문의 followeeId를 팔로우합니다.")
+    @Operation(
+        summary = "팔로우 생성",
+        description = """
+    인증 사용자(follower)가 요청 본문의 followeeId를 팔로우합니다.
+    - follower는 SecurityContext에서 결정됩니다.
+    - 요청 본문은 `{"followeeId": "<UUID>"}` 형태만 사용합니다.
+    - 과거 호환을 위해 followerId가 포함되어도 무시합니다.
+    """
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "생성 성공",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = com.sprint.otboo.follow.dto.response.FollowCreateResponse.class)))
+                schema = @Schema(implementation = FollowCreateResponse.class)))
         ,
         @ApiResponse(responseCode = "400", description = "요청 값 오류",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))),
@@ -46,14 +53,14 @@ public interface FollowApi {
         @ApiResponse(responseCode = "409", description = "이미 팔로우 관계",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
-    ResponseEntity<com.sprint.otboo.follow.dto.response.FollowCreateResponse>
+    ResponseEntity<FollowCreateResponse>
     create(@Valid @RequestBody FollowCreateRequest request);
 
     @Operation(summary = "팔로우 요약 조회", description = "userId를 지정하면 그 사용자의 요약과 viewer 관점을 함께 반환")
     @ApiResponse(responseCode = "200",
         content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = com.sprint.otboo.follow.dto.response.FollowSummaryResponse.class)))
-    ResponseEntity<com.sprint.otboo.follow.dto.response.FollowSummaryResponse> getSummary(
+            schema = @Schema(implementation = FollowSummaryResponse.class)))
+    ResponseEntity<FollowSummaryResponse> getSummary(
         @RequestParam(value = "userId", required = false) UUID userId);
 
     @Operation(summary = "팔로잉 목록 조회", description = "특정 사용자가 팔로우하는 사용자 목록(팔로잉)을 커서 기반으로 조회")
