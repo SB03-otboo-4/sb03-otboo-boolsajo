@@ -26,7 +26,7 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
     private final WebClient kakao;
 
     public KakaoLocalClientImpl(
-        @Qualifier("owmWebClient") WebClient kakao) {
+        @Qualifier("kakaoWebClient") WebClient kakao) {
         this.kakao = kakao;
     }
 

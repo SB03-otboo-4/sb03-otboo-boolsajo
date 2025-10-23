@@ -4,11 +4,9 @@ import com.sprint.otboo.weather.dto.data.WeatherDto;
 import com.sprint.otboo.weather.dto.response.WeatherLocationResponse;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
-import com.sprint.otboo.weather.integration.kma.KmaRequestBuilder;
-import com.sprint.otboo.weather.integration.kma.client.KmaShortTermForecastClient;
-import com.sprint.otboo.weather.integration.kma.dto.KmaForecastResponse;
-import com.sprint.otboo.weather.mapper.KmaForecastAssembler;
-import com.sprint.otboo.weather.mapper.KmaForecastMapper.Slot;
+import com.sprint.otboo.weather.integration.spi.WeatherDataClient;
+import com.sprint.otboo.weather.integration.spi.WeatherDataClient.CollectedForecast;
+import com.sprint.otboo.weather.mapper.OwmForecastAssembler;
 import com.sprint.otboo.weather.mapper.WeatherMapper;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
@@ -24,6 +22,7 @@ import java.util.Comparator;
 import java.util.DoubleSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -43,9 +42,12 @@ public class WeatherServiceImpl implements WeatherService {
 
     private final WeatherLocationQueryService locationQueryService;
     private final WeatherLocationRepository locationRepository;
-    private final KmaRequestBuilder kmaRequestBuilder;
-    private final KmaShortTermForecastClient kmaClient;
-    private final KmaForecastAssembler kmaAssembler;
+
+    // ⬇️ 교체: KMA 의존 제거 → 공통 수집기 + OWM 어셈블러
+    private final WeatherDataClient weatherDataClient;
+    private final OwmForecastAssembler owmAssembler;
+    private final Locale owmDefaultLocale; // WeatherOwmConfig에서 Bean으로 제공 중
+
     private final WeatherRepository weatherRepository;
     private final WeatherMapper weatherMapper;
 
@@ -59,17 +61,24 @@ public class WeatherServiceImpl implements WeatherService {
         WeatherLocationResponse locDto = locationQueryService.getWeatherLocation(latitude, longitude);
         WeatherLocation location = resolveLocationEntity(locDto);
 
-        // 요청 파라미터 구성
-        Instant now = Instant.now();
-        Map<String, String> params = kmaRequestBuilder.toParams(locDto.latitude(), locDto.longitude(), now);
-
         try {
-            // 단기예보 호출
-            KmaForecastResponse shortResp = kmaClient.getVilageFcst(params);
-            List<Slot> slots = kmaAssembler.toSlots(shortResp.getItems());
+            // OWM 수집 (SPI)
+            List<CollectedForecast> collected = weatherDataClient.fetch(
+                locDto.latitude(), locDto.longitude(), owmDefaultLocale
+            );
 
-            // PCP(강수량) 중앙값 반영한 Weather 변환
-            List<Weather> rawSnapshots = kmaAssembler.toWeathers(slots, location, shortResp.getItems());
+            if (collected == null || collected.isEmpty()) {
+                log.warn("OWM returned empty forecast. Falling back to cached data. lat={}, lon={}",
+                    locDto.latitude(), locDto.longitude());
+                List<Weather> material = withFiveDayRangeFromStore(location.getId(), List.of());
+                return toTop5Dtos(material);
+            }
+
+            // 엔티티 변환 (발표시각 대용으로 수집시각 사용)
+            Instant ingestedAt = Instant.now();
+            List<Weather> rawSnapshots = collected.stream()
+                .map(cf -> owmAssembler.toEntity(location, cf, ingestedAt))
+                .toList();
 
             // 중복 방지 저장
             List<Weather> persisted = persistDedup(location.getId(), rawSnapshots);
@@ -77,33 +86,22 @@ public class WeatherServiceImpl implements WeatherService {
             // 어제~+4일 구간 로드(Δ 계산 위해 전일 포함)
             List<Weather> material = withFiveDayRangeFromStore(location.getId(), persisted);
 
-            // 일자별 대표 및 ΔT/Δ습도 계산
-            List<Weather> dailyRepresentatives = aggregatePerDaySameHour(material);
-
-            // 최대 5일 반환
-            List<Weather> top5 = dailyRepresentatives.size() > 5
-                ? dailyRepresentatives.subList(0, 5)
-                : dailyRepresentatives;
-
-            return top5.stream().map(weatherMapper::toWeatherDto).toList();
+            // 일자별 대표 및 ΔT/Δ습도 계산 → 최대 5일 반환
+            return toTop5Dtos(material);
 
         } catch (RuntimeException e) {
-            log.warn("KMA upstream error. Falling back to cached data. x={}, y={}",
-                locDto.x(), locDto.y(), e);
+            log.warn("OWM upstream error. Falling back to cached data. lat={}, lon={}",
+                locDto.latitude(), locDto.longitude(), e);
 
             List<Weather> material = withFiveDayRangeFromStore(location.getId(), List.of());
             if (!material.isEmpty()) {
-                List<Weather> dailyRepresentatives = aggregatePerDaySameHour(material);
-                List<Weather> top5 = dailyRepresentatives.size() > 5
-                    ? dailyRepresentatives.subList(0, 5)
-                    : dailyRepresentatives;
-                return top5.stream().map(weatherMapper::toWeatherDto).toList();
+                return toTop5Dtos(material);
             }
             throw e;
         }
     }
 
-    /** 어제 00:00(KST) ~ +4일 23:59:59(KST) 구간 캐시 */
+    /** 어제 00:00(KST) ~ +4일 23:59:59(KST) 구간 캐시 + 최신본만 선별 */
     private List<Weather> withFiveDayRangeFromStore(UUID locationId, List<Weather> base) {
         LocalDate todayKst = Instant.now().atZone(KST).toLocalDate();
         ZonedDateTime fromZdt = todayKst.minusDays(1).atStartOfDay(KST);
@@ -216,6 +214,14 @@ public class WeatherServiceImpl implements WeatherService {
         return result;
     }
 
+    private List<WeatherDto> toTop5Dtos(List<Weather> material) {
+        List<Weather> dailyRepresentatives = aggregatePerDaySameHour(material);
+        List<Weather> top5 = dailyRepresentatives.size() > 5
+            ? dailyRepresentatives.subList(0, 5)
+            : dailyRepresentatives;
+        return top5.stream().map(weatherMapper::toWeatherDto).toList();
+    }
+
     private static List<Weather> pickLatestPerForecastAt(List<Weather> ordered) {
         List<Weather> result = new ArrayList<>();
         Instant currentKey = null;
@@ -257,6 +263,8 @@ public class WeatherServiceImpl implements WeatherService {
         if (!toSave.isEmpty()) {
             try {
                 weatherRepository.saveAll(toSave);
+                // 동일 forecastAt 범위에서 최신 발표본만 남기기
+                weatherRepository.deleteOlderVersionsInRange(locationId, minAt, maxAt);
             } catch (DataIntegrityViolationException e) {
                 log.warn("Concurrent insert detected during persistDedup: {}", e.getMessage());
             }
