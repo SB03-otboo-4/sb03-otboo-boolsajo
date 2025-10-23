@@ -1,6 +1,6 @@
 package com.sprint.otboo.recommendation.dto.data;
 
-import com.sprint.otboo.clothing.dto.data.ClothesDto;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +13,7 @@ import java.util.UUID;
 public record RecommendationDto(
     UUID weatherId,
     UUID userId,
-    List<ClothesDto> clothes
+    List<OotdDto> clothes
 ) {
 
 }
