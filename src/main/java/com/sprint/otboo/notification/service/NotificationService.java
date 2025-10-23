@@ -28,4 +28,6 @@ public interface NotificationService {
     NotificationDto notifyUserFollowed(UUID followerId, UUID followeeId);
 
     void notifyClothesAttributeDeletedForAllUsers(String attributeName);
+
+    NotificationDto notifyDmReceived(UUID receiverId, UUID senderId, UUID dmId);
 }

@@ -14,8 +14,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.sprint.otboo.auth.jwt.CustomUserDetails;
 import com.sprint.otboo.auth.jwt.JwtRegistry;
 import com.sprint.otboo.auth.jwt.TokenProvider;
-import com.sprint.otboo.clothing.dto.data.ClothesAttributeDto;
-import com.sprint.otboo.clothing.dto.data.ClothesDto;
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.service.RecommendationService;
@@ -60,14 +60,15 @@ public class RecommendationControllerTest {
         UUID clothesId = UUID.randomUUID();
         UUID attrDefId = UUID.randomUUID();
 
-        ClothesAttributeDto attributeDto = new ClothesAttributeDto(
+        ClothesAttributeWithDefDto attributeDto = new ClothesAttributeWithDefDto(
             attrDefId,
+            "Color",
+            List.of("Red", "Blue"),
             "Red"
         );
 
-        ClothesDto clothesDto = new ClothesDto(
+        OotdDto ootdDto = new OotdDto(
             clothesId,
-            userId,
             "반팔 티셔츠",
             "image_url",
             ClothesType.TOP,
@@ -77,7 +78,7 @@ public class RecommendationControllerTest {
         RecommendationDto recommendationDto = new RecommendationDto(
             weatherId,
             userId,
-            List.of(clothesDto)
+            List.of(ootdDto)
         );
 
         // Mock 서비스 동작
@@ -93,11 +94,14 @@ public class RecommendationControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.weatherId").value(weatherId.toString()))
             .andExpect(jsonPath("$.userId").value(userId.toString()))
-            .andExpect(jsonPath("$.clothes[0].id").value(clothesId.toString()))
+            .andExpect(jsonPath("$.clothes[0].clothesId").value(clothesId.toString()))
             .andExpect(jsonPath("$.clothes[0].name").value("반팔 티셔츠"))
             .andExpect(jsonPath("$.clothes[0].type").value("TOP"))
             .andExpect(jsonPath("$.clothes[0].attributes[0].definitionId").value(attrDefId.toString()))
-            .andExpect(jsonPath("$.clothes[0].attributes[0].value").value("Red"));
+            .andExpect(jsonPath("$.clothes[0].attributes[0].definitionName").value("Color"))
+            .andExpect(jsonPath("$.clothes[0].attributes[0].value").value("Red"))
+            .andExpect(jsonPath("$.clothes[0].attributes[0].selectableValues[0]").value("Red"))
+            .andExpect(jsonPath("$.clothes[0].attributes[0].selectableValues[1]").value("Blue"));
     }
 
     @Test
@@ -133,9 +137,26 @@ public class RecommendationControllerTest {
         UUID clothesId = UUID.randomUUID();
         UUID attrDefId = UUID.randomUUID();
 
-        ClothesAttributeDto attributeDto = new ClothesAttributeDto(attrDefId, "Red");
-        ClothesDto clothesDto = new ClothesDto(clothesId, userId, "반팔 티셔츠", "image_url", ClothesType.TOP, List.of(attributeDto));
-        RecommendationDto recommendationDto = new RecommendationDto(weatherId, userId, List.of(clothesDto));
+        ClothesAttributeWithDefDto attributeDto = new ClothesAttributeWithDefDto(
+            attrDefId,
+            "Color",
+            List.of("Red", "Blue"),
+            "Red"
+        );
+
+        OotdDto ootdDto = new OotdDto(
+            clothesId,
+            "반팔 티셔츠",
+            "image_url",
+            ClothesType.TOP,
+            List.of(attributeDto)
+        );
+
+        RecommendationDto recommendationDto = new RecommendationDto(
+            weatherId,
+            userId,
+            List.of(ootdDto)
+        );
 
         when(recommendationService.getRecommendation(eq(userId), eq(weatherId)))
             .thenReturn(recommendationDto);
@@ -149,11 +170,14 @@ public class RecommendationControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.weatherId").value(weatherId.toString()))
             .andExpect(jsonPath("$.userId").value(userId.toString()))
-            .andExpect(jsonPath("$.clothes[0].id").value(clothesId.toString()))
+            .andExpect(jsonPath("$.clothes[0].clothesId").value(clothesId.toString()))
             .andExpect(jsonPath("$.clothes[0].name").value("반팔 티셔츠"))
             .andExpect(jsonPath("$.clothes[0].type").value("TOP"))
             .andExpect(jsonPath("$.clothes[0].attributes[0].definitionId").value(attrDefId.toString()))
-            .andExpect(jsonPath("$.clothes[0].attributes[0].value").value("Red"));
+            .andExpect(jsonPath("$.clothes[0].attributes[0].definitionName").value("Color"))
+            .andExpect(jsonPath("$.clothes[0].attributes[0].value").value("Red"))
+            .andExpect(jsonPath("$.clothes[0].attributes[0].selectableValues[0]").value("Red"))
+            .andExpect(jsonPath("$.clothes[0].attributes[0].selectableValues[1]").value("Blue"));
     }
 
     @Test

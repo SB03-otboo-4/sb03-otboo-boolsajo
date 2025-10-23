@@ -4,6 +4,7 @@ import static org.mockito.BDDMockito.then;
 
 import com.sprint.otboo.clothing.event.ClothesAttributeDefCreatedEvent;
 import com.sprint.otboo.clothing.event.ClothesAttributeDefDeletedEvent;
+import com.sprint.otboo.dm.event.DMReceivedEvent;
 import com.sprint.otboo.feed.event.FeedCommentedEvent;
 import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
@@ -117,5 +118,21 @@ public class NotificationListenerTest {
         // then
         then(notificationService).should()
             .notifyClothesAttributeDeletedForAllUsers("색감");
+    }
+
+    @Test
+    void DM_수신_이벤트를_받으면_알림이_생성() {
+        // given
+        UUID dmId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID receiverId = UUID.randomUUID();
+        DMReceivedEvent event = new DMReceivedEvent(dmId, senderId, receiverId);
+
+        // when
+        notificationListener.handleDmReceived(event);
+
+        // then
+        then(notificationService).should()
+            .notifyDmReceived(receiverId, senderId, dmId);
     }
 }
