@@ -81,6 +81,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/users/*/profiles").permitAll()   // 프로필 조회
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/profiles").authenticated() // 프로필 변경
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll() // 업로드 된 파일
+                .requestMatchers("/api/index/**").permitAll() // 인덱스 커서 초기화
 
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
@@ -97,8 +98,11 @@ public class SecurityConfig {
                 // 날씨(임시)
                 .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
 
-                // 팔로우(임시)
+                // 팔로우
                 .requestMatchers(HttpMethod.POST, "/api/follows/**").permitAll()
+
+                // 핸드셰이크
+                .requestMatchers("/ws/**").permitAll()
 
                 // 나머지 인증 필요
                 .anyRequest().authenticated()
