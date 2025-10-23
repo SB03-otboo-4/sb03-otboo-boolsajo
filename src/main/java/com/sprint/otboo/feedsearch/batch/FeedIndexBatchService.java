@@ -81,7 +81,7 @@ public class FeedIndexBatchService {
      */
     private CursorDto cursor = CursorDto.epoch();
 
-    @Value("${app.index.run-on-startup:true}")
+    @Value("${app.index.run-on-startup:false}")
     private boolean runOnStartup;
     @Value("${app.index.write-alias:feed-write}")
     private String writeAlias;
@@ -108,6 +108,27 @@ public class FeedIndexBatchService {
         }
         loadCursor();
         run("startup");
+    }
+
+    /**
+     * 커서를 초기화하고 전체 재색인을 수행한다.
+     */
+    public void resetCursorForReindex() {
+        ensureIndexReady();
+
+        boolean started = redisLockHelper.runWithLock(
+            lockKey(),
+            Duration.ofSeconds(lockTtlSeconds),
+            () -> {
+                log.info("[FeedIndexBatchService] Full Reindex 시작: 커서 리셋");
+                resetCursor();
+                reindex();
+            }
+        );
+
+        if (!started) {
+            log.warn("[FeedIndexBatchService] Full Reindex 스킵: 다른 인스턴스가 수행 중");
+        }
     }
 
     /**

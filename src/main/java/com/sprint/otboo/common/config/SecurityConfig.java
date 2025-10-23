@@ -52,6 +52,7 @@ public class SecurityConfig {
                                   "/api/users/*/profiles", // 프로필 변경
                                   "/api/follows", // 팔로우 생성
                                   "/api/sse",    // SSE
+                                  "/api/index/full-reindex", // 인덱스 커서 초기화
                                   "/ws/**"
                     )
             )
@@ -80,6 +81,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/users/*/profiles").permitAll()   // 프로필 조회
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/profiles").authenticated() // 프로필 변경
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll() // 업로드 된 파일
+                .requestMatchers("/api/index/**").permitAll() // 인덱스 커서 초기화
 
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
