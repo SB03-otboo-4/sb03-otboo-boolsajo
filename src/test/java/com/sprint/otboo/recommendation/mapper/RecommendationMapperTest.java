@@ -2,8 +2,11 @@ package com.sprint.otboo.recommendation.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.sprint.otboo.clothing.dto.data.ClothesDto;
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
+import com.sprint.otboo.clothing.entity.ClothesAttribute;
+import com.sprint.otboo.clothing.entity.ClothesAttributeDef;
 import com.sprint.otboo.clothing.entity.ClothesType;
 import com.sprint.otboo.recommendation.dto.data.RecommendationDto;
 import com.sprint.otboo.recommendation.entity.Recommendation;
@@ -16,8 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
 @DisplayName("RecommendationMapper 단위 테스트")
 public class RecommendationMapperTest {
@@ -39,12 +40,23 @@ public class RecommendationMapperTest {
             .username("testuser")
             .build();
 
+        ClothesAttribute attribute = ClothesAttribute.builder()
+            .id(UUID.randomUUID())
+            .value("LIGHT")
+            .definition(ClothesAttributeDef.builder()
+                .id(UUID.randomUUID())
+                .name("두께")
+                .selectValues("LIGHT,MEDIUM,HEAVY")
+                .build())
+            .build();
+
         testClothes = Clothes.builder()
             .id(UUID.randomUUID())
             .user(testUser)
             .name("Top 1")
             .imageUrl("top1.jpg")
             .type(ClothesType.TOP)
+            .attributes(List.of(attribute))
             .build();
 
         testRecommendationClothes = RecommendationClothes.builder()
@@ -71,12 +83,20 @@ public class RecommendationMapperTest {
         assertThat(dto.userId()).isEqualTo(testUser.getId());
         assertThat(dto.clothes()).hasSize(1);
 
-        ClothesDto clothesDto = dto.clothes().get(0);
-        assertThat(clothesDto.id()).isEqualTo(testClothes.getId());
-        assertThat(clothesDto.ownerId()).isEqualTo(testUser.getId());
-        assertThat(clothesDto.name()).isEqualTo(testClothes.getName());
-        assertThat(clothesDto.imageUrl()).isEqualTo(testClothes.getImageUrl());
-        assertThat(clothesDto.type()).isEqualTo(testClothes.getType());
-        assertThat(clothesDto.attributes()).isEmpty();
+        OotdDto ootdDto = dto.clothes().get(0);
+        assertThat(ootdDto.clothesId()).isEqualTo(testClothes.getId());
+        assertThat(ootdDto.name()).isEqualTo(testClothes.getName());
+        assertThat(ootdDto.imageUrl()).isEqualTo(testClothes.getImageUrl());
+        assertThat(ootdDto.type()).isEqualTo(testClothes.getType());
+
+        // attribute 변환 확인
+        assertThat(ootdDto.attributes()).hasSize(1);
+        ClothesAttributeWithDefDto attrDto = ootdDto.attributes().get(0);
+        ClothesAttribute attr = testClothes.getAttributes().get(0);
+
+        assertThat(attrDto.value()).isEqualTo(attr.getValue());
+        assertThat(attrDto.definitionId()).isEqualTo(attr.getDefinition().getId());
+        assertThat(attrDto.definitionName()).isEqualTo(attr.getDefinition().getName());
+        assertThat(attrDto.selectableValues()).containsExactly("LIGHT", "MEDIUM", "HEAVY");
     }
 }

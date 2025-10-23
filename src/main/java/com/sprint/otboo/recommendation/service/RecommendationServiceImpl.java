@@ -24,7 +24,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -76,6 +75,16 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         // 2. 사용자 의상 조회
         List<Clothes> userClothes = clothesRepository.findByUserIdWithAttributes(userId);
+
+        // 2-1. 사용자의 옷장이 비어있는 경우
+        if (userClothes.isEmpty()) {
+            log.warn("[Recommendation] 사용자 의상 없음 → 추천 진행 불가, 빈 DTO 반환: 사용자 ID = {}", userId);
+            Recommendation emptyRecommendation = Recommendation.builder()
+                .user(User.builder().id(userId).build())
+                .weather(weather)
+                .build();
+            return recommendationMapper.toDto(emptyRecommendation);
+        }
 
         // 3. 사용자 프로필 조회 (온도 민감도)
         UserProfile profile = userProfileRepository.findByUserId(userId)
@@ -151,6 +160,15 @@ public class RecommendationServiceImpl implements RecommendationService {
             .filter(c -> !recentlyRecommendedIds.contains(c.getId()))
             .toList();
 
+        // 7-1. 최소 1개 추천 보장 (랜덤 선택으로 다양성 유지)
+        if (filteredClothes.isEmpty() && !userClothes.isEmpty()) {
+            // 사용자 의상 중 하나를 랜덤으로 선택
+            Random random = new Random();
+            Clothes fallbackClothes = userClothes.get(random.nextInt(userClothes.size()));
+            filteredClothes = List.of(fallbackClothes);
+            log.info("[Recommendation] 최소 1개 추천 보장: {}", fallbackClothes.getName());
+        }
+
         // 8. 최근 추천 제외 후 비어있으면 전체로 재시도 (추천할 옷 부족 시)
         if (filteredClothes.isEmpty()) {
             log.info("[Recommendation] 최근 추천 제외 후 남은 의상이 없어 재추천 허용으로 전환");
@@ -179,10 +197,14 @@ public class RecommendationServiceImpl implements RecommendationService {
         for (ClothesType type : ClothesType.values()) {
             boolean hasType = recommended.stream().anyMatch(c -> c.getType() == type);
             if (!hasType) {
-                Optional<Clothes> fallbackOpt = clothesRepository.findFirstByType(type);
+                // 사용자 소유 의상 중 해당 타입 검색
+                List<Clothes> fallbackCandidates = userClothes.stream()
+                    .filter(c -> c.getType() == type)
+                    .toList();
 
-                if (fallbackOpt.isPresent() && random.nextDouble() < 0.5) {
-                    Clothes fallback = fallbackOpt.get();
+                if (!fallbackCandidates.isEmpty() && random.nextDouble() < 0.5) {
+                    // 하나 랜덤 선택
+                    Clothes fallback = fallbackCandidates.get(random.nextInt(fallbackCandidates.size()));
                     recommended.add(fallback);
                     log.info("[Fallback] {} 타입 의상 미존재 → '{}' 대체 추천 (확률적 적용)", type, fallback.getName());
                     fallbackCount++;
