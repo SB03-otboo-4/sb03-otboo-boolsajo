@@ -111,6 +111,27 @@ public class FeedIndexBatchService {
     }
 
     /**
+     * 커서를 초기화하고 전체 재색인을 수행한다.
+     */
+    public void resetCursorForReindex() {
+        ensureIndexReady();
+
+        boolean started = redisLockHelper.runWithLock(
+            lockKey(),
+            Duration.ofSeconds(lockTtlSeconds),
+            () -> {
+                log.info("[FeedIndexBatchService] Full Reindex 시작: 커서 리셋");
+                resetCursor();
+                reindex();
+            }
+        );
+
+        if (!started) {
+            log.warn("[FeedIndexBatchService] Full Reindex 스킵: 다른 인스턴스가 수행 중");
+        }
+    }
+
+    /**
      * 스케줄러에 의해 주기적으로 호출되는 진입점.
      * <p>실행 전 커서를 로드하고 분산 락을 획득한 인스턴스에서만 실제 색인을 수행한다.</p>
      */
