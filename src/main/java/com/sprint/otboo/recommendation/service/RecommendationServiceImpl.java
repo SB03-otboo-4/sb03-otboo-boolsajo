@@ -82,9 +82,8 @@ public class RecommendationServiceImpl implements RecommendationService {
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // null 방어: 기본값 0
-        int tempSensitivity = java.util.Optional
-            .ofNullable(profile.getTemperatureSensitivity())
-            .orElse(0);
+        Integer ts = profile.getTemperatureSensitivity();
+        int tempSensitivity = (ts != null) ? ts : 0;
 
         // 4. 체감 온도 계산
         //    - 최고ㆍ최저 온도 존재 시: 해당 값 기준으로 체감 온도 계산
