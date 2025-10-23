@@ -569,4 +569,32 @@ public class NotificationServiceTest {
         then(notificationSseService).should().sendToClient(dto1);
         then(notificationSseService).should().sendToClient(dto2);
     }
+
+    @Test
+    void DM_수신_알림은_DB저장_후_SSE로_전송() {
+        // given
+        UUID receiverId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID dmId = UUID.randomUUID();
+
+        User receiver = user(receiverId);
+        User sender = user(senderId);
+
+        Notification saved = notificationEntityOwnedBy(receiver, NotificationLevel.INFO);
+        NotificationDto dto = notificationDto(saved);
+
+        given(userRepository.getReferenceById(receiverId)).willReturn(receiver);
+        given(userRepository.getReferenceById(senderId)).willReturn(sender);
+        given(notificationRepository.saveAndFlush(any(Notification.class))).willReturn(saved);
+        given(notificationMapper.toDto(saved)).willReturn(dto);
+
+        // when
+        NotificationDto result = notificationService.notifyDmReceived(receiverId, senderId, dmId);
+
+        // then
+        assertThat(result).isEqualTo(dto);
+        then(notificationRepository).should().saveAndFlush(any(Notification.class));
+        then(notificationMapper).should().toDto(saved);
+        then(notificationSseService).should().sendToClient(dto);
+    }
 }

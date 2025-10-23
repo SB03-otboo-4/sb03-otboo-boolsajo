@@ -433,4 +433,34 @@ public class NotificationServiceImpl implements NotificationService {
 
         return notificationMapper.toDto(saved);
     }
+
+    /**
+     * DM 수신 알림을 생성하고 SSE로 전송.
+     *
+     * @param receiverId DM 수신자 식별자
+     * @param senderId   DM 발신자 식별자
+     * @param dmId       생성된 DM 식별자
+     * @return 저장된 알림 DTO
+     * */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationDto notifyDmReceived(UUID receiverId, UUID senderId, UUID dmId) {
+        log.info("[NotificationService] DM 수신 알림 생성: receiverId={}, senderId={}, dmId={}",
+            receiverId, senderId, dmId);
+
+        User receiver = userRepository.getReferenceById(receiverId);
+        User sender = userRepository.getReferenceById(senderId);
+
+        Notification notification = Notification.builder()
+            .receiver(receiver)
+            .title("새로운 DM이 도착했어요")
+            .content("%s님께서 DM을 보냈습니다.".formatted(sender.getUsername()))
+            .level(NotificationLevel.INFO)
+            .build();
+
+        NotificationDto dto = saveAndMap(notification);
+        notificationSseService.sendToClient(dto);
+
+        return dto;
+    }
 }

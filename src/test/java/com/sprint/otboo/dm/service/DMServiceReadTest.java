@@ -13,12 +13,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("DM 목록 조회 서비스 테스트")
 class DMServiceReadTest {
 
     DMRepository repository = Mockito.mock(DMRepository.class);
-    DMService service = new DMServiceImpl(repository);
+    ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
+    DMService service = new DMServiceImpl(repository, publisher);
 
     @Test
     void 페이징_계산_검증_hasNext_true() {
@@ -52,7 +54,8 @@ class DMServiceReadTest {
     @Test
     void 다음페이지_마지막_hasNext_false() {
         DMRepository repository = Mockito.mock(DMRepository.class);
-        DMService service = new DMServiceImpl(repository);
+        ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
+        DMService service = new DMServiceImpl(repository, publisher);
 
         UUID me = UUID.randomUUID();
         UUID other = UUID.randomUUID();
@@ -84,7 +87,8 @@ class DMServiceReadTest {
     @Test
     void limit_null_기본값_적용() {
         DMRepository repository = Mockito.mock(DMRepository.class);
-        DMService service = new DMServiceImpl(repository);
+        ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
+        DMService service = new DMServiceImpl(repository, publisher);
 
         UUID me = UUID.randomUUID();
         UUID other = UUID.randomUUID();

@@ -12,12 +12,14 @@ import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 @DisplayName("DM 전송 서비스 테스트")
 class DMServiceSendTest {
 
     DMRepository repository = mock(DMRepository.class);
-    DMService service = new DMServiceImpl(repository);
+    ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+    DMService service = new DMServiceImpl(repository, publisher);
 
     private static void setField(Object target, String fieldName, Object value) {
         Class<?> type = target.getClass();
