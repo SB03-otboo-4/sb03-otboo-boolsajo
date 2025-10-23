@@ -59,8 +59,6 @@ public class WeatherOwmConfig {
         return new DefaultWindStrengthResolver();
     }
 
-    // ⚠️ Assembler는 요청마다 daily-map/zone이 달라지므로 싱글턴 빈으로 두지 않음
-
     @Bean
     public Locale owmDefaultLocale() {
         return Locale.forLanguageTag(props.lang());

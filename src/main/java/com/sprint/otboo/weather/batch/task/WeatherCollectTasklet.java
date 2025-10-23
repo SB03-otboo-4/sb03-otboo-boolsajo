@@ -2,15 +2,22 @@ package com.sprint.otboo.weather.batch.task;
 
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
+import com.sprint.otboo.weather.integration.owm.WeatherOwmProperties;
+import com.sprint.otboo.weather.integration.owm.mapper.OwmForecastDailyAggregator;
+import com.sprint.otboo.weather.integration.owm.mapper.OwmForecastDailyAggregator.DailyTemperature;
+import com.sprint.otboo.weather.integration.owm.mapper.WindStrengthResolver;
 import com.sprint.otboo.weather.integration.spi.WeatherDataClient;
 import com.sprint.otboo.weather.integration.spi.WeatherDataClient.CollectedForecast;
 import com.sprint.otboo.weather.integration.owm.mapper.OwmForecastAssembler;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,11 +39,12 @@ public class WeatherCollectTasklet implements Tasklet {
 
     private final WeatherLocationRepository locationRepository;
     private final WeatherRepository weatherRepository;
-
     private final WeatherDataClient dataClient;          // OWM 등 수집기 (SPI)
-    private final OwmForecastAssembler owmAssembler;     // OWM 규칙 적용 엔티티 변환기
     private final RetryTemplate weatherRetryTemplate;    // 재시도 로직 재사용
+    private final WindStrengthResolver windStrengthResolver;
+    private final WeatherOwmProperties owmProps;
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private final Locale owmDefaultLocale = Locale.KOREAN;
 
     @Override
@@ -47,7 +55,7 @@ public class WeatherCollectTasklet implements Tasklet {
             return RepeatStatus.FINISHED;
         }
 
-        // 실행 기준시각(예보 대상시각 선택 보정용). 기존 파라미터 유지
+        // 실행 기준시각(예보 대상시각 선택 보정용)
         Instant at = Instant.ofEpochMilli(resolveExecutionTime(chunkContext));
         int totalSaved = 0, skipped = 0;
 
@@ -63,11 +71,24 @@ public class WeatherCollectTasklet implements Tasklet {
             try {
                 // OWM 수집 (재시도 포함)
                 List<CollectedForecast> collected = weatherRetryTemplate.execute(ctx ->
-                    dataClient.fetch(loc.getLatitude().doubleValue(),
+                    dataClient.fetch(
+                        loc.getLatitude().doubleValue(),
                         loc.getLongitude().doubleValue(),
-                        owmDefaultLocale)
+                        owmDefaultLocale
+                    )
                 );
                 if (collected == null || collected.isEmpty()) continue;
+
+                // 일자별 일 최저/최고 집계(KST) → 요청 스코프 어셈블러 생성
+                Map<LocalDate, DailyTemperature> dailyMap =
+                    OwmForecastDailyAggregator.aggregate(collected, KST);
+
+                OwmForecastAssembler owmAssembler = new OwmForecastAssembler(
+                    owmProps.probabilityPercent(),
+                    windStrengthResolver,
+                    dailyMap,
+                    KST
+                );
 
                 // OWM → Weather 엔티티로 변환
                 List<Weather> snapshots = collected.stream()
@@ -99,6 +120,7 @@ public class WeatherCollectTasklet implements Tasklet {
 
                 if (!toSave.isEmpty()) {
                     weatherRepository.saveAll(toSave);
+
                     totalSaved += toSave.size();
 
                     // 동일 forecastAt에 대해 최신 발표본만 유지

@@ -16,8 +16,6 @@ public class OwmForecastClientImpl implements OwmForecastClient {
 
     @Override
     public OwmForecastResponse get5Day3Hour(double lat, double lon, Locale locale) {
-        // baseUrl은 WebClient의 baseUrl에 이미 설정되어 있음: https://api.openweathermap.org/data/2.5
-        // 여기서는 상대경로(/forecast)만 붙인다.
         return client.get()
             .uri(uriBuilder -> uriBuilder
                 .path("/forecast")
@@ -34,7 +32,6 @@ public class OwmForecastClientImpl implements OwmForecastClient {
     }
 
     private String normalizeLang(Locale locale) {
-        // OWM은 보통 2글자 코드 선호. ko/kr 모두 동작하지만 프로젝트 기본을 'kr'로 통일하는 케이스가 많음.
         String code = (locale == null) ? defaultLang : locale.toLanguageTag();
         if (code == null || code.isBlank()) return "en";
         if (code.equalsIgnoreCase("ko-KR")) return "kr";
