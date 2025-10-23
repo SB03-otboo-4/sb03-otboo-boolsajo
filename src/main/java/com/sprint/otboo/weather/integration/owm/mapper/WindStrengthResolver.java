@@ -1,4 +1,4 @@
-package com.sprint.otboo.weather.mapper;
+package com.sprint.otboo.weather.integration.owm.mapper;
 
 import com.sprint.otboo.weather.entity.WindStrength;
 

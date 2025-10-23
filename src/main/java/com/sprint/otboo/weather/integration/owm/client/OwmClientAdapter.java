@@ -1,6 +1,6 @@
 package com.sprint.otboo.weather.integration.owm.client;
 
-import com.sprint.otboo.weather.mapper.OwmForecastMapper;
+import com.sprint.otboo.weather.integration.owm.mapper.OwmForecastMapper;
 import com.sprint.otboo.weather.integration.owm.dto.OwmForecastResponse;
 import com.sprint.otboo.weather.integration.spi.WeatherDataClient;
 import java.util.List;

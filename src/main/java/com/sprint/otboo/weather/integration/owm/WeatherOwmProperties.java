@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "weather.owm")
 public record WeatherOwmProperties(
-    String baseUrl,              // ex) https://api.openweathermap.org/data/2.5/forecast
+    String baseUrl,              // ex) https://api.openweathermap.org/data/2.5
     @NotBlank String apiKey,
     @Min(500) @Max(30000) int connectTimeoutMs,
     @Min(500) @Max(60000) int readTimeoutMs,
@@ -23,11 +23,17 @@ public record WeatherOwmProperties(
 ) {
 
     public WeatherOwmProperties {
+        // 1) 기본값
         baseUrl = (baseUrl == null || baseUrl.isBlank())
-            ? "https://api.openweathermap.org/data/2.5/forecast"
+            ? "https://api.openweathermap.org/data/2.5"
             : baseUrl;
 
-        // 기본값 보강
+        // 2) 말단 /forecast 가 들어온 경우 제거하고, 끝의 / 도 정리
+        baseUrl = baseUrl.replaceAll("/+$", "");               // 끝 슬래시 제거
+        if (baseUrl.endsWith("/forecast")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - "/forecast".length());
+        }
+
         connectTimeoutMs = (connectTimeoutMs == 0) ? 3000 : connectTimeoutMs;
         readTimeoutMs = (readTimeoutMs == 0) ? 5000 : readTimeoutMs;
         retryMaxAttempts = (retryMaxAttempts == 0) ? 3 : retryMaxAttempts;

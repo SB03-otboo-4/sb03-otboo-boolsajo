@@ -3,7 +3,6 @@ package com.sprint.otboo.weather.batch;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.otboo.common.config.JpaAuditingConfig;
-import com.sprint.otboo.weather.batch.task.WeatherCollectTasklet;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.WindStrength;
@@ -11,7 +10,7 @@ import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.integration.spi.WeatherDataClient;
 import com.sprint.otboo.weather.integration.spi.WeatherDataClient.CollectedForecast;
-import com.sprint.otboo.weather.mapper.OwmForecastAssembler;
+import com.sprint.otboo.weather.integration.owm.mapper.OwmForecastAssembler;
 import com.sprint.otboo.weather.repository.WeatherLocationRepository;
 import com.sprint.otboo.weather.repository.WeatherRepository;
 import java.math.BigDecimal;
