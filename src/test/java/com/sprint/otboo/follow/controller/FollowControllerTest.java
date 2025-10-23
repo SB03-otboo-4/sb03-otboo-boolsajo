@@ -134,4 +134,35 @@ class FollowControllerTest {
             .andExpect(jsonPath("$.code").value("FOLLOW_ALREADY_EXISTS"))
             .andExpect(jsonPath("$.message").isNotEmpty());
     }
+
+    @Test
+    @WithMockUser(username = AUTH_USER)
+    void followerId가_포함된_요청도_무시하고_정상_생성된다() throws Exception {
+        UUID followerId = UUID.fromString(AUTH_USER);
+        UUID followeeId = UUID.randomUUID();
+        UUID followId = UUID.randomUUID();
+
+        when(followService.create(followerId, followeeId))
+            .thenReturn(new FollowDto(followId, followerId, followeeId));
+
+        when(userQueryService.getSummary(followerId))
+            .thenReturn(new UserSummaryResponse(followerId, "me", null));
+        when(userQueryService.getSummary(followeeId))
+            .thenReturn(new UserSummaryResponse(followeeId, "target", "https://example.com/p.png"));
+
+        String body = """
+      {
+        "followerId": "%s",
+        "followeeId": "%s"
+      }
+      """.formatted(followerId, followeeId);
+
+        mockMvc.perform(post("/api/follows")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(followId.toString()))
+            .andExpect(jsonPath("$.follower.userId").value(followerId.toString()))
+            .andExpect(jsonPath("$.followee.userId").value(followeeId.toString()));
+    }
 }

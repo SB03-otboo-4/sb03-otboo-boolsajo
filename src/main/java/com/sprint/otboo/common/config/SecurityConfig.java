@@ -53,7 +53,7 @@ public class SecurityConfig {
                                   "/api/follows", // 팔로우 생성
                                   "/api/sse",    // SSE
                                   "/api/index/full-reindex" // 인덱스 커서 초기화
-
+                                  "/ws/**"
                     )
             )
             .sessionManagement(s ->
@@ -98,8 +98,11 @@ public class SecurityConfig {
                 // 날씨(임시)
                 .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
 
-                // 팔로우(임시)
+                // 팔로우
                 .requestMatchers(HttpMethod.POST, "/api/follows/**").permitAll()
+
+                // 핸드셰이크
+                .requestMatchers("/ws/**").permitAll()
 
                 // 나머지 인증 필요
                 .anyRequest().authenticated()

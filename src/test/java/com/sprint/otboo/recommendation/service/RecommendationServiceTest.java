@@ -8,12 +8,13 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.sprint.otboo.clothing.dto.data.ClothesDto;
+import com.sprint.otboo.clothing.dto.data.ClothesAttributeWithDefDto;
+import com.sprint.otboo.clothing.dto.data.OotdDto;
 import com.sprint.otboo.clothing.entity.Clothes;
 import com.sprint.otboo.clothing.entity.ClothesAttribute;
 import com.sprint.otboo.clothing.entity.ClothesType;
@@ -124,11 +125,23 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), any(Weather.class), anyBoolean()))
             .thenReturn(List.of(clothes));
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(clothes.getId(), userId, "셔츠", "image.jpg", ClothesType.TOP, List.of()))
+        // Mapper stub
+        ClothesAttributeWithDefDto attrDto = new ClothesAttributeWithDefDto(
+            UUID.randomUUID(),
+            "Color",
+            List.of("Red", "Blue"),
+            "Red"
         );
+
+        OotdDto ootdDto = new OotdDto(
+            clothes.getId(),
+            "셔츠",
+            "image.jpg",
+            ClothesType.TOP,
+            List.of(attrDto)
+        );
+
+        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(ootdDto));
 
         // recommendationMapper stub
         when(recommendationMapper.toDto(any(Recommendation.class)))
@@ -141,6 +154,13 @@ public class RecommendationServiceTest {
         assertThat(result.weatherId()).isEqualTo(weatherId);
         assertThat(result.userId()).isEqualTo(userId);
         assertThat(result.clothes()).hasSize(1);
+
+        OotdDto resultOotd = result.clothes().get(0);
+        assertThat(resultOotd.clothesId()).isEqualTo(clothes.getId());
+        assertThat(resultOotd.name()).isEqualTo("셔츠");
+        assertThat(resultOotd.type()).isEqualTo(ClothesType.TOP);
+        assertThat(resultOotd.attributes()).hasSize(1);
+        assertThat(resultOotd.attributes().get(0).value()).isEqualTo("Red");
     }
 
     @Test
@@ -169,12 +189,15 @@ public class RecommendationServiceTest {
             .build();
         when(weatherRepository.findByIdWithLocation(weatherId)).thenReturn(Optional.of(weather));
 
-        ClothesAttribute thicknessAttr = ClothesAttribute.create(null, null, "HEAVY");
+        ClothesAttributeWithDefDto thicknessAttrDto = new ClothesAttributeWithDefDto(
+            UUID.randomUUID(), "Thickness", List.of("LIGHT", "HEAVY"), "HEAVY"
+        );
+
         Clothes clothes = Clothes.builder()
             .id(UUID.randomUUID())
             .name("패딩")
             .type(ClothesType.OUTER)
-            .attributes(List.of(thicknessAttr))
+            .attributes(List.of())
             .build();
         when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of(clothes));
 
@@ -190,15 +213,14 @@ public class RecommendationServiceTest {
             .thenReturn(List.of(clothes));
 
         // Mapper Mock
-        ClothesDto clothesDto = new ClothesDto(
+        OotdDto ootdDto = new OotdDto(
             clothes.getId(),
-            userId,
             "패딩",
             "image.jpg",
             ClothesType.OUTER,
-            List.of()
+            List.of(thicknessAttrDto)
         );
-        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(clothesDto));
+        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(ootdDto));
         when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
 
         // when: 추천 서비스 호출
@@ -207,6 +229,13 @@ public class RecommendationServiceTest {
         // then: 추천 결과 검증
         assertThat(result).isNotNull();
         assertThat(result.clothes()).hasSize(1);
+
+        OotdDto resultOotd = result.clothes().get(0);
+        assertThat(resultOotd.clothesId()).isEqualTo(clothes.getId());
+        assertThat(resultOotd.name()).isEqualTo("패딩");
+        assertThat(resultOotd.type()).isEqualTo(ClothesType.OUTER);
+        assertThat(resultOotd.attributes()).hasSize(1);
+        assertThat(resultOotd.attributes().get(0).value()).isEqualTo("HEAVY");
     }
 
     @Test
@@ -224,26 +253,20 @@ public class RecommendationServiceTest {
             .build();
         when(weatherRepository.findByIdWithLocation(weatherId)).thenReturn(Optional.of(weather));
 
-        when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of()); // 의상 없음
+        when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of());
 
-        UserProfile profile = UserProfile.builder()
-            .userId(userId)
-            .user(User.builder().id(userId).build())
-            .temperatureSensitivity(0)
-            .build();
-        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
-
-        // Engine: 의상이 없으므로 추천 결과도 빈 리스트
-        when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
-            .thenReturn(List.of());
-
-        when(recommendationMapper.toDto(any(Recommendation.class)))
-            .thenReturn(new RecommendationDto(weatherId, userId, List.of()));
+        // Mapper stub: 빈 Recommendation → 빈 DTO 반환
+        lenient().when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenAnswer(invocation -> {
+                Recommendation r = invocation.getArgument(0);
+                return new RecommendationDto(r.getWeather().getId(), r.getUser().getId(), List.of());
+            });
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 추천 실패 → 추천 목록이 빈 리스트
+        assertThat(result).isNotNull();
         assertThat(result.clothes()).isEmpty();
     }
 
@@ -278,16 +301,21 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(eq(List.of(thickOuter)), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(thickOuter));
 
-        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(
-            new ClothesDto(thickOuter.getId(), userId, "두꺼운 패딩", "image.jpg", ClothesType.OUTER, List.of())
-        ));
+        OotdDto ootdDto = new OotdDto(
+            thickOuter.getId(),
+            "두꺼운 패딩",
+            "image.jpg",
+            ClothesType.OUTER,
+            List.of()
+        );
+        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(ootdDto));
         when(recommendationMapper.toDto(any())).thenReturn(expected);
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 결과 검증
-        assertThat(result.clothes()).extracting("name").contains("두꺼운 패딩");
+        assertThat(result.clothes()).extracting(OotdDto::name).contains("두꺼운 패딩");
     }
 
 
@@ -322,16 +350,21 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(eq(List.of(lightTop)), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(lightTop));
 
-        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(
-            new ClothesDto(lightTop.getId(), userId, "얇은 셔츠", "image.jpg", ClothesType.TOP, List.of())
-        ));
+        OotdDto ootdDto = new OotdDto(
+            lightTop.getId(),
+            "얇은 셔츠",
+            "image.jpg",
+            ClothesType.TOP,
+            List.of()
+        );
+        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(ootdDto));
         when(recommendationMapper.toDto(any())).thenReturn(expected);
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 결과 검증
-        assertThat(result.clothes()).extracting("name").contains("얇은 셔츠");
+        assertThat(result.clothes()).extracting(OotdDto::name).contains("얇은 셔츠");
     }
 
     @Test
@@ -469,14 +502,21 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(cardigan));
 
-        when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId,
-            List.of(new ClothesDto(cardigan.getId(), userId, "가디건", "image.jpg", ClothesType.OUTER, List.of()))));
+        OotdDto ootdDto = new OotdDto(
+            cardigan.getId(),
+            "가디건",
+            "image.jpg",
+            ClothesType.OUTER,
+            List.of()
+        );
+        RecommendationDto expected = new RecommendationDto(weatherId, userId, List.of(ootdDto));
+        when(recommendationMapper.toDto(any())).thenReturn(expected);
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 가디건 추천
-        assertThat(result.clothes()).extracting("name").contains("가디건");
+        assertThat(result.clothes()).extracting(OotdDto::name).contains("가디건");
     }
 
     @Test
@@ -521,14 +561,20 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(outer));
 
-        when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId,
-            List.of(new ClothesDto(outer.getId(), userId, "자켓", "image.jpg", ClothesType.OUTER, List.of()))));
+        OotdDto ootdDto = new OotdDto(
+            outer.getId(),
+            "자켓",
+            "image.jpg",
+            ClothesType.OUTER,
+            List.of()
+        );
+        when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 자켓 추천
-        assertThat(result.clothes()).isNotEmpty();
+        assertThat(result.clothes()).extracting(OotdDto::name).contains("자켓");
     }
 
     @Test
@@ -552,14 +598,22 @@ public class RecommendationServiceTest {
         // Engine 결과: 미상 두께 외투( noValueOuter ) 제외, 두꺼운 패팅( heavyOuter ) 추천
         when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(heavyOuter));
-        when(recommendationMapper.toDto(any())).thenReturn(new RecommendationDto(weatherId, userId,
-            List.of(new ClothesDto(heavyOuter.getId(), userId, "두꺼운 패딩", "image.jpg", ClothesType.OUTER, List.of()))));
+
+        OotdDto ootdDto = new OotdDto(
+            heavyOuter.getId(),
+            "두꺼운 패딩",
+            "image.jpg",
+            ClothesType.OUTER,
+            List.of()
+        );
+        when(recommendationMapper.toDto(any()))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: 두꺼운 패딩 추천
-        assertThat(result.clothes()).extracting("name").contains("두꺼운 패딩");
+        assertThat(result.clothes()).extracting(OotdDto::name).contains("두꺼운 패딩");
     }
 
     @Test
@@ -610,12 +664,15 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(top));
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(top.getId(), userId, "셔츠", "image.jpg", ClothesType.TOP, List.of()))
+        OotdDto ootdDto = new OotdDto(
+            top.getId(),
+            "셔츠",
+            "image.jpg",
+            ClothesType.TOP,
+            List.of()
         );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
@@ -686,12 +743,15 @@ public class RecommendationServiceTest {
                     .toList();
             });
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(bottom.getId(), userId, "바지", "image.jpg", ClothesType.BOTTOM, List.of()))
+        OotdDto ootdDto = new OotdDto(
+            bottom.getId(),
+            "바지",
+            "image.jpg",
+            ClothesType.BOTTOM,
+            List.of()
         );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        when(recommendationMapper.toDto(any()))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 요청 실행
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
@@ -750,12 +810,15 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(top));
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(top.getId(), userId, "맨투맨", "image.jpg", ClothesType.TOP, List.of()))
+        OotdDto ootdDto = new OotdDto(
+            top.getId(),
+            "맨투맨",
+            "image.jpg",
+            ClothesType.TOP,
+            List.of()
         );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
@@ -810,12 +873,9 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), eq(weather), anyBoolean()))
             .thenReturn(List.of(bottom));
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(bottom.getId(), userId, "청바지", "image.jpg", ClothesType.BOTTOM, List.of()))
-        );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        OotdDto ootdDto = new OotdDto(bottom.getId(), "청바지", "image.jpg", ClothesType.BOTTOM, List.of());
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 요청 실행
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
@@ -883,12 +943,9 @@ public class RecommendationServiceTest {
                     .toList();
             });
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(dress.getId(), userId, "원피스", "image.jpg", ClothesType.DRESS, List.of()))
-        );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        OotdDto ootdDto = new OotdDto(dress.getId(), "원피스", "image.jpg", ClothesType.DRESS, List.of());
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, List.of(ootdDto)));
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
@@ -942,22 +999,19 @@ public class RecommendationServiceTest {
         when(recommendationEngine.recommend(anyList(), anyDouble(), any(Weather.class), anyBoolean()))
             .thenReturn(List.of(top, bottom));
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(
-                new ClothesDto(top.getId(), userId, "반팔 티셔츠", "image.jpg", ClothesType.TOP, List.of()),
-                new ClothesDto(bottom.getId(), userId, "린넨 팬츠", "image.jpg", ClothesType.BOTTOM, List.of())
-            )
+        List<OotdDto> ootds = List.of(
+            new OotdDto(top.getId(), "반팔 티셔츠", "image.jpg", ClothesType.TOP, List.of()),
+            new OotdDto(bottom.getId(), "린넨 팬츠", "image.jpg", ClothesType.BOTTOM, List.of())
         );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, ootds));
 
         // when: 추천 요청 실행
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: Dress는 제외되고 Top & Bottom 조합만 남음
         assertThat(result.clothes())
-            .extracting(ClothesDto::type)
+            .extracting(OotdDto::type)
             .containsExactlyInAnyOrder(ClothesType.TOP, ClothesType.BOTTOM);
     }
 
@@ -1017,23 +1071,20 @@ public class RecommendationServiceTest {
                 return clothes;
             });
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(
-                new ClothesDto(top.getId(), userId, "셔츠", "image.jpg", ClothesType.TOP, List.of()),
-                new ClothesDto(bottom.getId(), userId, "바지", "image.jpg", ClothesType.BOTTOM, List.of()),
-                new ClothesDto(fallbackHat.getId(), userId, "모자", "image.jpg", ClothesType.HAT, List.of())
-            )
+        List<OotdDto> ootds = List.of(
+            new OotdDto(top.getId(), "셔츠", "image.jpg", ClothesType.TOP, List.of()),
+            new OotdDto(bottom.getId(), "바지", "image.jpg", ClothesType.BOTTOM, List.of()),
+            new OotdDto(fallbackHat.getId(), "모자", "image.jpg", ClothesType.HAT, List.of())
         );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, ootds));
 
         // when: 추천 서비스 호출
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
 
         // then: Top, Bottom은 기존 추천 유지, HAT은 FallBack으로 추천
         assertThat(result.clothes())
-            .extracting(ClothesDto::type)
+            .extracting(OotdDto::type)
             .containsExactlyInAnyOrder(ClothesType.TOP, ClothesType.BOTTOM, ClothesType.HAT);
     }
 
@@ -1055,7 +1106,12 @@ public class RecommendationServiceTest {
             .name("셔츠")
             .type(ClothesType.TOP)
             .build();
-        when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of(top));
+        Clothes dress = Clothes.builder()
+            .id(UUID.randomUUID())
+            .name("드레스")
+            .type(ClothesType.DRESS)
+            .build();
+        when(clothesRepository.findByUserIdWithAttributes(userId)).thenReturn(List.of(top, dress));
 
         UserProfile profile = UserProfile.builder()
             .userId(userId)
@@ -1063,30 +1119,15 @@ public class RecommendationServiceTest {
             .build();
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
 
-        // Fallback 후보 (Dress)
-        Clothes fallbackDress = Clothes.builder()
-            .id(UUID.randomUUID())
-            .name("드레스")
-            .type(ClothesType.DRESS)
-            .build();
-
-        // 모든 타입 호출 허용, DRESS만 Optional.of 반환, 나머지는 Optional.empty
-        when(clothesRepository.findFirstByType(any())).thenAnswer(invocation -> {
-            ClothesType type = invocation.getArgument(0);
-            if (type == ClothesType.DRESS) return Optional.of(fallbackDress);
-            return Optional.empty();
-        });
-
         // 추천 엔진 결과: TOP만 존재
         when(recommendationEngine.recommend(anyList(), anyDouble(), any(), anyBoolean()))
             .thenReturn(List.of(top));
 
-        RecommendationDto expected = new RecommendationDto(
-            weatherId,
-            userId,
-            List.of(new ClothesDto(top.getId(), userId, "셔츠", "image.jpg", ClothesType.TOP, List.of()))
+        List<OotdDto> ootds = List.of(
+            new OotdDto(top.getId(), "셔츠", "image.jpg", ClothesType.TOP, List.of())
         );
-        when(recommendationMapper.toDto(any(Recommendation.class))).thenReturn(expected);
+        when(recommendationMapper.toDto(any(Recommendation.class)))
+            .thenReturn(new RecommendationDto(weatherId, userId, ootds));
 
         // when: 추천 요청
         RecommendationDto result = recommendationService.getRecommendation(userId, weatherId);
@@ -1094,11 +1135,14 @@ public class RecommendationServiceTest {
         // then: Fallback이 확률적으로 포함될 수도, 아닐 수도 있음
         assertThat(result.clothes()).isNotEmpty();
         assertThat(result.clothes())
-            .extracting(ClothesDto::type)
+            .extracting(OotdDto::type)
             .contains(ClothesType.TOP); // TOP는 항상 존재
 
-        // verify: fallback 후보 조회 최소 1회 이상
-        verify(clothesRepository, atLeastOnce()).findFirstByType(any());
+        // 확률적 Fallback 때문에 DRESS는 있을 수도, 없을 수도 있음
+        boolean containsDress = result.clothes().stream()
+            .anyMatch(c -> c.type() == ClothesType.DRESS);
+        // Optional로 검증
+        System.out.println("Fallback 적용 여부(DRESS 포함): " + containsDress);
     }
 
     @Test
