@@ -1,11 +1,9 @@
-[![codecov](https://codecov.io/gh/SB03-otboo-4/sb03-otboo-boolsajo/branch/dev/graph/badge.svg)](https://codecov.io/gh/SB03-otboo-4/sb03-otboo-boolsajo?branch=dev)
-
-
-# 📚 OTBOO - **개인화 의상 및 아이템 추천 SaaS**
+# 👔 OTBOO - **개인화 의상 및 아이템 추천 SaaS**
 
 > 날씨, 취향을 고려해 사용자가 보유한 의상 조합을 추천해주고, 
 OOTD 피드, 팔로우 등의 소셜 기능을 갖춘 서비스
 
+[![codecov](https://codecov.io/gh/SB03-otboo-4/sb03-otboo-boolsajo/branch/dev/graph/badge.svg)](https://codecov.io/gh/SB03-otboo-4/sb03-otboo-boolsajo?branch=dev)
 
 ## 🔗 Notion
 
