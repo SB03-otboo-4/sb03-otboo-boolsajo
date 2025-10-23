@@ -26,7 +26,7 @@ public record OwmForecastResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Main(
         @JsonProperty("temp") Double temp,
-        @JsonProperty("feels_like") Double feelsLike,     // ← 문제였던 필드 추가!
+        @JsonProperty("feels_like") Double feelsLike,
         @JsonProperty("temp_min") Double tempMin,
         @JsonProperty("temp_max") Double tempMax,
         @JsonProperty("pressure") Integer pressure,
