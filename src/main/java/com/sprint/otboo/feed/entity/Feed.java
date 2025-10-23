@@ -59,6 +59,7 @@ public class Feed extends BaseUpdatableEntity {
     )
     private Weather weather;
 
+    @Builder.Default
     @Column(name = "deleted", nullable = false)
     private boolean deleted = false;
 
