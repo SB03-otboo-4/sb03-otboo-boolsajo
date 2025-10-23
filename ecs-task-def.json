@@ -4,7 +4,7 @@
   ],
   "containerDefinitions": [
     {
-      "cpu": 256,
+      "cpu": 512,
       "environment": [
         {
           "name": "SPRING_DATA_REDIS_SSL_ENABLED",
@@ -12,7 +12,7 @@
         },
         {
           "name": "JVM_OPTS",
-          "value": "-Xms400m -Xmx400m"
+          "value": "-Xms768m -Xmx768m"
         },
         {
           "name": "PROJECT_NAME",
@@ -42,8 +42,7 @@
         },
         "secretOptions": []
       },
-      "memory": 512,
-      "memoryReservation": 205,
+      "memory": 1024,
       "mountPoints": [],
       "name": "otboo-container",
       "portMappings": [
@@ -59,10 +58,10 @@
       "volumesFrom": []
     }
   ],
-  "cpu": "256",
+  "cpu": "512",
   "executionRoleArn": "arn:aws:iam::920373007592:role/ecsTaskExecutionRole",
   "family": "otboo-tast-definition",
-  "memory": "512",
+  "memory": "1024",
   "networkMode": "bridge",
   "placementConstraints": [],
   "requiresCompatibilities": [
