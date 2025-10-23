@@ -1,4 +1,4 @@
-package com.sprint.otboo.weather.integration.owm;
+package com.sprint.otboo.weather.mapper;
 
 import static java.util.Optional.ofNullable;
 

@@ -3,6 +3,7 @@ package com.sprint.otboo.weather.integration.owm;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.otboo.weather.integration.owm.dto.OwmForecastResponse;
+import com.sprint.otboo.weather.mapper.OwmForecastMapper;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
