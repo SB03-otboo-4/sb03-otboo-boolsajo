@@ -50,18 +50,25 @@ public interface WeatherRepository extends JpaRepository<Weather, UUID> {
 
     // 동일 forecastAt의 이전 발표본 삭제
     @Modifying
-    @Transactional
     @Query(value = """
-        DELETE FROM weathers w
-        WHERE w.location_id = :locationId
-          AND w.forecast_at BETWEEN :from AND :to
-          AND w.forecasted_at < (
-              SELECT MAX(w2.forecasted_at)
-              FROM weathers w2
-              WHERE w2.location_id = w.location_id
-                AND w2.forecast_at = w.forecast_at
-          )
-    """, nativeQuery = true)
+    DELETE
+    FROM weathers w
+    WHERE w.location_id = :locationId
+      AND w.forecast_at BETWEEN :from AND :to
+      AND w.forecasted_at < (
+          SELECT MAX(w2.forecasted_at)
+          FROM weathers w2
+          WHERE w2.location_id = w.location_id
+            AND w2.forecast_at = w.forecast_at
+      )
+      -- 추천에서 참조 중이면 삭제하지 않음
+      AND NOT EXISTS (
+          SELECT 1
+          FROM recommendations r
+          WHERE r.weather_id = w.id
+      )
+    """,
+        nativeQuery = true)
     int deleteOlderVersionsInRange(
         @Param("locationId") UUID locationId,
         @Param("from") Instant from,

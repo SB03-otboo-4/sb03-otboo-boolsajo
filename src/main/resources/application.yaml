@@ -79,7 +79,18 @@ weather:
     retry-backoff-ms: 300
     num-of-rows: 400
     data-type: JSON
+    enabled: false
+  owm:
     enabled: true
+    apiKey: ${OWM_API_KEY}
+    baseUrl: https://api.openweathermap.org/data/2.5/forecast
+    connectTimeoutMs: 3000
+    readTimeoutMs: 5000
+    retryMaxAttempts: 3
+    retryBackoffMs: 300
+    units: metric
+    lang: ko-KR
+    probabilityPercent: true
 
 kakao:
   api:

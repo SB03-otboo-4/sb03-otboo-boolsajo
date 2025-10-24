@@ -1,4 +1,4 @@
-package com.sprint.otboo.weather.mapper;
+package com.sprint.otboo.weather.integration.kma.mapper;
 
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;

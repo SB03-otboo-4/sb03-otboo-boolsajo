@@ -90,6 +90,7 @@ jobs:
             KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
             KAKAO_API_BASE_URL=${{ secrets.KAKAO_API_BASE_URL }}
             KMA_AUTH_KEY=${{ secrets.KMA_AUTH_KEY }}
+            OWM_API_KEY=${{ secrets.OWM_API_KEY }}
             SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}

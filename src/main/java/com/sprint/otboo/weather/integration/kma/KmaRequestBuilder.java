@@ -9,9 +9,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(prefix = "weather.kma", name = "enabled", havingValue = "true")
 public class KmaRequestBuilder {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");

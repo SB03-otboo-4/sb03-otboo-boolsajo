@@ -1,10 +1,9 @@
-package com.sprint.otboo.weather.mapper;
+package com.sprint.otboo.weather.integration.kma.mapper;
 
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.entity.WeatherLocation;
 import com.sprint.otboo.weather.entity.WindStrength;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;

@@ -6,6 +6,7 @@ import com.sprint.otboo.weather.integration.kakao.dto.KakaoCoord2RegioncodeRespo
 import java.net.ConnectException;
 import java.time.Duration;
 import java.util.function.Predicate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -24,7 +25,8 @@ public class KakaoLocalClientImpl implements KakaoLocalClient {
 
     private final WebClient kakao;
 
-    public KakaoLocalClientImpl(WebClient kakao) {
+    public KakaoLocalClientImpl(
+        @Qualifier("kakaoWebClient") WebClient kakao) {
         this.kakao = kakao;
     }
 

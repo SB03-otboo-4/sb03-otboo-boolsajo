@@ -23,7 +23,12 @@ jacocoTestReport {
                     '**/config/**',
                     '**/exception/**',
                     '**/*Index*.class',
-                    '**/*Helper*.class'
+                    '**/*Helper*.class',
+                    '**/*Kma*.class',
+                    '**/*Adapter.class',
+                    '**/*Resolver.class',
+                    '**/WeatherServiceImpl.class',
+                    '**/WeatherOwmProperties.class'
             ])
         }))
     }

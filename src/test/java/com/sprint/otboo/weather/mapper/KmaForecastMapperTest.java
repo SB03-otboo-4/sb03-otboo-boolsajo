@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.integration.kma.dto.KmaForecastItem;
+import com.sprint.otboo.weather.integration.kma.mapper.DefaultKmaForecastMapper;
+import com.sprint.otboo.weather.integration.kma.mapper.KmaForecastMapper;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

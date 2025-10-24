@@ -90,6 +90,10 @@ public class RecommendationServiceImpl implements RecommendationService {
         UserProfile profile = userProfileRepository.findByUserId(userId)
             .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // null 방어: 기본값 0
+        Integer ts = profile.getTemperatureSensitivity();
+        int tempSensitivity = (ts != null) ? ts : 0;
+
         // 4. 체감 온도 계산
         //    - 최고ㆍ최저 온도 존재 시: 해당 값 기준으로 체감 온도 계산
         //    - 최고ㆍ최저 온도 없을 시: 현재 온도 기준으로 체감 온도 계산
@@ -103,7 +107,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 weather.getMinC(),
                 weather.getSpeedMs() != null ? weather.getSpeedMs() : 0.0,
                 0.8,
-                profile.getTemperatureSensitivity()
+                tempSensitivity
             );
 
             // 4-2. 체감 온도 로그 (최고ㆍ최저 온도 기준)
@@ -123,7 +127,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 currentTemp,
                 weather.getSpeedMs() != null ? weather.getSpeedMs() : 0.0,
                 0.8,
-                profile.getTemperatureSensitivity()
+                tempSensitivity
             );
 
             // 4-2. 체감 온도 로그 (현재 온도 기준)
