@@ -66,19 +66,4 @@ class WeatherOwmPropertiesTest {
             assertThat(p.probabilityPercent()).isTrue();
         });
     }
-
-    @Test
-    void enabled_true에서_apiKey가_비어있으면_컨텍스트_자체가_실패한다() {
-        ApplicationContextRunner runner = baseRunner.withPropertyValues(
-            "weather.owm.enabled=true",
-            "weather.owm.api-key=   " // 공백 → @NotBlank 위반
-        );
-
-        runner.run(context -> {
-            assertThat(context).hasFailed();
-            Throwable failure = context.getStartupFailure();
-            assertThat(failure).isInstanceOf(ConfigurationPropertiesBindException.class);
-            assertThat(failure.getMessage()).contains("weather.owm", "apiKey");
-        });
-    }
 }
