@@ -3,7 +3,7 @@ spring:
     console:
       enabled: true
   datasource:
-    url: jdbc:h2:mem:testdb-${random.uuid};MODE=PostgreSQL;
+    url: jdbc:h2:mem:testdb-${random.uuid};MODE=PostgreSQL;NON_KEYWORDS=VALUE
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -19,12 +19,42 @@ spring:
     show-sql: true
     properties:
       hibernate:
+        auto_quote_keyword: true
         format_sql: true
         jdbc:
           time_zone: UTC
+  config:
+    activate:
+      on-profile: test
 
 logging:
   level:
     org.hibernate.SQL: info
     org.hibernate.type.descriptor.sql.BasicBinder: trace
     root: info
+
+kakao:
+  api:
+    base-url: http://localhost
+    rest-api-key: test-key
+
+admin:
+  default:
+    email: system@otboo.io
+    username: system
+    password: otboo1!
+
+test-jwt:
+  access-token:
+    secret: "a-very-long-and-secure-secret-key-for-access-token-in-test-environment"
+    expiration: 1800000
+  refresh-token:
+    secret: "another-long-and-secure-secret-key-for-refresh-token-in-test-environment"
+    expiration: 604800000
+
+app:
+  index:
+    run-on-startup: false
+es:
+  host: ${ELASTICSEARCH_HOST}
+  api-key: ${ELASTICSEARCH_API_KEY}

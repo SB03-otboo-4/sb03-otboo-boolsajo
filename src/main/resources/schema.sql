@@ -27,19 +27,19 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE IF NOT EXISTS users
 (
     id                UUID PRIMARY KEY,
-    email             VARCHAR(255) NOT NULL,
-    name              VARCHAR(20)  NOT NULL,
-    password          VARCHAR(255),
+    email             VARCHAR(100) NOT NULL,
+    name              VARCHAR(100) NOT NULL,
+    password          VARCHAR(100),
     role              VARCHAR(20)  NOT NULL,
     locked            BOOLEAN      NOT NULL DEFAULT FALSE,
     updated_at        TIMESTAMPTZ,
     created_at        TIMESTAMPTZ  NOT NULL,
     profile_image_url VARCHAR(255),
-    provider_user_id   VARCHAR(255),
-    provider           VARCHAR(20)  NOT NULL,
+    provider_user_id  VARCHAR(255),
+    provider          VARCHAR(10)  NOT NULL,
     CONSTRAINT uq_users_email UNIQUE (email),
     CONSTRAINT uq_users_provider_uid UNIQUE (provider, provider_user_id),
-    CONSTRAINT chk_provider CHECK (provider IN ('GENERAL','GOOGLE','KAKAO'))
+    CONSTRAINT chk_provider CHECK (provider IN ('GENERAL', 'GOOGLE', 'KAKAO'))
 );
 
 -- 2) Weathers
@@ -82,11 +82,12 @@ CREATE TABLE IF NOT EXISTS weathers
     CONSTRAINT ck_weathers_sky_status CHECK (sky_status IN ('CLEAR', 'MOSTLY_CLOUDY', 'CLOUDY')),
     CONSTRAINT ck_weathers_as_word CHECK (as_word IN ('WEAK', 'MODERATE', 'STRONG')),
     CONSTRAINT ck_weathers_type CHECK (type IN ('NONE', 'RAIN', 'RAIN_SNOW', 'SNOW', 'SHOWER')),
-    CONSTRAINT ck_weathers_prob_range  CHECK (probability >= 0 AND probability <= 1),
-    CONSTRAINT ck_weathers_hum_range   CHECK (current_pct IS NULL OR (current_pct >= 0 AND current_pct <= 100)),
+    CONSTRAINT ck_weathers_prob_range CHECK (probability >= 0 AND probability <= 1),
+    CONSTRAINT ck_weathers_hum_range CHECK (current_pct IS NULL OR
+                                            (current_pct >= 0 AND current_pct <= 100)),
     CONSTRAINT ck_weathers_wind_nonneg CHECK (speed_ms IS NULL OR speed_ms >= 0),
-    CONSTRAINT fk_weathers_location FOREIGN KEY (location_id) REFERENCES weather_locations(id) ON DELETE RESTRICT,
-    CONSTRAINT uq_weathers_loc_target UNIQUE (location_id, forecast_at)
+    CONSTRAINT fk_weathers_location FOREIGN KEY (location_id) REFERENCES weather_locations (id) ON DELETE RESTRICT,
+    CONSTRAINT uq_weathers_loc_target_ver UNIQUE (location_id, forecast_at, forecasted_at)
 );
 
 -- 3) User Profiles & OAuth
@@ -99,6 +100,7 @@ CREATE TABLE IF NOT EXISTS user_profiles
     longitude               NUMERIC,
     x                       INTEGER,
     y                       INTEGER,
+    location_names          VARCHAR(255),
     temperature_sensitivity INT,
     CONSTRAINT fk_user_profiles_user
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
@@ -108,7 +110,7 @@ CREATE TABLE IF NOT EXISTS user_profiles
 CREATE TABLE IF NOT EXISTS clothes_attributes_def
 (
     id            UUID PRIMARY KEY,
-    name          VARCHAR(20) NOT NULL,
+    name          VARCHAR(150) NOT NULL,
     select_values VARCHAR(255),
     created_at    TIMESTAMPTZ NOT NULL
 );
@@ -153,6 +155,7 @@ CREATE TABLE IF NOT EXISTS feeds
     updated_at    TIMESTAMPTZ,
     author_id     UUID        NOT NULL,
     weather_id    UUID        NOT NULL,
+    deleted       BOOLEAN     NOT NULL DEFAULT false,
     CONSTRAINT fk_feeds_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_feeds_weather FOREIGN KEY (weather_id) REFERENCES weathers (id)
 );
@@ -227,12 +230,12 @@ CREATE TABLE IF NOT EXISTS follows
 (
     id           UUID PRIMARY KEY,
     follower_id  UUID        NOT NULL,
-    following_id UUID        NOT NULL,
+    followee_id UUID        NOT NULL,
     created_at   TIMESTAMPTZ NOT NULL,
-    CONSTRAINT uq_follows UNIQUE (follower_id, following_id),
-    CONSTRAINT ck_follows_self CHECK (follower_id <> following_id),
+    CONSTRAINT uq_follows UNIQUE (follower_id, followee_id),
+    CONSTRAINT ck_follows_self CHECK (follower_id <> followee_id),
     CONSTRAINT fk_follows_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-    CONSTRAINT fk_follows_following FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE
+    CONSTRAINT fk_follows_followee FOREIGN KEY (followee_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 -- 9) Notifications

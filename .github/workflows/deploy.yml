@@ -1,0 +1,113 @@
+name: CD
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      image_uri: ${{ steps.push-image.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build Jar
+        run: ./gradlew clean build -x test
+        env:
+          SPRING_PROFILES_ACTIVE: prod
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
+          docker build -t "$IMAGE:${GITHUB_SHA}" .
+        env:
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+
+      - name: Push Docker image
+        id: push-image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          SHA: ${{ github.sha }}
+        run: |
+          IMAGE="${IMAGE_NAME:-otboo-aws-deploy}"
+          IMAGE_URI="$REGISTRY/$IMAGE:$SHA"
+          docker tag "$IMAGE:$SHA" "$IMAGE_URI"
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Render task definition (inject image)
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-def.json
+          container-name: otboo-container
+          image: ${{ needs.build-and-push.outputs.image_uri }}
+          environment-variables: |
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            GOOGLE_ID=${{ secrets.GOOGLE_ID }}
+            GOOGLE_PASSWORD=${{ secrets.GOOGLE_PASSWORD }}
+            KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}
+            KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+            KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
+            KAKAO_API_BASE_URL=${{ secrets.KAKAO_API_BASE_URL }}
+            KMA_AUTH_KEY=${{ secrets.KMA_AUTH_KEY }}
+            OWM_API_KEY=${{ secrets.OWM_API_KEY }}
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }}
+            ADMIN_DEFAULT_PASSWORD=${{ secrets.ADMIN_DEFAULT_PASSWORD }}
+            ELASTICSEARCH_HOST=${{ secrets.ELASTICSEARCH_HOST }}
+            ELASTICSEARCH_API_KEY=${{ secrets.ELASTICSEARCH_API_KEY }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE }}
+          cluster: ${{ secrets.ECS_CLUSTER }}
+
+# AWS 설정에 따라 변경해주어야 하는 값
+# secrets -> AWS_ACCESS_KEY, AWS_SECRET_KEY, ECR_REGISTRY, ECS_CLUSTER, ECS_SERVICE
+# vars -> IMAGE_NAME, AWS_REGION
+# ecs-task-def.json -> 루트 디렉토리에 해당 파일을 만들어 사용할 태스크 정의와 family, 컨테이너 이름 ( container-name과 일치 ), 리소스/포트/ENV 설정을 그대로 반영
+# aws-actions/configure-aws-credentials@v4 스텝을 넣고 aws-region: ${{vars.AWS_REGION}}처럼 리전을 지정하여야 한다. ( 빠질 시 해당 명령이 인증을 못함. )

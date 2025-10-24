@@ -13,12 +13,38 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      ssl:
+        enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            redirect-uri: https://otboopheonix.site/login/oauth2/code/kakao
+          google:
+            redirect-uri: https://otboopheonix.site/login/oauth2/code/google
 
-  server:
-    port: 80
+server:
+  port: 8080
+  forward-headers-strategy: framework
 
-  logging:
-    level:
-      root: info
-      org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener: off # @ConditionalOnClass 로그 숨기기
-      org.springframework.boot.autoconfigure: warn
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+logging:
+  level:
+    root: info
+    org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLoggingListener: off # @ConditionalOnClass 로그 숨기기
+    org.springframework.boot.autoconfigure: warn
