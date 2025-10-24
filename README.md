@@ -31,7 +31,7 @@ OOTD 피드, 팔로우 등의 소셜 기능을 갖춘 서비스
 | **Database** | PostgreSQL 17.5, H2 |
 | **API 문서화** | Swagger UI |
 | **협업 도구** | Discord, GitHub, Notion |
-| **일정 관리** | GitHub Issues + Notion Timeline |
+| **일정 관리** | Jira + Notion Timeline |
 
 ---
 
@@ -39,21 +39,90 @@ OOTD 피드, 팔로우 등의 소셜 기능을 갖춘 서비스
 
 ### 강우진
 
+<img width="1911" height="921" alt="인증" src="https://github.com/user-attachments/assets/79aeb374-924a-4ce9-92e3-25f87114d4a1" />
+
+- 인증 관리
+  - 로그인
+  - 비밀번호 초기화
+  - CSRF 토큰 조회
+  - 토큰 재발급
+  - 소셜계정 연동
+  - 자동 로그아웃
+- 배포 설정
+  - AWS 환경 구축
+  - AWS 배포
+
 ---
 
 ### 김현기
 
+<img width="1905" height="782" alt="알림" src="https://github.com/user-attachments/assets/6c4b46aa-c6d8-4d18-b4b6-0fe39aee2157" />
+
+- 프로필 관리
+   - 회원가입
+   - 비밀번호 변경
+   - 계정 잠금 상태 변경
+   - 권한 수정
+   - 프로필 조회
+   - 계정 목록 조회
+   - 프로필 업데이트
+- 알림 관리
+   - 알림 목록 조회
+   - 알림 읽음 처리
 ---
 
 ### 이건민
 
+<img width="1901" height="901" alt="의상" src="https://github.com/user-attachments/assets/cc8f3b2c-bd2c-4c26-af51-75c3bd8d7526" />
+
+- 의상 관리 및 추천
+  - 사용자 의상 등록
+  - 의상 속성 정의 등록
+  - 의상 목록 조회
+  - 의상 속성 정의 수정
+  - 의상 정보 수정
+  - 의상 속성 정의 목록 조회
+  - 의상 속성 정의 삭제
+  - 구매 링크로 옷 정보 불러오기
+  - 규칙 기반 추천
+- 알림 관리
+  - SSE 연결/이벤트 푸시
+  - SSE 에러/재연결 처리
 ---
 
 ### 이채원
 
+<img width="1892" height="906" alt="피드" src="https://github.com/user-attachments/assets/7fabdc61-3cbc-4045-a71d-e70565e806db" />
+
+- OOTD 피드
+  - OOTD 피드 등록
+  - 피드 댓글 등록
+  - 피드 좋아요 등록
+  - OOTD 피드 목록 조회
+  - OOTD 피드 댓글 조회
+  - OOTD 피드 수정
+  - OOTD 피드 삭제
+  - 피드 좋아요 취소
+  - Elasticsearch를 활용한 고급 검색
+- 배포 설정
+   - CD 배포 설정
+
 ---
 
 ### 조백선
+
+<img width="1907" height="859" alt="날씨21" src="https://github.com/user-attachments/assets/25f1f9d9-3d7e-42e6-b75b-71ec9651e79e" />
+
+- 날씨 데이터 관리
+   - 날씨 위치 정보 조회
+   - 날씨 정보 조회
+- 팔로우와 DM
+   - 팔로우 생성
+   - 팔로우 요약 정보 조회
+   - 팔로잉 목록 조회
+   - 팔로워 목록 조회
+   - 팔로우 취소
+   - DM 목록 조회
 
 ---
 
@@ -97,5 +166,7 @@ src/
 ---
 
 ## 회고록
+
+https://www.notion.so/codeit/3-28e6fd228e8d80cbbfe3d81346c0e30c?p=28e6fd228e8d80a689f8e6866f33a079&pm=s
 
 ---
