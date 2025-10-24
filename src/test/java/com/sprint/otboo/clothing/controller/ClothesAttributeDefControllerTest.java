@@ -6,11 +6,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -26,27 +25,32 @@ import com.sprint.otboo.clothing.dto.request.ClothesAttributeDefUpdateRequest;
 import com.sprint.otboo.clothing.service.ClothesAttributeDefService;
 import com.sprint.otboo.common.exception.CustomException;
 import com.sprint.otboo.common.exception.ErrorCode;
+import jakarta.servlet.http.HttpServletResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(controllers = ClothesAttributeDefController.class)
 @ActiveProfiles("test")
 @DisplayName("의상 속성 정의 컨트롤러 테스트( ADMIN )")
+@Import(ClothesAttributeDefControllerTest.TestSecurityConfig.class)
 public class ClothesAttributeDefControllerTest {
 
     @Autowired
@@ -63,6 +67,34 @@ public class ClothesAttributeDefControllerTest {
 
     @MockitoBean
     JwtRegistry jwtRegistry;
+
+    @TestConfiguration
+    static class TestSecurityConfig {
+
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+            http
+                .csrf(csrf -> csrf.disable())
+
+                .authorizeHttpRequests(authz ->
+                    authz
+                        // ADMIN 권한 테스트를 위해 규칙 추가
+                        .requestMatchers(HttpMethod.POST, "/api/clothes/attribute-defs").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/clothes/attribute-defs/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/clothes/attribute-defs/{definitionId}").hasRole("ADMIN")
+                        .anyRequest().authenticated()
+                )
+
+                .exceptionHandling(exceptions ->
+                    exceptions.authenticationEntryPoint(
+                        (request, response, authException) ->
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                    )
+                );
+
+            return http.build();
+        }
+    }
 
     @Test
     @WithMockUser(username = "admin", roles = {"ADMIN"})
