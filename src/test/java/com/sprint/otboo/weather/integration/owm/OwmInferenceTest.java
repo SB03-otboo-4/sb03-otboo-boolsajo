@@ -48,12 +48,19 @@ class OwmInferenceTest {
     }
 
     @Test
-    void 강수_확률_POP_변환() {
-        assertThat(OwmInference.toProbability(null, true)).isEqualTo(0d);
-        assertThat(OwmInference.toProbability(0d, true)).isEqualTo(0d);
-        assertThat(OwmInference.toProbability(0.32, true)).isEqualTo(32d);
-        assertThat(OwmInference.toProbability(1.0, true)).isEqualTo(100d);
+    @DisplayName("강수확률 POP 정규화(항상 0..1)")
+    void 강수_확률_POP_정규화() {
+        // 입력이 %인 경우 (inputIsPercent = true) → 0..1로 변환
+        assertThat(OwmInference.toProbabilityNormalized(null, true)).isEqualTo(0d);
+        assertThat(OwmInference.toProbabilityNormalized(0d, true)).isEqualTo(0d);
+        assertThat(OwmInference.toProbabilityNormalized(32d, true)).isEqualTo(0.32d);
+        assertThat(OwmInference.toProbabilityNormalized(100d, true)).isEqualTo(1.0d);
 
-        assertThat(OwmInference.toProbability(0.32, false)).isEqualTo(0.32);
+        // 입력이 소수(0..1)인 경우 (inputIsPercent = false) → 그대로 0..1 유지
+        assertThat(OwmInference.toProbabilityNormalized(0.32, false)).isEqualTo(0.32d);
+
+        // 방어로직: 실수로 1보다 큰 소수가 들어와도 0..1로 보정
+        assertThat(OwmInference.toProbabilityNormalized(2.5, false)).isEqualTo(0.025d);
+        assertThat(OwmInference.toProbabilityNormalized(250d, false)).isEqualTo(1.0d); // 최종 clamp
     }
 }

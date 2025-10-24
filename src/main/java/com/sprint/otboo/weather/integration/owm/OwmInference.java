@@ -40,8 +40,17 @@ public final class OwmInference {
         return PrecipitationType.NONE;
     }
 
-    public static double toProbability(Double pop, boolean asPercent) {
-        double v = pop == null ? 0d : pop;
-        return asPercent ? v * 100d : v;
+    public static double toProbabilityNormalized(Double pop, boolean inputIsPercent) {
+        double v = pop == null ? 0d : pop.doubleValue();
+        if (inputIsPercent) {
+            v = v / 100d;          // % -> 소수
+        }
+        // 만약 실수로 1보다 큰 값이 들어왔다면 추가 방어
+        if (v > 1d) {
+            v = v / 100d;
+        }
+        if (v < 0d) v = 0d;
+        if (v > 1d) v = 1d;
+        return v;
     }
 }

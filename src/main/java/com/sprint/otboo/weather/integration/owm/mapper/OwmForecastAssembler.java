@@ -41,8 +41,7 @@ public class OwmForecastAssembler {
         double speedMs = safe(c.windSpeedMs());
         WindStrength asWord = windStrengthResolver.resolve(speedMs);
         double amountMm = safe(c.rain3hMm()) + safe(c.snow3hMm());
-        double probability = OwmInference.toProbability(c.pop(), percentProbability);
-        probability = clamp(probability, percentProbability ? 0d : 0d, percentProbability ? 100d : 1d);
+        double probability = OwmInference.toProbabilityNormalized(c.pop(), this.percentProbability);
         double currentC = round1(safe(c.temperatureC()));
 
         LocalDate date = LocalDate.ofInstant(c.forecastAt(), zone);
@@ -67,7 +66,4 @@ public class OwmForecastAssembler {
 
     private static double safe(Double v) { return v == null ? 0d : v; }
     private static double round1(double v) { return Math.round(v * 10d) / 10d; }
-    private static double clamp(double v, double min, double max) {
-        return Math.max(min, Math.min(max, v));
-    }
 }
