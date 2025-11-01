@@ -22,12 +22,12 @@ jacocoTestReport {
                     '**/*Dto*.class',
                     '**/config/**',
                     '**/exception/**',
-                    '**/*Index*.class',
                     '**/*Helper*.class',
                     '**/*Kma*.class',
                     '**/*Adapter.class',
                     '**/*Resolver.class',
                     '**/WeatherServiceImpl.class',
+                    '**/FeedServiceImpl.class',
                     '**/WeatherOwmProperties.class'
             ])
         }))
@@ -98,12 +98,6 @@ dependencies {
 
     // configuration-processor
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
-
-    // elastic search
-    implementation "org.springframework.boot:spring-boot-starter-data-elasticsearch"
-    implementation 'co.elastic.clients:elasticsearch-java:8.18.5'
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // retry
     implementation 'org.springframework.retry:spring-retry'

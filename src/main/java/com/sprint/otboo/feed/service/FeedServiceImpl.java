@@ -17,15 +17,13 @@ import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.event.FeedCreatedEvent;
 import com.sprint.otboo.feed.mapper.FeedMapper;
 import com.sprint.otboo.feed.repository.FeedRepository;
-import com.sprint.otboo.feedsearch.event.FeedChangedEvent;
-import com.sprint.otboo.feedsearch.event.FeedDeletedEvent;
-import com.sprint.otboo.feedsearch.repository.FeedSearchRepository;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import com.sprint.otboo.weather.entity.PrecipitationType;
 import com.sprint.otboo.weather.entity.SkyStatus;
 import com.sprint.otboo.weather.entity.Weather;
 import com.sprint.otboo.weather.repository.WeatherRepository;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -45,7 +43,6 @@ public class FeedServiceImpl implements FeedService {
     private final UserRepository userRepository;
     private final WeatherRepository weatherRepository;
     private final ClothesRepository clothesRepository;
-    private final FeedSearchRepository esFeedRepository;
     private final FeedMapper feedMapper;
     private final ApplicationEventPublisher publisher;
 
@@ -88,7 +85,6 @@ public class FeedServiceImpl implements FeedService {
         }
 
         publisher.publishEvent(new FeedCreatedEvent(saved.getId(), saved.getAuthor().getId()));
-        publisher.publishEvent(new FeedChangedEvent(saved.getId()));
         return feedMapper.toDto(saved);
     }
 
@@ -114,7 +110,6 @@ public class FeedServiceImpl implements FeedService {
         Feed saved = feedRepository.save(feed);
         log.info("[FeedServiceImpl] 피드 수정 완료: newContent={}", saved.getContent());
 
-        publisher.publishEvent(new FeedChangedEvent(saved.getId()));
         return feedMapper.toDto(saved);
     }
 
@@ -138,35 +133,39 @@ public class FeedServiceImpl implements FeedService {
         );
         validatePaging(limit, sortBy, sortDirection);
 
-        CursorPageResponse<UUID> idPage = esFeedRepository.searchIds(
-            cursor, idAfter, limit, sortBy, sortDirection,
-            keywordLike, skyStatus, precipitationType, authorId
+        List<Feed> rows = feedRepository.searchByKeyword(
+            cursor,
+            idAfter,
+            limit,
+            sortBy,
+            sortDirection,
+            keywordLike,
+            skyStatus,
+            precipitationType,
+            authorId
         );
-
-        List<UUID> ids = idPage.data();
-        List<FeedDto> data;
-        if (ids.isEmpty()) {
-            data = List.of();
-        } else {
-            List<Feed> rows = feedRepository.findAllById(ids);
-            Map<UUID, Integer> order = new HashMap<>();
-            for (int i = 0; i < ids.size(); i++) {
-                order.put(ids.get(i), i);
-            }
-            data = rows.stream()
-                .sorted(Comparator.comparingInt(f -> order.get(f.getId())))
-                .map(feedMapper::toDto)
-                .toList();
+        boolean hasNext = rows.size() > limit;
+        if (hasNext) {
+            rows = rows.subList(0, limit);
         }
 
-        long total = esFeedRepository.countByFilters(keywordLike, skyStatus, precipitationType,
+        List<FeedDto> feedDtos = rows.stream().map(feedMapper::toDto).toList();
+
+        PageCursor pageCursor = buildNextCursor(rows, hasNext, sortBy);
+        log.info("[FeedService] nextCursor built: cursor={}, idAfter={}",
+            pageCursor.cursor(), pageCursor.idAfter()
+        );
+
+        long total = feedRepository.countByFilters(keywordLike, skyStatus, precipitationType,
             authorId);
 
+        log.debug("[FeedService] total count: {}", total);
+
         return new CursorPageResponse<>(
-            data,
-            idPage.nextCursor(),
-            idPage.nextIdAfter(),
-            idPage.hasNext(),
+            feedDtos,
+            pageCursor.cursor(),
+            pageCursor.idAfter(),
+            hasNext,
             total,
             sortBy,
             sortDirection
@@ -194,8 +193,6 @@ public class FeedServiceImpl implements FeedService {
         feed.softDelete();
         feedRepository.save(feed);
         log.info("[FeedServiceImpl] 피드 삭제 완료: feedId={}", feedId);
-
-        publisher.publishEvent(new FeedDeletedEvent(feed.getId()));
     }
 
     private void validatePaging(int limit, String sortBy, String sortDirection) {
@@ -236,6 +233,37 @@ public class FeedServiceImpl implements FeedService {
         for (Clothes c : clothesList) {
             saved.addClothes(c);
             log.debug("[FeedServiceImpl] FeedClothes 엔티티 추가 완료: feedId={}", saved.getId());
+        }
+    }
+
+    private PageCursor buildNextCursor(List<Feed> rows, boolean hasNext, String sortBy) {
+        if (!hasNext || rows.isEmpty()) {
+            return PageCursor.empty();
+        }
+
+        Feed last = rows.get(rows.size() - 1);
+
+        String key;
+        if ("likeCount".equalsIgnoreCase(sortBy)) {
+            Long lc = last.getLikeCount();
+            key = String.valueOf(lc);
+        } else {
+            Instant at = last.getCreatedAt();
+            key = (at == null ? "0" : at.toString());
+        }
+
+        String nextCursor = key;
+        String nextIdAfter = last.getId().toString();
+
+        log.info("[FeedService] paging lastId={}, nextCursor={}", last.getId(), nextCursor);
+
+        return new PageCursor(nextCursor, nextIdAfter);
+    }
+
+    private record PageCursor(String cursor, String idAfter) {
+
+        static PageCursor empty() {
+            return new PageCursor(null, null);
         }
     }
 }
