@@ -7,7 +7,6 @@ import com.sprint.otboo.feed.entity.FeedLike;
 import com.sprint.otboo.feed.event.FeedLikedEvent;
 import com.sprint.otboo.feed.repository.FeedLikeRepository;
 import com.sprint.otboo.feed.repository.FeedRepository;
-import com.sprint.otboo.feedsearch.event.FeedChangedEvent;
 import com.sprint.otboo.user.entity.User;
 import com.sprint.otboo.user.repository.UserRepository;
 import java.util.UUID;
@@ -46,7 +45,6 @@ public class LikeServiceImpl implements LikeService {
         feed.increaseLikeCount();
 
         eventPublisher.publishEvent(new FeedLikedEvent(feed.getAuthor().getId(), user.getId()));
-        eventPublisher.publishEvent(new FeedChangedEvent(feed.getId()));
 
         log.debug("[LikeServiceImpl] 좋아요 등록 완료: feedId={}, userId={}, likeCount={}",
             feedId, userId, feed.getLikeCount());
@@ -79,6 +77,5 @@ public class LikeServiceImpl implements LikeService {
             log.warn("[LikeServiceImpl] deleteByFeedIdAndUserId가 0건 반환: feedId={}, userId={}",
                 feedId, userId);
         }
-        eventPublisher.publishEvent(new FeedChangedEvent(feed.getId()));
     }
 }

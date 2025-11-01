@@ -27,8 +27,6 @@ jobs:
           GOOGLE_PASSWORD: ${{ secrets.GOOGLE_PASSWORD }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           KAKAO_API_BASE_URL: ${{ secrets.KAKAO_API_BASE_URL }}
-          ELASTICSEARCH_HOST: ${{ secrets.ELASTICSEARCH_HOST }}
-          ELASTICSEARCH_API_KEY: ${{ secrets.ELASTICSEARCH_API_KEY }}
 
       - run: ./gradlew jacocoTestReport
         if: success()

@@ -9,7 +9,6 @@ import com.sprint.otboo.clothing.mapper.ClothesMapperImpl;
 import com.sprint.otboo.feed.dto.data.FeedDto;
 import com.sprint.otboo.feed.entity.Feed;
 import com.sprint.otboo.feed.entity.FeedClothes;
-import com.sprint.otboo.feedsearch.dto.FeedDoc;
 import com.sprint.otboo.fixture.UserFixture;
 import com.sprint.otboo.fixture.WeatherFixture;
 import com.sprint.otboo.fixture.WeatherLocationFixture;
@@ -112,28 +111,5 @@ class FeedMapperTest {
         assertThat(feedDto.likeCount()).isEqualTo(7L);
         assertThat(feedDto.commentCount()).isEqualTo(3L);
         assertThat(feedDto.likedByMe()).isFalse();
-    }
-
-    @Test
-    void Feed을_FeedDoc으로_매핑하고_epochMillis_보존과_likedByMe_false를_검증한다() {
-        // Given
-        Feed source = feed;
-
-        // When
-        FeedDoc feedDoc = feedMapper.toDoc(source);
-
-        // Then
-        assertThat(feedDoc).isNotNull();
-        assertThat(feedDoc.author()).isNotNull();
-        assertThat(feedDoc.weather()).isNotNull();
-        assertThat(feedDoc.ootds()).isNotNull().hasSize(2);
-        assertThat(feedDoc.likedByMe()).isFalse();
-
-        assertThat(feedDoc.createdAt()).isNotNull();
-        assertThat(feedDoc.updatedAt()).isNotNull();
-        assertThat(feedDoc.createdAt().toEpochMilli())
-            .isEqualTo(feed.getCreatedAt().toEpochMilli());
-        assertThat(feedDoc.updatedAt().toEpochMilli())
-            .isEqualTo(feed.getUpdatedAt().toEpochMilli());
     }
 }
