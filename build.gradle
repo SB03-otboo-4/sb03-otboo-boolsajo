@@ -27,6 +27,7 @@ jacocoTestReport {
                     '**/*Adapter.class',
                     '**/*Resolver.class',
                     '**/WeatherServiceImpl.class',
+                    '**/FeedServiceImpl.class',
                     '**/WeatherOwmProperties.class'
             ])
         }))
